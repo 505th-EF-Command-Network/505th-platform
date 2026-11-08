@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Builds
+.next/
+dist/
+out/
+build/
+*.tsbuildinfo
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*service-account*.json
+*-firebase-adminsdk-*.json
+*.pem
+*.key
+
+# Data — never commit member data or backups
+backups/
+*.ndjson
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor / OS / tools
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/
+.vercel/
