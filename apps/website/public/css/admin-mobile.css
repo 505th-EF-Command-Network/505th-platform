@@ -1,0 +1,570 @@
+/* ================================================================
+   505th Admin Panel — Mobile & Tablet Responsive
+   Link AFTER admin.css in admin.html:
+     <link rel="stylesheet" href="css/admin.css">
+     <link rel="stylesheet" href="css/admin-mobile.css">
+   ================================================================ */
+
+/* ── GLOBAL TOUCH UX ──────────────────────────────────────────── */
+html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ── SIDEBAR OVERLAY BACKDROP ─────────────────────────────────── */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.65);
+    z-index: 49;
+}
+.sidebar-backdrop.active { display: block; }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   768px — Tablet / Mobile
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+    /* ── TOP BAR ── */
+    .top-bar { padding: 8px 14px; backdrop-filter: none; }
+    .top-bar-title { font-size: 13px; letter-spacing: 2px; }
+    .hamburger { display: flex; align-items: center; justify-content: center; }
+    .top-btn span.btn-label { display: none; }
+    .user-identity #topbarName { font-size: 11px; }
+    .user-identity #topbarRole { font-size: 8px; }
+
+    /* ── SIDEBAR ──────────────────────────────────────────────────
+       1. pointer-events:none when closed — stops ghost-taps
+       2. visibility:hidden when closed (belt-and-suspenders)
+       3. app-layout block — kills 240px flex reserve
+       4. overscroll-behavior: contain — stops pull-to-refresh
+          leaking through the sidebar scroll
+       5. SOLID opaque background — no dashboard bleed-through    */
+    .app-layout {
+        display: block !important;
+        /* CRITICAL: Remove the stacking context so the sidebar
+           (position:fixed z:50) paints in the ROOT stacking context,
+           same as the backdrop (z:49). Without this, sidebar z:50
+           is trapped inside app-layout z:1 and the backdrop covers it. */
+        position: static !important;
+        z-index: auto !important;
+    }
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -260px;
+        width: 260px;
+        height: 100vh;
+        height: 100dvh;
+        z-index: 50;
+        transition: left .3s ease, visibility .3s ease;
+        padding-top: 56px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        pointer-events: none;
+        visibility: hidden;
+        /* Solid opaque background — override base .95 alpha */
+        background: #0A0E12 !important;
+        border-right: 1px solid rgba(0,217,255,.35);
+    }
+    .sidebar.open {
+        left: 0;
+        pointer-events: auto;
+        visibility: visible;
+    }
+
+    /* Backdrop must cover everything behind sidebar */
+    .sidebar-backdrop {
+        z-index: 49;
+    }
+    .sidebar-backdrop.active {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.75);
+    }
+
+    /* Nav dropdowns — ensure tap targets work on touch */
+    .nav-header {
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(0,217,255,.15);
+    }
+    .sub-links {
+        /* When parent .nav-item has .open, sub-links display via base CSS */
+    }
+    /* Ensure sub-link text is large enough to tap */
+    .sub-link {
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+
+    /* Nav tooltips — hide on touch devices */
+    .nav-tip { display: none !important; }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+        padding: 16px 12px;
+        width: 100%;
+    }
+
+    /* ── DASHBOARD STATS ROW ──
+       HTML uses inline style repeat(4,1fr) so we need !important */
+    .stats-row,
+    #dashStatsRow {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .stat-number { font-size: 24px; }
+    .stat-label  { font-size: 8px; }
+
+    /* ── DASHBOARD 2-COL GRIDS ──
+       #dashRosterGrid, #dashAttRow, and .dash-grid all use
+       inline grid-template-columns:1fr 1fr — force single-col */
+    .dash-grid,
+    #dashRosterGrid,
+    #dashAttRow {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    /* ── PANEL TITLE ── */
+    .panel-title { font-size: 16px; letter-spacing: 2px; }
+
+    /* ── USER CARDS ── */
+    .user-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+    .user-actions {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .user-actions .action-btn,
+    .user-actions .upload-btn {
+        font-size: 11px;
+        padding: 7px 12px;
+        flex: 1;
+        text-align: center;
+    }
+
+    /* ── USER TABLE ── */
+    .table-header, .table-row {
+        grid-template-columns: 1fr 1fr;
+        font-size: 9px;
+    }
+
+    /* ── ROSTER PANEL ── */
+
+    /* Scroll wrap — contains BOTH header and data rows now */
+    #panel-roster .roster-scroll-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+    }
+
+    /* Fallback (no scroll-wrap): truncated 2-col view */
+    .roster-header,
+    .roster-row {
+        grid-template-columns: 1.6fr 1fr;
+        font-size: 8px;
+    }
+    .roster-cell:nth-child(n+3) { display: none; }
+    .roster-header div:nth-child(n+3) { display: none; }
+
+    /* Inside scroll-wrap: full 10-col with horizontal scroll
+       Both header AND rows get the same columns now */
+    #panel-roster .roster-scroll-wrap .roster-header,
+    #panel-roster .roster-scroll-wrap .roster-row {
+        grid-template-columns: 1.6fr 1fr .8fr 1fr 1.4fr .8fr .65fr 1fr 1.1fr;
+        min-width: 820px;
+    }
+    #panel-roster .roster-scroll-wrap .roster-cell:nth-child(n+3) { display: block; }
+    #panel-roster .roster-scroll-wrap .roster-header div:nth-child(n+3) { display: block; }
+
+    /* Roster stats — force 3-col to stay readable */
+    #panel-roster > .stats-row {
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 6px;
+    }
+
+    /* Sort toolbar — wrap nicely on mobile */
+    #panel-roster > div[style*="display:flex"][style*="flex-wrap:wrap"] {
+        gap: 6px !important;
+    }
+    /* Sort buttons container — allow wrap and remove forced margin */
+    #panel-roster .roster-sort-btn {
+        font-size: 10px !important;
+        padding: 6px 8px !important;
+        min-height: 36px;
+    }
+    /* Hide the long help text on mobile — too much clutter */
+    #panel-roster > div[style*="display:flex"] > span[style*="font-size:11px"][style*="letter-spacing:2px"] {
+        display: none;
+    }
+
+    /* ── AUDIT LOG ── */
+    .audit-entry, .audit-header {
+        grid-template-columns: 1fr;
+        font-size: 9px;
+        gap: 2px;
+    }
+    .audit-time { color: rgba(0,217,255,.5); font-size: 8px; }
+
+    /* ── UPLOAD AREA ── */
+    .upload-row { flex-direction: column; gap: 10px; }
+    .upload-field { width: 100%; }
+    .upload-field input,
+    .upload-field select,
+    .upload-field textarea {
+        font-size: 14px !important;
+        padding: 10px 12px !important;
+    }
+    .upload-btn {
+        text-align: center;
+        padding: 11px 16px;
+        font-size: 13px;
+        min-width: 120px;
+    }
+    /* Full-width when standalone, not in flex button pairs */
+    .upload-area > .upload-btn { width: 100%; }
+    /* Button pairs (SELECT/REMOVE, SAVE/CLEAR) stay side by side */
+    div[style*="display:flex"][style*="gap:6px"] .upload-btn,
+    div[style*="display:flex"][style*="gap:8px"] .upload-btn {
+        width: auto;
+        flex: 1;
+    }
+
+    /* ── SETTINGS: WEBHOOK GRID ── */
+    div[style*="grid-template-columns:200px 1fr auto"] {
+        display: flex !important;
+        flex-direction: column;
+        gap: 6px !important;
+    }
+    div[style*="grid-template-columns:200px 1fr auto"] .action-btn {
+        align-self: flex-start;
+    }
+
+    /* ── RECRUIT SOURCE PANEL ── */
+    div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── EDIT MODAL ── */
+    .edit-modal-content {
+        width: 96% !important;
+        max-width: none !important;
+        padding: 16px !important;
+        max-height: 92vh;
+    }
+    #editUserModal .edit-modal-content { max-width: 96% !important; }
+    #editPane-details > div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+    #editPane-details .edit-field[style*="grid-column:1/-1"] {
+        grid-column: 1 !important;
+    }
+    .edit-tabs { gap: 0; }
+    .edit-tab { font-size: 11px; padding: 8px 12px; letter-spacing: 1px; }
+    .edit-modal-actions { flex-wrap: wrap; }
+    .edit-modal-actions .action-btn { flex: 1; text-align: center; }
+
+    /* ── HISTORY ADD ROW ── */
+    .history-add-row { flex-direction: column; gap: 6px; }
+    .history-add-row input,
+    .history-add-row select {
+        width: 100% !important;
+        max-width: none !important;
+        font-size: 13px !important;
+        padding: 8px 10px !important;
+    }
+    .history-add-btn { width: 100%; padding: 8px; font-size: 12px; }
+
+    /* ── ROSTER MODAL GRID ── */
+    #rosterModal .edit-modal-content div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── MEDIA GRID V2 ── */
+    .media-grid-v2 { grid-template-columns: 1fr; }
+    .media-thumb-v2 { height: 200px; }
+
+    /* ── AAR FORM ── */
+    #panel-aar div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── NOTIFICATION TOAST ── */
+    .notification {
+        right: 10px;
+        left: 10px;
+        font-size: 10px;
+        text-align: center;
+    }
+
+    /* ── UNIT CARDS ── */
+    #panel-unitcards div[style*="display:grid"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── MEDIA PICKER MODAL ── */
+    .picker-content {
+        width: 98%;
+        max-height: 85vh;
+    }
+    .picker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 8px;
+        padding: 10px;
+    }
+
+    /* ── ATTENDANCE TRACKER ── */
+    #panel-attendance div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ── MIN TAP TARGETS (48px recommended, 40px minimum) ── */
+    .action-btn, .upload-btn, .top-btn { min-height: 40px; }
+    .action-btn.small { min-height: 32px; }
+    .sub-link { min-height: 44px; display: flex; align-items: center; }
+    .dash-link { min-height: 44px; }
+    .nav-header { min-height: 44px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   600px — Small Tablet (iPad Mini, Fire 7, landscape phones)
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+
+    .top-bar-title { font-size: 12px; letter-spacing: 1.5px; }
+    .top-bar-right { gap: 8px; }
+
+    .picker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   480px — Small Phone
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+
+    .top-bar { padding: 6px 10px; }
+    .top-bar-title { font-size: 11px; letter-spacing: 1px; }
+    .top-bar-right { gap: 6px; }
+    .top-btn { padding: 6px 10px; font-size: 9px; }
+
+    /* Full-width sidebar slide */
+    .sidebar {
+        width: 100%;
+        left: -100%;
+        background: #0A0E12 !important;
+    }
+
+    /* Tighter content padding */
+    .main-content { padding: 12px 8px; }
+
+    /* Single-column stats */
+    .stats-row,
+    #dashStatsRow {
+        grid-template-columns: 1fr !important;
+    }
+    /* Roster stats stay 3-col but smaller */
+    #panel-roster > .stats-row {
+        grid-template-columns: 1fr 1fr 1fr !important;
+    }
+    #panel-roster .stat-number { font-size: 20px; }
+    .stat-number { font-size: 22px; }
+
+    /* Edit modal — full screen takeover */
+    .edit-modal-content {
+        width: 100% !important;
+        max-height: 100vh !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-radius: 0 !important;
+    }
+
+    /* Medal picker horizontal scroll */
+    .medal-picker {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+    .medal-opt { min-width: 50px; flex-shrink: 0; }
+
+    /* Search bar full width */
+    input[type="text"][placeholder*="SEARCH"],
+    input[type="text"][placeholder*="search"] { width: 100%; }
+
+    /* Panel title smaller */
+    .panel-title { font-size: 14px; letter-spacing: 1.5px; }
+
+    /* History entries stack tighter */
+    .history-entry {
+        grid-template-columns: 1fr;
+        gap: 2px;
+    }
+    .history-entry-date {
+        font-size: 8px;
+    }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   360px — Very Small Phones (iPhone SE, older Android)
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 360px) {
+
+    .top-bar-title { font-size: 10px; }
+    .top-btn { padding: 5px 8px; font-size: 8px; letter-spacing: 1px; }
+    .user-identity #topbarName { font-size: 10px; }
+    .user-identity #topbarRole { font-size: 7px; }
+
+    .stat-number { font-size: 20px; }
+    .stat-label  { font-size: 7px; }
+
+    .panel-title { font-size: 13px; }
+
+    .edit-tab { font-size: 10px; padding: 7px 8px; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   Landscape phone — prevent sidebar from eating the screen
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) and (max-height: 500px) {
+    .sidebar {
+        width: 220px;
+        left: -220px;
+    }
+    .sidebar.open { left: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW FEATURE MOBILE FIXES
+   ══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+    /* ── PERSONNEL FILES TABS ── */
+    #personnelTabs {
+        gap: 3px;
+        padding: 4px;
+    }
+    .pers-tab {
+        font-size: 10px;
+        letter-spacing: 1px;
+        padding: 6px 10px;
+        min-height: 36px;
+    }
+    #personnelTabCount {
+        font-size: 9px;
+    }
+
+    /* ── ATTENDANCE TRACKER — 6-col stats → 3-col 2-row ── */
+    #panel-attendance > div[style*="grid-template-columns:repeat(6"] ,
+    div[style*="grid-template-columns:repeat(6,1fr)"] {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    /* ── ATTENDANCE HEALTH — 6 mini cards → 3-col ── */
+    #dashAttendanceHealth div[style*="display:flex"][style*="flex-wrap:wrap"] {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+    }
+    #dashAttendanceHealth div[style*="display:flex"][style*="flex-wrap:wrap"] > div {
+        flex: none !important;
+        min-width: 0 !important;
+    }
+
+    /* ── WHO'S ONLINE WIDGET ── */
+    #dashOnlineSection { margin-bottom: 12px; }
+    #dashOnlineList > div {
+        padding: 6px 8px;
+    }
+
+    /* ── SETTINGS PANEL (display preferences) ── */
+    .desktop-settings-panel { display: none !important; }
+    .rail-settings-btn { display: none !important; }
+
+    /* ── AT-RISK SCROLLABLE LIST ── */
+    #dashAttendanceHealth div[style*="max-height:200px"] {
+        max-height: 150px;
+    }
+
+    /* ── DASHBOARD ONLINE COUNT BADGE ── */
+    #dashOnlineCount {
+        font-size: 8px;
+        padding: 1px 6px;
+    }
+
+    /* ── ATTENDANCE TRACKER STATS ROW (6 cards) ── */
+    #attStatTotalOps, #attStatOverall {
+        /* These are the 2 new cards — ensure they render in the 3-col grid */
+    }
+}
+
+@media (max-width: 480px) {
+
+    /* ── PERSONNEL TABS — 2 per row on small phones ── */
+    #personnelTabs {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 3px;
+    }
+    .pers-tab {
+        text-align: center;
+        font-size: 9px;
+        padding: 5px 6px;
+        letter-spacing: 1px;
+    }
+    .pers-tab.active::after { display: none; } /* dot too small at this size */
+
+    /* ── ATTENDANCE HEALTH — 2-col on small phones ── */
+    #dashAttendanceHealth div[style*="display:flex"][style*="flex-wrap:wrap"],
+    #dashAttendanceHealth div[style*="display:grid"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* ── ATTENDANCE TRACKER 6-COL → 2-COL ── */
+    div[style*="grid-template-columns:repeat(6,1fr)"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* ── WHO'S ONLINE — compact ── */
+    #dashOnlineSection .dash-section-title {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+}
+
+    /* ═══════════════════════════════════════════════
+       CHAT & NOTIFICATION PANELS — MOBILE
+    ═══════════════════════════════════════════════ */
+    @media (max-width: 600px) {
+        #msgPanel, #adminNotifPanel {
+            width: 100vw !important;
+            left: 0 !important;
+            right: 0 !important;
+            border-left: none !important;
+            top: 52px !important;
+            height: calc(100vh - 52px) !important;
+        }
+        /* Top bar buttons — icon only on small screens */
+        #msgToggleBtn span:not([id]),
+        #adminNotifBtn span:not([id]) { display: none; }
+        /* Shrink top bar buttons */
+        .top-btn { padding: 6px 10px !important; font-size: 9px !important; letter-spacing: 1px !important; }
+    }

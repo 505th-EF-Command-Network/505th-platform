@@ -1,0 +1,121 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../../app/boot";
+@source "../../app/login";
+@source "../../app/not-found.tsx";
+@source "../../components/boot";
+@source "../../app/enlist";
+@source "../../components/enlist";
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  body {
+    background: #050709;
+    color: #e8eef2;
+    font-family: "Rajdhani", sans-serif;
+  }
+  button {
+    font: inherit;
+  }
+}
+
+@keyframes bt-hex-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-30deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bt-scan {
+  from {
+    top: 0;
+  }
+  to {
+    top: 100%;
+  }
+}
+@keyframes bt-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bt-win {
+  0% {
+    transform: scale(0.2, 0.02);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1, 0.02);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1, 1);
+    opacity: 1;
+  }
+}
+@keyframes bt-type {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes bt-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes bt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bt-edge {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes bt-pulse {
+  50% {
+    box-shadow: 0 0 12px #ffd700;
+    background: #ffd700;
+  }
+}
+@keyframes bt-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+@keyframes bt-split-l {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes bt-split-r {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+  }
+}

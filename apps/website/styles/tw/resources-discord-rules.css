@@ -1,0 +1,123 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../../app";
+@source "../../components";
+@custom-variant mq1 (@media (max-height: 600px) and (orientation: landscape));
+@layer base{
+:root{--primary:#4A5D23;--primary-dark:#2F3A1B;--primary-light:#6B8235;--accent:#00D9FF;--accent-glow:rgba(0, 217, 255, 0.5);--bg-dark:#0A0E12;--bg-card:#141B1F;--bg-elevated:#1C2529;--text-primary:#E8EEF2;--text-secondary:#A8B5BF;--text-muted:#6B7B87;--font-heading:"Rajdhani", sans-serif;--font-body:"Rajdhani", sans-serif}
+* {margin: 0;
+    padding: 0;
+    box-sizing: border-box;}
+body {font-family: var(--font-body);
+    background: linear-gradient(180deg, #0A0E12 0%, #050709 100%);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;}
+h1, h2, h3, h4 {font-family: var(--font-heading);
+    font-weight: 700;}
+a {text-decoration: none;
+    color: inherit;}
+@keyframes logoBreathing {
+    0%, 100% {
+        filter: drop-shadow(0 0 10px var(--accent-glow));
+    }
+    50% {
+        filter: drop-shadow(0 0 20px var(--accent-glow));
+    }
+}
+@keyframes logoBreathing {
+            0%,100% { filter: drop-shadow(0 0 10px rgba(0,217,255,0.5)); }
+            50%      { filter: drop-shadow(0 0 22px rgba(0,217,255,0.9)); }
+        }
+@media (min-width: 1024px) { main {margin-top: 72px !important;
+            margin-left: 52px !important;
+            transition: margin-left 0.28s cubic-bezier(0.4,0,0.2,1);} }
+@media (min-width: 1024px) { body.panel-open main {margin-left: 252px !important;} }
+@keyframes crosshairPing {
+            0%,100% { transform: scale(1); opacity: 0.4; }
+            50%      { transform: scale(1.3); opacity: 0; }
+        }
+}
+@layer utilities {
+.menu-header h2 {color: var(--accent);
+    font-size: 1.8rem;
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px var(--accent-glow);}
+.menu-footer p {color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 2px;}
+.page-header h1 {font-size: 3rem;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--accent-glow);
+    letter-spacing: 6px;
+    margin-bottom: 0.5rem;}
+.page-footer p {margin: 0.5rem 0;}
+@media (max-width: 768px) { .menu-header h2 {font-size: 1.3rem;} }
+@media (max-width: 768px) { .page-header h1 {font-size: 2rem;
+        letter-spacing: 3px;} }
+@media (max-width: 480px) { .page-header h1 {font-size: 1.5rem;
+        letter-spacing: 2px;} }
+.intro-box p {color: var(--text-secondary);
+    font-size: 1.1rem;
+    letter-spacing: 1px;}
+.rule-content h3 {color: var(--accent);
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 1px;}
+.rule-card.warning .rule-content h3 {color: #FFB800;}
+.rule-content p {color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.6;}
+.additional-info h2 {color: var(--accent);
+    font-size: 2rem;
+    letter-spacing: 3px;
+    margin-bottom: 2rem;
+    text-align: center;
+    text-shadow: 0 0 10px var(--accent-glow);}
+.info-section h3 {color: var(--accent);
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    letter-spacing: 2px;
+    border-left: 4px solid var(--accent);
+    padding-left: 1rem;}
+.info-section p {color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    line-height: 1.8;}
+.consequence-list li, .zero-tolerance-list li, .appeal-list li {color: var(--text-secondary);
+    padding: 0.75rem 0;
+    padding-left: 2rem;
+    position: relative;
+    border-bottom: 1px solid rgba(0, 217, 255, 0.1);}
+.consequence-list li:last-child, .zero-tolerance-list li:last-child, .appeal-list li:last-child {border-bottom: none;}
+.consequence-list li::before, .zero-tolerance-list li::before, .appeal-list li::before {content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-size: 1.2rem;}
+.zero-tolerance-list li::before {content: "⚠";}
+.discord-cta h2 {color: var(--accent);
+    font-size: 2rem;
+    letter-spacing: 3px;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 10px var(--accent-glow);}
+.discord-cta p {color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin-bottom: 2rem;}
+.rules-footer p {color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 0.5rem;}
+@media (max-width: 768px) { .consequence-list li, .zero-tolerance-list li, .appeal-list li {font-size: 0.9rem;} }
+@media (max-width: 480px) { .info-section h3 {font-size: 1.2rem;} }
+@media (min-width: 1024px) { .desktop-logo-header img {width: 44px; height: 44px;
+            filter: drop-shadow(0 0 10px rgba(0,217,255,0.55));
+            animation: logoBreathing 3s ease-in-out infinite;} }
+@media (min-width: 1024px) { .crosshair-svg circle {fill: none; stroke: var(--accent,#00D9FF); stroke-width: 1.5; transition: all 0.3s;} }
+@media (min-width: 1024px) { .crosshair-svg line {stroke: var(--accent,#00D9FF); stroke-width: 1.5;
+            stroke-linecap: round; transition: all 0.3s;} }
+@media (min-width: 1024px) { .rail-btn img {width: 22px; height: 22px; opacity: 0.45;
+            transition: opacity 0.2s, filter 0.2s; pointer-events: none;} }
+@media (min-width: 1024px) { .rail-btn:hover img, .rail-btn.active img {opacity: 1; filter: drop-shadow(0 0 5px rgba(0,217,255,0.7));} }
+@media (min-width: 1024px) { .rail-btn.acct-active img {opacity: 1; filter: drop-shadow(0 0 5px rgba(0,217,255,0.7));} }
+}

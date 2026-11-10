@@ -1,0 +1,55 @@
+/*
+ * Nav v2 — layout overrides for the page content.
+ *
+ * Every page's own stylesheet sets `main` / footer margins for the old 52px rail
+ * with !important inside Tailwind's base and utilities layers. Important
+ * declarations in an EARLIER layer win, so these overrides live in the `theme`
+ * layer (the first one) to take priority without touching each page.
+ */
+@layer theme {
+  @media (min-width: 1024px) {
+    main,
+    .page-footer {
+      margin-left: 72px !important;
+      transition: none !important;
+    }
+    body.nav-ready main,
+    body.nav-ready .page-footer {
+      transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    body.nav-panel-open main,
+    body.nav-panel-open .page-footer {
+      margin-left: 332px !important;
+    }
+  }
+  @media (max-width: 1023px) {
+    main {
+      margin-top: 78px !important;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.nav-ready main,
+    body.nav-ready .page-footer {
+      transition: none !important;
+    }
+  }
+}
+
+@keyframes nav-item-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.nav-scanlines {
+  background: repeating-linear-gradient(0deg, rgba(0, 217, 255, 0.022) 0 1px, transparent 1px 4px);
+}
+
+.nav-hex {
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}

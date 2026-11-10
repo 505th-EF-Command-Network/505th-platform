@@ -5,7 +5,8 @@
   "description": "505th Expeditionary Force Command Network — website, 505th Hub and Cortana v2.0",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "tools/migrate-firebase"
   ],
   "engines": {
     "node": ">=20"
