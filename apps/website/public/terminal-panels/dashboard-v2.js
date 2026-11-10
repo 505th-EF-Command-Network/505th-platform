@@ -79,6 +79,8 @@ const onlineNow = () => {
   const cut = Date.now() - 3 * 60 * 1000;
   const m = new Map();
   D.pres.filter((p) => Date.parse(p.updatedAt || 0) > cut).forEach((p) => m.set(p.uid, p));
+  // You're looking at the dashboard, so you're online — even if your check-in hasn't been saved yet.
+  if (D.me?.uid && !m.has(D.me.uid)) m.set(D.me.uid, { uid: D.me.uid, role: D.me.role || "", panel: "admin_dashboard", updatedAt: new Date().toISOString() });
   return [...m.values()];
 };
 const userOf = (id) => D.users.find((u) => u.id === id) || {};
@@ -135,7 +137,7 @@ const WID = {
     const cortSub = c.online ? `${c.pingMs} MS DISCORD PING` : c.lastHeartbeatISO ? `LAST SEEN ${ukDay(c.lastHeartbeatISO)} ${ukTime(c.lastHeartbeatISO)}` : "NOT STARTED YET";
     const up = uptimeDays(c);
     const pct = (a) => { const v = a.filter((x) => x != null); return v.length ? (v.reduce((x, y) => x + y, 0) / v.length).toFixed(2) + "%" : "—"; };
-    return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", cortOk, cortSub)}${tile("DISCORD API", c.online ? c.pingMs < 1000 : null, c.online ? "CHECKED BY CORTANA" : "NEEDS CORTANA")}${tile("CLOUDINARY", null, "CHECK COMING LATER")}${tile("505TH HUB", null, "NOT BUILT YET")}</div>
+    return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", cortOk, cortSub)}${tile("DISCORD API", c.online ? c.pingMs < 1000 : null, c.online ? "CHECKED BY CORTANA" : "NEEDS CORTANA")}${tile("CLOUDINARY", p.cdn != null ? true : p.cdnErr ? false : null, p.cdn != null ? `IMAGES · ${p.cdn} MS` : p.cdnErr ? "CAN'T REACH IMAGES" : "CHECKING…")}${tile("505TH HUB", null, "NOT BUILT YET")}</div>
       <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${[["WEBSITE", NO_HISTORY], ["DATABASE", NO_HISTORY], ["CORTANA", up], ["505TH HUB", NO_HISTORY]].map(([n, a]) => `<div class="d2-hbar"><span>${n}</span>${ub(a)}<b>${pct(a)}</b></div>`).join("")}<small class="dim">CORTANA UPTIME IS RECORDED EVERY 30 SECONDS. WEBSITE / HUB HISTORY COMES LATER.</small>`;
   } },
   cortana: { t: "◈ CORTANA HEALTH", d: "Bot status, ping, memory, queued jobs, errors", ico: "◈", g: "STATUS", acc: "bot", accL: "BOT SERVER", b: () => {
@@ -304,6 +306,8 @@ async function load() {
   ]);
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
   D.ping.db = await timed(() => getDoc(doc(db, "unit_config", "status"))).catch(() => ((D.ping.dbErr = 1), null));
+  // Cloudinary = where gallery / event / Quick Upload images live. Checks its image servers answer.
+  D.ping.cdn = await timed(() => fetch("https://res.cloudinary.com/", { mode: "no-cors", cache: "no-store" })).catch(() => ((D.ping.cdnErr = 1), null));
 }
 
 /* ───────── welcome bar ───────── */

@@ -28,7 +28,13 @@ function state() {
   const level = items.some(([l]) => l === "down") ? "down" : items.length ? "slow" : "ok";
   return { online, level, items };
 }
-const spark = (vals, max) => `<div class="nt-spark" aria-hidden="true">${vals.map((v) => `<i style="height:${Math.max(4, Math.min(100, (v / (max || 1)) * 100))}%;${v > max * 0.8 ? "background:#f59e0b" : ""}"></i>`).join("")}</div>`;
+/** Bar chart. Always N slots (empty ones faint) so one reading is one thin bar, not a full block.
+ *  Amber only when a reading is actually slow (over `slow` ms), not just the highest so far. */
+const spark = (vals, max, slow = Infinity, n = 30) => {
+  const v = vals.slice(-n);
+  const pad = Array(Math.max(0, n - v.length)).fill(null);
+  return `<div class="nt-spark" aria-hidden="true">${[...pad, ...v].map((x) => (x == null ? '<i class="e"></i>' : `<i style="height:${Math.max(4, Math.min(100, (x / (max || 1)) * 100))}%;${x > slow ? "background:#f59e0b" : ""}"></i>`)).join("")}</div>`;
+};
 const row = (k, v, cls = "") => `<div class="nt-row"><span>${k}</span><span class="${cls}">${v}</span></div>`;
 const upFor = (iso) => { if (!iso) return "—"; const m = Math.floor((Date.now() - Date.parse(iso)) / 60000); return `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h ${m % 60} m`; };
 
@@ -48,7 +54,7 @@ function draw() {
     <small>LAST CHECK ${lastAt ? Math.round((Date.now() - lastAt) / 1000) + " S AGO" : "…"} · CORTANA HEARTBEAT ${bs.lastHeartbeatISO ? Math.round((Date.now() - Date.parse(bs.lastHeartbeatISO)) / 1000) + " S AGO" : "NEVER"}</small></div>
     <button class="b" data-x="check">⟳ CHECK NOW</button></div>
   <div class="nt-4">
-    <div class="nt-card"><b>🌐 WEBSITE</b><div class="nt-st">${ok(webMs != null, "ONLINE", "NOT ANSWERING")}</div>${row("RESPONSE", webMs != null ? webMs + " ms" : "—")}${row("CHECKED", "every 15 s")}${spark(webHist, Math.max(300, ...webHist))}</div>
+    <div class="nt-card"><b>🌐 WEBSITE</b><div class="nt-st">${ok(webMs != null, "ONLINE", "NOT ANSWERING")}</div>${row("RESPONSE", webMs != null ? webMs + " ms" : "—")}${row("CHECKED", "every 15 s")}${spark(webHist, Math.max(1500, ...webHist), 1500)}<small class="nt-n">AMBER = SLOWER THAN 1.5 S · THE FIRST CHECK AFTER A QUIET SPELL IS SLOWER (SERVER WAKING UP)</small></div>
     <div class="nt-card"><b><i class="nt-logo"></i> CORTANA</b><div class="nt-st">${ok(s.online, "ONLINE · v" + esc(bs.version || "2"), "OFFLINE")}</div>
       ${row("DISCORD PING", s.online ? (bs.pingMs ?? "—") + " ms" : "—", bs.pingMs > 250 ? "wr" : "")}${row("UP FOR", s.online ? upFor(bs.startedAtISO) : "—")}${row("CPU · RAM", s.online ? `${bs.cpuPercent ?? "—"}% · ${bs.memoryMb ?? "—"} MB` : "—")}
       ${row("JOBS QUEUED", bs.jobsQueued ?? 0, bs.jobsQueued > 10 ? "wr" : "")}${row("ERRORS (24 H)", bs.errors24h ?? 0, bs.errors24h ? "wr" : "")}${row("UPTIME (30 D)", uptime30 ? uptime30 + "%" : "—")}${row("RUNS UNDER", bs.supervised ? "PM2 (auto-restart)" : "dev / manual")}</div>
@@ -64,7 +70,7 @@ function draw() {
     <div class="nt-card"><b>CORTANA CONTROL</b><p class="nt-n" style="margin:6px 0 10px">COMMANDER / DEVELOPER ONLY · EVERY ACTION GOES TO THE AUDIT LOG</p>
       ${acc.bot ? `<div class="nt-btns"><button class="b" data-x="restart" style="border-color:#f59e0b;color:#f59e0b" ${busy || !s.online ? "disabled" : ""}>${busy === "restart" ? "RESTARTING…" : "↻ RESTART CORTANA"}</button><button class="b" data-x="sync" ${busy || !s.online ? "disabled" : ""}>${busy === "sync" ? "SYNCING…" : "⟳ RE-SYNC CHANNELS + ROLES"}</button><button class="b" data-x="cmds" ${busy || !s.online ? "disabled" : ""}>${busy === "cmds" ? "WORKING…" : "⌘ RE-REGISTER COMMANDS"}</button></div>
       <p class="nt-n" style="margin-top:10px">${bs.supervised ? "RESTART: CORTANA SAVES ITS WORK, STOPS, PM2 STARTS IT AGAIN (~10 S). THE WEBSITE KEEPS WORKING." : "▲ CORTANA ISN'T RUNNING UNDER PM2 — A RESTART WOULD STOP IT. START IT AGAIN BY HAND (npm run dev:all)."}</p>` : '<p class="nt-n">You can see the status. Only Developers / Command can control Cortana.</p>'}</div></div>
-  <div class="nt-2"><div class="nt-card"><b>DISCORD PING · LAST 24 H</b>${spark(hours, Math.max(250, ...hours))}<div class="nt-n" style="display:flex;justify-content:space-between"><span>24 H AGO</span><span>HIGHEST ${Math.max(0, ...hours)} MS</span><span>NOW</span></div></div>
+  <div class="nt-2"><div class="nt-card"><b>DISCORD PING · LAST 24 H</b>${spark(hours, Math.max(250, ...hours), 400, 24)}<div class="nt-n" style="display:flex;justify-content:space-between"><span>24 H AGO</span><span>HIGHEST ${Math.max(0, ...hours)} MS</span><span>NOW</span></div></div>
     <div class="nt-card" style="padding:0"><div style="padding:12px 14px"><b>INCIDENTS</b></div><table class="nt-tb"><thead><tr><th>WHEN</th><th>WHAT</th><th>HOW LONG</th></tr></thead><tbody>
       ${incidents.slice(0, 12).map((x) => { const end = x.endedAtISO ? Date.parse(x.endedAtISO) : Date.now(), m = Math.max(0, Math.round((end - Date.parse(x.startedAtISO)) / 60000)); return `<tr><td>${esc(ukTime(x.startedAtISO))}</td><td><span class="pill ${x.level === "down" ? "er" : "wr"}">${x.level === "down" ? "DOWN" : "SLOW"}</span> ${esc(x.what)}</td><td>${x.endedAtISO ? (m < 1 ? "under 1 min" : m < 60 ? m + " min" : Math.round(m / 60) + " h") : '<b style="color:#ff4d4d">ONGOING · ' + (m < 1 ? "<1" : m) + " min</b>"}</td></tr>`; }).join("") || '<tr><td colspan="3" class="empty">No incidents. 👍</td></tr>'}</tbody></table></div></div>`;
 }
@@ -117,7 +123,7 @@ const CSS = `
 #netV2 .nt-logo{display:inline-block;width:16px;height:16px;background:url(/images/logo.png) center/contain no-repeat}
 #netV2 .nt-st{font:700 12px monospace;margin:6px 0 4px}
 #netV2 .nt-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,217,255,.07);font-size:13px}#netV2 .nt-row span:first-child{color:#6f8a96;font:11px monospace;letter-spacing:1px}#netV2 .nt-row .wr{color:#f59e0b}#netV2 .nt-row .ok{color:#22e07a}
-#netV2 .nt-spark{display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:10px}#netV2 .nt-spark i{flex:1;background:rgba(0,217,255,.55)}
+#netV2 .nt-spark{display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:10px}#netV2 .nt-spark i{flex:1;background:rgba(0,217,255,.55)}#netV2 .nt-spark i.e{height:4%;background:rgba(0,217,255,.08)}
 #netV2 .nt-2 .nt-spark{height:90px}
 #netV2 .nt-bar{height:6px;background:#0c1a22;margin-top:8px}#netV2 .nt-bar div{height:100%;background:#00D9FF}
 #netV2 .nt-n{color:#6f8a96;font:10px monospace;letter-spacing:1px}

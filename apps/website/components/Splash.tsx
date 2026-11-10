@@ -96,7 +96,7 @@ export default function Splash() {
             CLASSIFICATION: UNCLASSIFIED // FOR OFFICIAL USE ONLY
           </p>
           <div
-            className={`relative flex flex-col items-center gap-[18px] p-8 text-center transition-opacity duration-[600ms] ${stage === "leaving" ? "opacity-0" : "opacity-100"}`}
+            className={`relative flex flex-col items-center gap-[18px] p-8 text-center max-[480px]:px-3 transition-opacity duration-[600ms] ${stage === "leaving" ? "opacity-0" : "opacity-100"}`}
           >
             <div className="relative flex h-[260px] w-[260px] items-center justify-center max-[480px]:h-[220px] max-[480px]:w-[220px]">
               <svg viewBox="0 0 260 260" aria-hidden="true" className="absolute inset-0 h-full w-full">
@@ -113,7 +113,7 @@ export default function Splash() {
                 className="absolute inset-x-5 top-1/2 h-0.5 bg-[linear-gradient(90deg,transparent,#00D9FF,transparent)] shadow-[0_0_12px_#00D9FF] animate-[sp-scan_1.1s_ease-in-out_0.9s_both]"
               />
             </div>
-            <h1 className="whitespace-nowrap [clip-path:inset(0_100%_0_0)] border-r-[3px] border-[#00D9FF] text-[clamp(1.4rem,4vw,3.2rem)] font-bold tracking-[5px] text-[#00D9FF] [text-shadow:0_0_18px_rgba(0,217,255,0.5)] [animation:sp-type_1.2s_steps(27)_2.1s_forwards,sp-caret_.8s_step-end_2.1s_3] max-[480px]:text-[1.25rem] max-[480px]:tracking-[1.5px]">
+            <h1 className="whitespace-nowrap [clip-path:inset(0_100%_0_0)] border-r-[3px] border-[#00D9FF] text-[clamp(1.4rem,4vw,3.2rem)] font-bold tracking-[5px] text-[#00D9FF] [text-shadow:0_0_18px_rgba(0,217,255,0.5)] [animation:sp-type_1.2s_steps(27)_2.1s_forwards,sp-caret_.8s_step-end_2.1s_3] max-[480px]:text-[4.2vw] max-[480px]:tracking-[1px]">
               505TH EXPEDITIONARY FORCE
             </h1>
             <p className="text-[1.35rem] text-[#A8B5BF] animate-[sp-up_0.7s_ease_3.3s_both]">Where Legends Are Forged in Battle</p>

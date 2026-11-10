@@ -14,7 +14,7 @@ const CMD_TYPES = new Set(["sitrep", "staff", "warning", "bct"]);
 addCss("tb2", `
 .top-bar-right>*:not(.tb2){display:none!important}
 .main-content{position:relative;z-index:0}
-#sidebar{z-index:5}
+@media(min-width:769px){#sidebar{z-index:5}}
 .nav-tip{z-index:1000!important}
 .tb2{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace}
 .tb2-crumb{font-size:10px;letter-spacing:2px;color:#7d8a99;margin-right:8px;white-space:nowrap}.tb2-crumb b{color:#00D9FF;font-weight:400}
