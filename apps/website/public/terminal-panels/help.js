@@ -254,6 +254,12 @@ const CSS = `
 .hl-tipbox h3{font:700 14px monospace;letter-spacing:1.5px;color:#00D9FF;margin:0 0 6px}.hl-tipbox p{margin:0 0 12px}
 .hl-tipbox .ft{display:flex;justify-content:space-between;gap:6px}.hl-tipbox .ft>span{display:flex;gap:6px}
 .hl-block{position:fixed;inset:0;z-index:10069}
+.hl-tipbox .b,.hl-panel .b,#helpV2 .hl-btns .b{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 14px;border:1px solid rgba(0,217,255,.35);background:rgba(0,217,255,.06);color:#00D9FF;font:700 11px "Share Tech Mono",monospace;letter-spacing:1.5px}
+.hl-tipbox .b:hover,.hl-panel .b:hover,#helpV2 .hl-btns .b:hover{background:rgba(0,217,255,.15);border-color:#00D9FF}
+.hl-tipbox .b.gold,.hl-panel .b.gold,#helpV2 .hl-btns .b.gold{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,.08)}
+.hl-tipbox .b.gold:hover,.hl-panel .b.gold:hover,#helpV2 .hl-btns .b.gold:hover{background:rgba(245,158,11,.18)}
+.hl-tipbox .b:focus-visible,.hl-panel .b:focus-visible,#helpV2 .hl-btns .b:focus-visible{outline:2px solid #00D9FF;outline-offset:2px}
+.hl-tipbox .b[hidden]{display:none}
 @media(prefers-reduced-motion:reduce){.hl-spot,.hl-tipbox .bar i{transition:none}}
 #helpV2 .hl-sub{color:#6f8a96;font:11px monospace;letter-spacing:1.5px;margin:-6px 0 14px}
 #helpV2 .hl-lay{display:grid;grid-template-columns:220px minmax(0,1fr) 380px;gap:18px;align-items:start}
