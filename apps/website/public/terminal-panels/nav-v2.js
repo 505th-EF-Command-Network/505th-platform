@@ -22,23 +22,17 @@ const PANEL_KEYS = {
   "panel-officers": "om", "panel-network": "net",
   "panel-bot": "bot", "panel-overall": "ovr",
   "panel-auditv2": "audit", "panel-website": "web",
-  "panel-cmd-status": "set", "panel-cmd-sitrep": "set", "panel-cmd-staff": "set", "panel-cmd-promote": "set", "panel-cmd-suspend": "set", "panel-cmd-settings": "set",
+  "panel-cmd-status": "set", "panel-cmd-sitrep": "set", "panel-cmd-staff": "set", "panel-cmd-promote": "set", "panel-cmd-suspend": "set", "panel-cmd-settings": "set", "panel-cmd-cortana": "set", "panel-modlist": "set", "panel-cmd-rolesync": "set",
 };
 
 /** New pages that need Cortana v2 to reach Discord. Shown as "waiting for Cortana v2" for now. */
 const NEEDS_CORTANA = {
-  "panel-tickets": ["TICKETS", "Discord tickets — recruiters handle recruitment tickets from anywhere."],
-  "panel-send": ["SEND MESSAGE", "Post as Cortana — plain text or embed, with a live Discord preview."],
-  "panel-quick": ["QUICK UPLOAD", "Drop screenshots + a caption — Cortana posts them in one message."],
-  "panel-info": ["INFO POSTS", "Permanent posts — Cortana keeps them and only reposts if one goes missing."],
-  "panel-mod": ["MODERATION", "Warnings, timeouts, kicks and bans — done by Cortana, logged here."],
-  "panel-network": ["NETWORK STATUS", "Live health of the website, Cortana, database and Discord, with Cortana restart."],
 };
 
 const GROUPS = [
   { id: "nav-discord", icon: "&#9672;", label: "DISCORD", tip: "Tickets, events, messages, info posts and moderation — sent to Discord by Cortana.", links: [
     ["panel-tickets", "&#127915; Tickets"], ["panel-events", "&#9873; Events"], ["panel-send", "&#9993; Send Message"],
-    ["panel-quick", "&#8682; Quick Upload"], ["panel-info", "&#128204; Info Posts"], ["panel-mod", "&#9960; Moderation"]] },
+    ["panel-quick", "&#8682; Quick Upload"], ["panel-info", "&#128204; Info Posts"], ["panel-mod", "&#9960; Moderation"], ["panel-modlist", "&#128230; Modlist"]] },
   { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes and the public website pages.", links: [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"]] },
   { id: "nav-security", icon: "&#9961;", label: "SECURITY", tip: "Who has access to what, network health and the audit log.", links: [
@@ -46,7 +40,7 @@ const GROUPS = [
   { id: "nav-command", icon: "&#9733;", label: "COMMAND", tip: "Developer / Commander only.", cls: "cmdg", links: [
     ["label", "UNIT"], ["panel-cmd-status", "&#9673; Unit Status"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-cmd-staff", "&#9823; Command Staff"],
     ["panel-cmd-promote", "&#9650; Command Promotions"], ["panel-cmd-suspend", "&#9940; Suspensions"],
-    ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-settings", "&#9881; Settings"]] },
+    ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-cortana", "&#9670; Cortana Setup"], ["panel-cmd-rolesync", "&#8644; Discord Role Sync"], ["panel-cmd-settings", "&#9881; Settings"]] },
 ];
 
 let me = null; // { uid, role, access }
@@ -113,7 +107,7 @@ function buildPanels() {
   const main = document.querySelector(".main-content");
   if (!main) return;
   for (const id of ["panel-tickets", "panel-events", "panel-send", "panel-quick", "panel-info", "panel-mod", "panel-projects", "panel-notes", "panel-officers", "panel-network",
-    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings"]) {
+    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync"]) {
     if (document.getElementById(id)) continue;
     const p = document.createElement("div");
     p.className = "panel hidden";

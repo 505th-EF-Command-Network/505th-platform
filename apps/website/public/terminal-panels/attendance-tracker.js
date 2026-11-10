@@ -88,6 +88,19 @@ const presenceHtml = () => {
 };
 
 // ───────── render ─────────
+/** Sign-ups kept from the Events page after the monthly clean-up (Cortana copies them here). */
+function archiveHtml(a) {
+  const x = a?.eventArchive;
+  if (!x || !Array.isArray(x.buttons)) return "";
+  const when = x.startAtISO ? new Date(x.startAtISO).toLocaleString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase() : "";
+  return `<details class="evarch"><summary>📦 DISCORD SIGN-UPS — ${esc(String(x.title || "").toUpperCase())}${x.status === "cancelled" ? " · CANCELLED" : ""} <small>${esc(when)}</small></summary>
+    <div class="evarch-g">${x.buttons.map((b) => {
+      const list = (x.signups || []).filter((s) => s.choice === b.key);
+      return `<div><b>${esc(b.emoji)} ${esc(b.label)} (${list.filter((s) => !s.waiting).length})</b><small>${list.map((s) => esc(s.name) + (s.waiting ? " ⏳" : "")).join(", ") || "—"}</small></div>`;
+    }).join("")}</div>
+    <small class="evarch-n">Copied from the Events page on ${esc(new Date(x.archivedAtISO || Date.now()).toLocaleDateString("en-GB"))}. Sign-ups are a guide — the roll call below is the record.</small></details>`;
+}
+
 function render() {
   const root = document.getElementById(ROOT);
   if (!root) return;
@@ -154,6 +167,7 @@ function render() {
       }<button class="b red" data-act="delete" ${cur.locked ? 'disabled title="Unlock first"' : ""}>✕ DELETE EVENT</button></div>
     </div>
     <div class="lockednote">🔒 LOCKED — PERMANENT RECORD. STATS ARE COUNTED. UNLOCK TO CORRECT, THEN RE-LOCK.</div>
+    ${archiveHtml(cur)}
     <div class="tools">
       ${["ALL", ...PLATOONS]
         .map((pl) => {
@@ -235,6 +249,8 @@ async function createEvent(form) {
 }
 
 const CSS = `
+#attV2 .evarch{border:1px solid rgba(0,217,255,.18);background:rgba(0,217,255,.03);margin:10px 0;padding:8px 12px}#attV2 .evarch summary{cursor:pointer;font-size:10.5px;letter-spacing:2px;color:#00D9FF}#attV2 .evarch summary small{color:#7d8a99;margin-left:8px}
+#attV2 .evarch-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:10px 0 6px}#attV2 .evarch-g b{display:block;font-size:11px;color:#fff;font-weight:400;letter-spacing:1px}#attV2 .evarch-g small{font-size:10.5px;color:#aeb9c4;line-height:1.5}#attV2 .evarch-n{font-size:9.5px;color:#7d8a99}
 #${ROOT} .live{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--l);background:var(--p);padding:8px 12px;margin:14px 0 12px;font-size:10px;letter-spacing:2px;color:var(--d)}
 #${ROOT} .who{display:flex;gap:6px;flex-wrap:wrap}
 #${ROOT} .pp{display:flex;align-items:center;gap:6px;border:1px solid rgba(0,217,255,.4);color:var(--a);padding:3px 8px;font-size:10px;letter-spacing:1px}

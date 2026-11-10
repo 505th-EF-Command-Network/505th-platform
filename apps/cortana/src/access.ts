@@ -27,3 +27,12 @@ export async function allowed(member: GuildMember | null, key: string | null): P
   if (!w) return false;
   return key ? can(w.role, w.access, key) : hasTerminal(w.role);
 }
+
+/** For website jobs: does the website user who queued it (requestedBy, stamped by the server) have this access item? */
+export async function uidAllowed(uid: unknown, key: string): Promise<{ ok: boolean; name: string }> {
+  if (typeof uid !== "string" || !uid) return { ok: false, name: "" };
+  const d = (await TerminalDoc.findById(`users/${uid}`, { data: 1 }).lean())?.data as Record<string, any> | undefined;
+  if (!d || d.suspended === true) return { ok: false, name: "" };
+  const name = String(d.callsign || d.name || d.displayName || "Staff");
+  return { ok: can(String(d.role ?? ""), d.access ?? {}, key), name };
+}

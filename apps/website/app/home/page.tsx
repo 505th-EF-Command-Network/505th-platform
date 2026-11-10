@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import SiteShell from "@/components/SiteShell";
 import { shellB } from "@/components/shell-styles";
 import "@/styles/tw/home.css";
+import "@/styles/live-ops.css";
+import LiveOps from "@/components/home/LiveOps";
 
 export const metadata: Metadata = { title: "505th Home Page" };
 
@@ -11,6 +13,7 @@ export default function HomePage() {
     <SiteShell styles={shellB}>
       <main className="homepage-content [min-height:calc(100vh_-_110px)] relative overflow-hidden before:content-[''] before:[position:absolute] before:[top:50%] before:[left:50%] before:[transform:translate(-50%,-50%)] before:[width:1100px] before:[height:1100px] before:[background-image:url('/images/logo.png')] before:[background-size:contain] before:[background-repeat:no-repeat] before:[background-position:center] before:[opacity:0.04] before:[z-index:0] before:[pointer-events:none] max-[768px]:before:[width:700px] max-[768px]:before:[height:700px] max-[768px]:before:[opacity:0.03] max-[480px]:before:[width:500px] max-[480px]:before:[height:500px] min-[1024px]:[margin-top:72px]! min-[1024px]:[margin-left:52px]! min-[1024px]:[transition:margin-left_0.28s_cubic-bezier(0.4,0,0.2,1)] min-[1024px]:[body.panel-open_&]:[margin-left:252px]!" id="sharedMain">
         <div className="container [.page-content_&]:[position:relative] [.page-content_&]:[z-index:1] [.media-page-content_&]:[position:relative] [.media-page-content_&]:[z-index:1] [.homepage-content_&]:[max-width:1400px] [.homepage-content_&]:[margin:0_auto] [.homepage-content_&]:[padding:3rem_2rem] [.homepage-content_&]:[position:relative] [.homepage-content_&]:[z-index:1] max-[768px]:[.homepage-content_&]:[padding:2rem_1rem]">
+          <LiveOps />
           <section className="hero-section text-center [margin-bottom:2rem] [padding:4rem_0] max-[768px]:[padding:2rem_0] max-[768px]:[margin-bottom:1.5rem] max-[480px]:[padding:1rem_0] mq1:[padding:1rem_0] mq1:[margin-bottom:2rem]">
             <div className="hero-content">
               <h1 className="hero-title [margin-bottom:1.5rem]">

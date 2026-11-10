@@ -144,8 +144,10 @@ export function writeNeeds(top: string, docId: string, fields: Set<string>, valu
     case "projects": return ["proj"];
     case "notes": return ["notes"];
     case "community_events": return ["ev", "att"];
+    case "info_posts": return ["info"];
+    case "ticket_types": return ["tkrep", "set"];
     // Jobs for Cortana v2 (queued now, sent to Discord once Cortana v2 runs).
-    case "bot_jobs": return ["ev", "send", "qu", "info", "modw", "modk", "tk", "net", "bot"];
+    case "bot_jobs": return ["ev", "send", "qu", "info", "modw", "modk", "tk", "net", "bot", "set"];
     // Command pages (Commander / Developer by default).
     case "unit_config":
     case "fragos": return ["set"];
@@ -154,7 +156,7 @@ export function writeNeeds(top: string, docId: string, fields: Set<string>, valu
       if (docId === "unit_cards") return ["oob"];
       if (docId === "page_content") return ["web"];
       if (docId === "roster_meta") return ["roster"];
-      if (["webhooks", "site", "discord", "audit", "cortana", "discord_role_map"].includes(docId)) return ["set"];
+      if (["webhooks", "site", "discord", "audit", "cortana", "discord_role_map", "discord_sync"].includes(docId)) return ["set"];
       return null;
     default: return null;
   }
@@ -170,6 +172,11 @@ export function readNeeds(top: string): string | null {
     case "audit_logs": return "audit";
     case "projects": return "proj";
     case "notes": return "notes";
+    case "discord_messages": return "send";
+    case "tickets": return "tk";
+    case "mod_cases": return "modw";
+    case "net_incidents": return "net";
+    case "sync_log": return "pers";
     default: return null;
   }
 }

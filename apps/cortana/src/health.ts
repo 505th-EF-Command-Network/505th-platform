@@ -1,16 +1,16 @@
 /**
- * Heartbeat → `bot_status/cortana` every 30 s. The website dashboard reads it:
+ * Heartbeat → `bot_status/cortana` every 10 s. The website dashboard reads it:
  * online (fresh within 90 s), ping, CPU, memory, jobs queued, 24 h ping chart,
  * 30-day uptime (minutes online per UK day).
  */
 import os from "node:os";
-import type { Client } from "discord.js";
+import { GatewayIntentBits, PermissionFlagsBits, type Client } from "discord.js";
 import { TerminalDoc } from "@505th/db";
 import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { patchDoc } from "./store.ts";
 
-const BEAT_MS = 30_000;
+const BEAT_MS = 10_000; // every 10 s (Network Status is live)
 const startedAt = new Date();
 const version = "2.0.0";
 let lastCpu = process.cpuUsage();
@@ -55,6 +55,14 @@ async function beat(client: Client<true>) {
 
   errors24h = errors24h.filter((t) => Date.now() - t < 864e5);
   const mem = process.memoryUsage();
+  const me = guild?.members.me;
+  const NEED: [bigint, string][] = [
+    [PermissionFlagsBits.ViewChannel, "View Channels"], [PermissionFlagsBits.SendMessages, "Send Messages"], [PermissionFlagsBits.EmbedLinks, "Embed Links"],
+    [PermissionFlagsBits.AttachFiles, "Attach Files"], [PermissionFlagsBits.ManageMessages, "Manage Messages"], [PermissionFlagsBits.ManageChannels, "Manage Channels"],
+    [PermissionFlagsBits.ManageRoles, "Manage Roles"], [PermissionFlagsBits.ManageEvents, "Manage Events"], [PermissionFlagsBits.ModerateMembers, "Timeout Members"],
+    [PermissionFlagsBits.KickMembers, "Kick Members"], [PermissionFlagsBits.BanMembers, "Ban Members"], [PermissionFlagsBits.MentionEveryone, "Mention @everyone"],
+  ];
+  const missingPerms = me ? NEED.filter(([p]) => !me.permissions.has(p)).map(([, n]) => n) : [];
   await patchDoc("bot_status", "cortana", {
     online: true,
     startedAtISO: startedAt.toISOString(),
@@ -67,6 +75,9 @@ async function beat(client: Client<true>) {
     guildId: guild?.id ?? null,
     guildName: guild?.name ?? null,
     memberCount: guild?.memberCount ?? null,
+    missingPerms,
+    intents: { members: client.options.intents.has(GatewayIntentBits.GuildMembers), messageContent: client.options.intents.has(GatewayIntentBits.MessageContent) },
+    heartbeatSec: BEAT_MS / 1000,
     botTag: client.user.tag,
     avatarUrl: client.user.displayAvatarURL({ size: 256 }),
     supervised: process.env.pm_id !== undefined,

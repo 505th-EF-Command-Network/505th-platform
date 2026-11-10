@@ -6,8 +6,9 @@ import { EmbedBuilder, MessageFlags, REST, Routes, SlashCommandBuilder, type Cha
 import { TerminalDoc } from "@505th/db";
 import { env } from "../env.ts";
 import { log } from "../log.ts";
+import { staffCommands } from "./staff.ts";
 
-type Cmd = { data: SlashCommandBuilder; key: string | null; run: (i: ChatInputCommandInteraction) => Promise<void> };
+type Cmd = { data: Pick<SlashCommandBuilder, "name" | "toJSON">; key: string | null; run: (i: ChatInputCommandInteraction) => Promise<void> };
 
 const ping: Cmd = {
   data: new SlashCommandBuilder().setName("ping").setDescription("Check Cortana is awake."),
@@ -40,7 +41,7 @@ const status: Cmd = {
   },
 };
 
-export const commands: Cmd[] = [ping, status];
+export const commands: Cmd[] = [ping, status, ...(staffCommands as Cmd[])];
 export const commandMap = new Map(commands.map((c) => [c.data.name, c]));
 
 export async function registerCommands() {

@@ -155,10 +155,27 @@ export default function ClearanceScan(p: ScanProps) {
 
       {/* logo row */}
       <div className={`relative z-10 mt-6 flex items-center justify-center gap-[22px] px-4 transition-opacity duration-400 animate-[bt-up_0.6s_ease_both] ${win ? "opacity-25" : ""}`}>
-        <div className="flex h-[84px] w-[84px] shrink-0 items-center justify-center border border-dashed border-[rgba(0,217,255,0.45)] bg-[rgba(0,217,255,0.04)] text-center font-mono text-[10px] leading-[1.4] tracking-[1.5px] text-[#6B7B87] max-[600px]:hidden">
-          [UNSC
-          <br />
-          EMBLEM]
+        {/* UNSC emblem: a mask, coloured by the scan — cyan while verifying, then green / amber / red */}
+        <div
+          className="shrink-0 transition-[filter] duration-700 max-[600px]:hidden"
+          style={{ filter: `drop-shadow(0 0 10px ${decided ? tone : C.cyan})` }}
+        >
+        <div
+          role="img"
+          aria-label="UNSC emblem"
+          className="h-[84px] w-[58px] transition-[background-color] duration-700"
+          style={{
+            WebkitMaskImage: "url(/images/unsc-emblem.png)",
+            maskImage: "url(/images/unsc-emblem.png)",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            backgroundColor: decided ? tone : C.cyan,
+          }}
+        />
         </div>
         <div className="flex flex-col items-center gap-1 text-center">
           <div className="text-[13px] font-bold tracking-[6px] text-[#A8B5BF] max-[600px]:text-[10px] max-[600px]:tracking-[3px]">UNITED NATIONS SPACE COMMAND</div>

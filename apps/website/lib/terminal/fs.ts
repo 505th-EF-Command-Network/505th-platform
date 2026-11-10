@@ -179,6 +179,13 @@ export async function runOp(actor: Who, raw: Op): Promise<unknown> {
       } else t = docPath(raw.path);
       const isUpdate = raw.op === "update";
       const data = isUpdate ? decodeFieldPaths(asObject(raw.data)) : asObject(decode(asObject(raw.data)));
+      // Jobs for Cortana: add-only, and the server stamps WHO asked (Cortana checks their access).
+      if (t.top === "bot_jobs") {
+        if (raw.op !== "add") throw new FsError("permission-denied", "Jobs can only be added");
+        data.requestedBy = actor.uid;
+        data.status = "pending";
+        data.attempts = 0;
+      }
       const fields = touchedFields(data, isUpdate);
       const isUserDoc = t.top === "users" && t.path.split("/").length === 2;
       const user = isUserDoc ? await loadUser(t.docId) : null;

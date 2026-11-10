@@ -5,7 +5,7 @@ import { TERMINAL_CLEARANCE, clearanceOf } from "@505th/db";
 
 export const dynamic = "force-dynamic";
 
-const FOLDERS = new Set(["505th_gallery", "505th_aar", "505th_comms", "505th_msg"]);
+const FOLDERS = new Set(["505th_gallery", "505th_aar", "505th_comms", "505th_msg", "505th_discord"]);
 const json = (body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 

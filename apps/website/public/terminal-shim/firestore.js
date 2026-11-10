@@ -336,10 +336,47 @@ function ensureTimer() {
   if (timer) return;
   const tick = async () => {
     await pollAll();
-    timer = setTimeout(tick, document.hidden ? POLL_HIDDEN_MS : POLL_MS);
+    timer = setTimeout(tick, document.hidden ? POLL_HIDDEN_MS : liveOk ? POLL_LIVE_MS : POLL_MS);
   };
   timer = setTimeout(tick, POLL_MS);
 }
 
 function pokeListeners() { setTimeout(pollAll, 50); }
+
+// ───────────── Instant updates (Ably, RCD-style) ─────────────
+// Cortana sends "this collection changed" on Ably channel 505th-live (no data). We re-load only the
+// listeners on that collection straight away. Polling stays as the backup (slower while live works).
+const POLL_LIVE_MS = 15000;
+let liveOk = false;
+let liveState = null; // null = not set up / signed out · true = connected · false = reconnecting (polling)
+window.__terminalLive = () => liveState;
+function topOf(l) { return String(l.op.path || l.op.coll || "").split("/")[0]; }
+function pokeTopic(topic) {
+  for (const l of listeners) if (topOf(l) === topic) pollOne(l);
+}
+async function startLive(delay = 0) {
+  if (typeof EventSource === "undefined") return;
+  await new Promise((r) => setTimeout(r, delay));
+  let t;
+  try {
+    const r = await fetch("/api/terminal/realtime", { credentials: "same-origin", cache: "no-store" });
+    if (r.status === 503 || r.status === 401 || r.status === 403) return; // not set up / signed out: polling only
+    if (!r.ok) throw new Error(String(r.status));
+    t = await r.json();
+  } catch {
+    liveState = false;
+    return startLive(Math.min(Math.max(delay * 2, 15000), 300000));
+  }
+  const es = new EventSource(`https://realtime.ably.io/sse?v=1.2&channels=${encodeURIComponent(t.channel)}&accessToken=${encodeURIComponent(t.token)}`);
+  const renew = setTimeout(() => { es.close(); liveOk = false; startLive(); }, Math.max(60000, t.expires - Date.now() - 120000));
+  es.onopen = () => { liveOk = true; liveState = true; };
+  es.onmessage = (ev) => {
+    try { const m = JSON.parse(ev.data); if (m && typeof m.name === "string") pokeTopic(m.name); } catch { /* ignore */ }
+  };
+  es.onerror = () => {
+    liveState = false;
+    if (es.readyState === 2) { clearTimeout(renew); liveOk = false; startLive(15000); }
+  };
+}
+startLive(1500);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) pokeListeners(); });

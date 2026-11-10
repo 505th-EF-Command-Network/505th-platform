@@ -3498,6 +3498,8 @@
             const dUnEl = document.getElementById('editDiscordUsername');
             if(dUnEl) dUnEl.value = u.discordUsername||'';
             document.getElementById('editPlatoon').value    = u.platoon||'';
+            const sqEl = document.getElementById('editSquad');
+            if(sqEl){ if(u.squad && ![...sqEl.options].some(o=>o.value===u.squad)) sqEl.add(new Option(u.squad,u.squad)); sqEl.value = u.squad||''; }
             // Pre-fill FROM platoon with current platoon
             const fromEl = document.getElementById('histPlatoonFrom');
             if (fromEl) fromEl.value = u.platoon||'';
@@ -3894,6 +3896,7 @@
                 lastName:  document.getElementById('editLastName').value.trim(),
                 rank:      newRank,
                 platoon:   document.getElementById('editPlatoon').value,
+                ...(document.getElementById('editSquad') ? { squad: document.getElementById('editSquad').value } : {}),
                 role:      newRole,
                 recruitSource: document.getElementById('editRecruitSource')?.value||'',
             };
@@ -5682,6 +5685,12 @@
                                 <option value="Reserves">Reserves</option>
                             </select>
                         </div>
+                        <div class="edit-field">
+                            <label>SQUAD <span style="color:#aaa;font-size:9px;letter-spacing:1px">(DISCORD ROLE SYNC)</span></label>
+                            <select id="editSquad" style="width:100%;padding:9px;background:rgba(0,0,0,.7);border:1px solid rgba(0,217,255,.35);color:#ccc;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none">
+                                <option value="">— NO SQUAD —</option>
+                            </select>
+                        </div>
                         <div class="edit-field" style="grid-column:1/-1">
                             <label>ROLE</label>
                             <select id="editRoleSelect" style="width:100%;padding:9px;background:rgba(0,0,0,.7);border:1px solid rgba(0,217,255,.35);color:#ccc;font-family:'Share Tech Mono',monospace;font-size:11px;outline:none">
@@ -7239,6 +7248,7 @@
     </script>
 
     <!-- Redesigned panels (each replaces one original panel after its mock is approved) -->
+    <script type="module" src="/terminal-panels/ui-kit.js"></script>
     <script type="module" src="/terminal-panels/nav-v2.js"></script>
     <script type="module" src="/terminal-panels/bct-approvals.js"></script>
     <script type="module" src="/terminal-panels/personnel-files.js"></script>
@@ -7255,6 +7265,15 @@
     <script type="module" src="/terminal-panels/audit.js"></script>
     <script type="module" src="/terminal-panels/website.js"></script>
     <script type="module" src="/terminal-panels/command.js"></script>
+    <script type="module" src="/terminal-panels/cortana-setup.js"></script>
+    <script type="module" src="/terminal-panels/send-message.js"></script>
+    <script type="module" src="/terminal-panels/quick-upload.js"></script>
+    <script type="module" src="/terminal-panels/info-posts.js"></script>
+    <script type="module" src="/terminal-panels/tickets.js"></script>
+    <script type="module" src="/terminal-panels/moderation.js"></script>
+    <script type="module" src="/terminal-panels/network.js"></script>
+    <script type="module" src="/terminal-panels/modlist.js"></script>
+    <script type="module" src="/terminal-panels/role-sync.js"></script>
     <script type="module" src="/terminal-panels/topbar.js"></script>
     <script type="module" src="/terminal-panels/messages-v2.js"></script>
     <script type="module" src="/terminal-panels/dashboard-v2.js"></script>

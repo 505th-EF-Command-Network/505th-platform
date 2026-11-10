@@ -20,6 +20,8 @@ const RANK_ABBR = {
   "E3 / Hospitalman": "HM", "E2 / Hospitalman Apprentice": "HA", "E6 / Technical Sergeant": "TSgt", "E5 / Staff Sergeant": "SSgt",
   "E4 / Senior Airman": "SrA", "E3 / Airman First Class": "A1C", "E2 / Airman": "Amn", "E1 / Airman Basic": "AB", Reservist: "Res",
 };
+/** Every rank the website uses ("E7 / Gunnery Sergeant" …). */
+export const RANK_LIST = Object.keys(RANK_ABBR);
 export const PLATOON_ORDER = ["Command", "1st Platoon", "2nd Platoon", "3rd Platoon", "Force Recon", "Corpsmen", "Pilot", "Awaiting BCT", "Reserves"];
 
 export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -294,7 +296,7 @@ const CF_KIND = {
   danger: ["#ff4d4d", "✕"], big: ["#ff4d4d", "⚠"], warn: ["#f59e0b", "▲"], reason: ["#f59e0b", "✎"], ok: ["#00D9FF", "◈"], info: ["#22e07a", "✓"],
 };
 const CF_CSS = `
-.cf-ov{position:fixed;inset:0;background:rgba(2,4,7,.78);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:2000;padding:20px;animation:cfFd .15s;font-family:'Share Tech Mono',monospace}
+.cf-ov{position:fixed;inset:0;background:rgba(2,4,7,.78);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:10050;padding:20px;animation:cfFd .15s;font-family:'Share Tech Mono',monospace}
 @keyframes cfFd{from{opacity:0}}@keyframes cfPp{from{transform:translateY(8px) scale(.98);opacity:.4}}
 .cf{width:min(440px,100%);background:#0b0f15;border:1px solid var(--c);box-shadow:0 0 40px color-mix(in srgb,var(--c) 18%,transparent),0 20px 80px rgba(0,0,0,.6);animation:cfPp .18s;color:#d6dde6}
 .cf-h{display:flex;align-items:center;gap:12px;padding:16px 20px 0}

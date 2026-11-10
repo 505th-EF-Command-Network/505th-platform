@@ -74,6 +74,9 @@ async function recoverStuck() {
   if (r.modifiedCount) log.warn(`Recovered ${r.modifiedCount} stuck job(s).`);
 }
 
+/** Run the queue now (called by live.ts on a new job). */
+export let wake: () => void = () => {};
+
 export function startJobWorker(client: Client<true>) {
   let running = false;
   let stopped = false;
@@ -89,6 +92,7 @@ export function startJobWorker(client: Client<true>) {
     }
   };
   void recoverStuck().catch((e) => log.error("Job recovery failed", e));
+  wake = () => void tick(); // instant pick-up when the website queues a job (live.ts)
   const timer = setInterval(tick, POLL_MS);
   log.ok(`Job worker started (${Object.keys(handlers).join(", ")}).`);
   return () => {

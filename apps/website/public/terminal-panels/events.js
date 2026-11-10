@@ -11,10 +11,31 @@
  * Attendance Check (attendees = present, noShow = no-show). Locking uses the ORIGINAL
  * lock (saveAttendance(true)) so stats recalculate exactly as before.
  */
-import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, serverTimestamp, updateDoc } from "/terminal-shim/firestore.js";
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, updateDoc } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
 import { addCss, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, onReady, openModal, rankOrder } from "./_common.js";
 import { ask, tell } from "./_common.js";
+
+/* Sign-up channels come from COMMAND → Cortana Setup (settings/cortana.signupChannels, IDs).
+ * Until that is saved, the 6 official 505th channels are matched by name (emoji / dashes ignored). */
+let cortanaCfg = {};
+const SIGNUP_CHANNELS = ["killjoy-1-1", "killjoy-1-2", "jtf-23", "hm", "pilots", "event-schedule"];
+let discordChans = [];
+const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+/** Discord channel ID for a label, or "" if not synced / not found. */
+function chanFor(label) {
+  const n = norm(label);
+  const text = discordChans.filter((c) => c.type === "text" || c.type === "announcement");
+  const hit = text.find((c) => norm(c.name) === n) || (n.length > 2 ? text.find((c) => norm(c.name).endsWith(n)) : null);
+  return hit ? hit.id : "";
+}
+/** [label, id] pairs for the wizard: Cortana Setup list first, else the official names. */
+const signupList = () => Array.isArray(cortanaCfg.signupChannels) && cortanaCfg.signupChannels.length
+  ? cortanaCfg.signupChannels.map((id) => [discordChans.find((c) => c.id === id)?.name || "deleted", discordChans.some((c) => c.id === id) ? id : ""])
+  : SIGNUP_CHANNELS.map((c) => [c, chanFor(c)]);
+/** Voice / stage pick list from Cortana Setup (names, so old events still match). */
+const vcList = (kind) => (cortanaCfg[kind === "stage" ? "stageChannels" : "voiceChannels"] || []).map((id) => discordChans.find((c) => c.id === id)?.name).filter(Boolean);
+const chanLabel = (ref) => { const c = discordChans.find((x) => x.id === ref); return c ? c.name : String(ref || "").replace(/^#/, ""); };
 
 const ROOT = "evV2";
 const LIMITS = { title: 100, description: 1000, location: 100, maxGoing: 500, buttons: 5, buttonLabel: 40 };
@@ -51,6 +72,8 @@ const whereLabel = (e) => (e.where === "else" ? `📍 ${e.location || "Somewhere
 /* ─────────────────────────────────── list ─────────────────────────────────── */
 async function load() {
   const [evSnap, atSnap, us] = await Promise.all([getDocs(collection(db, "community_events")), getDocs(collection(db, "attendance_events")), members.length ? null : getUsers()]);
+  discordChans = (await getDocs(collection(db, "discord_channels")).catch(() => null))?.docs.map((d) => ({ id: d.id, ...d.data() })) ?? discordChans;
+  cortanaCfg = (await getDoc(doc(db, "settings", "cortana")).catch(() => null))?.data?.() || {};
   if (us) members = us.filter(isMember).sort((a, b) => rankOrder(a.rank) - rankOrder(b.rank) || memberName(a).localeCompare(memberName(b)));
   events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   attById = new Map(atSnap.docs.filter((d) => d.data().linkedEventId).map((d) => [d.id, { id: d.id, ...d.data() }]));
@@ -69,7 +92,7 @@ function attChip(e) {
   }
   return '<span class="ch ac">▣ ATTENDANCE LINKED</span>';
 }
-const discordChip = (e) => (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
+const discordChip = (e) => e.status === "completed" ? '<span class="ch ok">✓ Completed</span>' : (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
 const signedUpUids = (e) => {
   const att = new Set((e.buttons || []).filter((b) => b.attending).map((b) => b.key));
   return [...new Set((e.signups || []).filter((s) => att.has(s.choice) && s.uid).map((s) => s.uid))];
@@ -104,8 +127,8 @@ function startWizard(edit) {
     step: 0,
     editId: edit?.id || null,
     v: edit
-      ? JSON.parse(JSON.stringify({ ...edit, buttons: edit.buttons.map(({ key, ...b }) => b) }))
-      : { where: "voice", voiceChannel: "", location: "", title: "", description: "", date: today, startTime: "19:00", endTime: "22:00", repeat: "none", banner: "", channel: "", buttons: PRESETS[0][1].map(mkB), linkAttendance: true, attType: "main_op" },
+      ? JSON.parse(JSON.stringify({ ...edit, opType: edit.opType || attById.get(edit.attendanceEventId)?.type || "", buttons: edit.buttons.map(({ key, ...b }) => b) }))
+      : { where: "voice", voiceChannel: "", location: "", title: "", description: "", date: today, startTime: "19:00", endTime: "22:00", repeat: "none", banner: "", channel: "", buttons: PRESETS[0][1].map(mkB), linkAttendance: true, attType: "main_op", opType: "main_op" },
   };
   const root = document.getElementById(ROOT);
   root.querySelector(".list-wrap").hidden = true;
@@ -131,7 +154,7 @@ function check(s) {
     if (!v.date || !v.startTime || !v.endTime) return "Choose the date, start and end time.";
   }
   if (s === 2) {
-    if (!v.channel.trim()) return "Type the channel for the sign-up post.";
+    if (!v.channel.trim()) return "Pick the channel for the sign-up post.";
     if (!v.buttons.length) return "Add at least one sign-up button.";
     if (v.buttons.some((b) => !b.label.trim())) return "Every button needs a label.";
   }
@@ -165,9 +188,11 @@ function drawWizard(err) {
       ${opt("else", "📍", "SOMEWHERE ELSE", "A game server, an external link or an in-person place.")}
       ${v.where === "else"
         ? `<label class="lbl" for="evLoc">LOCATION</label><input class="fld" id="evLoc" data-k="location" maxlength="${LIMITS.location}" value="${esc(v.location)}" placeholder="e.g. Arma 3 — 505th server">`
-        : `<label class="lbl" for="evVc">${v.where === "stage" ? "STAGE" : "VOICE"} CHANNEL</label><input class="fld" id="evVc" data-k="voiceChannel" maxlength="100" value="${esc(v.voiceChannel)}" placeholder="e.g. Ops Briefing"><p class="hint">A channel list will appear here once Cortana v2 syncs the Discord channels.</p>`}`;
+        : `<label class="lbl" for="evVc">${v.where === "stage" ? "STAGE" : "VOICE"} CHANNEL</label>${vcList(v.where).length ? `<select class="fld" id="evVc" data-k="voiceChannel"><option value="">— pick a channel —</option>${vcList(v.where).map((n) => `<option ${n === v.voiceChannel ? "selected" : ""}>${esc(n)}</option>`).join("")}${v.voiceChannel && !vcList(v.where).includes(v.voiceChannel) ? `<option selected>${esc(v.voiceChannel)}</option>` : ""}</select>` : `<input class="fld" id="evVc" data-k="voiceChannel" maxlength="100" value="${esc(v.voiceChannel)}" placeholder="e.g. Ops Briefing"><p class="hint">Add voice / stage channels in COMMAND → Cortana Setup to get a pick list here.</p>`}`}`;
   if (s === 1)
     body = `<h2 class="eh">WHAT'S YOUR EVENT ABOUT?</h2><p class="hint">All times are UK time (GMT/BST handled automatically).</p>
+      <span class="lbl">OPERATION TYPE</span><div class="pres" role="radiogroup" aria-label="Operation type">${Object.entries(ATT_TYPES).map(([k, l]) => `<button class="pill" role="radio" aria-checked="${v.opType === k}" data-optype="${k}" style="${v.opType === k ? "border-color:#00D9FF;color:#00D9FF;background:rgba(0,217,255,.12)" : ""}">${l.toUpperCase()}</button>`).join("")}</div>
+      <p class="hint">Shown on the homepage, the sign-up post and the Upcoming Events list.</p>
       <label class="lbl" for="evT">EVENT TOPIC</label><input class="fld" id="evT" data-k="title" maxlength="${LIMITS.title}" value="${esc(v.title)}" placeholder="e.g. Weekend Op: Operation Firebreak">
       <div class="g3"><div><label class="lbl" for="evD">DATE</label><input class="fld" type="date" id="evD" data-k="date" value="${esc(v.date)}"></div>
         <div><label class="lbl" for="evS">START</label><input class="fld" type="time" id="evS" data-k="startTime" value="${esc(v.startTime)}"></div>
@@ -180,7 +205,8 @@ function drawWizard(err) {
       <p class="hint">Shown on the sign-up post and as the Discord event cover. Wide images (about 800×320) look best.</p>`;
   if (s === 2)
     body = `<h2 class="eh">SIGN-UPS</h2><p class="hint">Choose the buttons people press under the sign-up post.</p>
-      <label class="lbl" for="evCh">POST THE SIGN-UP IN</label><input class="fld" id="evCh" data-k="channel" maxlength="100" value="${esc(v.channel)}" placeholder="e.g. operations">
+      <span class="lbl">POST THE SIGN-UP IN</span><div class="pres" role="radiogroup" aria-label="Sign-up channel">${signupList().map(([c, id]) => { const on = id && v.channel === id; return `<button class="pill${on ? " on" : ""}" role="radio" aria-checked="${on ? "true" : "false"}" data-chan="${esc(id)}" ${id ? "" : 'disabled title="Not found in Discord yet"'} style="${on ? "border-color:#00D9FF;color:#00D9FF;background:rgba(0,217,255,.12)" : ""}">#${esc(c)}</button>`; }).join("")}</div>
+      ${signupList().some(([, id]) => id) ? "" : '<p class="hint">Channels appear once Cortana v2 has synced the Discord server. Set them in COMMAND → Cortana Setup.</p>'}
       <span class="lbl">QUICK PRESETS</span><div class="pres">${PRESETS.map((p, i) => `<button class="pill" data-preset="${i}">${p[0]}</button>`).join("")}</div>
       <span class="lbl">BUTTONS (${v.buttons.length}/${LIMITS.buttons})</span>
       <ul class="ebl">${v.buttons
@@ -201,12 +227,12 @@ function drawWizard(err) {
     body = `<h2 class="eh">CHECK AND ${w.editId ? "SAVE" : "CREATE"}</h2><ul class="erv">
       <li>✓ <b>${esc(v.title || "Untitled")}</b> · ${esc(whenLabel(v))} (UK)</li><li>✓ Where: ${esc(whereLabel(v))}</li>
       <li>✓ Discord event in the server's Events list</li>
-      <li>✓ Sign-up post in #${esc(v.channel || "—")} · ${v.buttons.map((b) => `${esc(b.emoji)} ${esc(b.label)}${b.limit ? ` (${b.limit})` : ""}`).join(" · ")}</li>
+      <li>✓ Sign-up post in #${esc(chanLabel(v.channel) || "—")} · ${v.buttons.map((b) => `${esc(b.emoji)} ${esc(b.label)}${b.limit ? ` (${b.limit})` : ""}`).join(" · ")}</li>
       <li>✓ ${v.repeat === "none" ? REPEAT.none : REPEAT[v.repeat] + " — next one is created automatically"}</li>
       <li>✓ Attending people tagged at the start · posts removed 30 minutes after</li>
       ${v.linkAttendance ? "<li>✓ <b>Attendance Tracker event created</b> · sign-ups shown as SIGNED UP · NCO+ confirms at the Attendance Check</li>" : '<li style="opacity:.55">✕ No attendance event</li>'}</ul>
       ${w.editId && v.attendanceEventId ? '<p class="hint">Attendance is already linked to this event.</p>' : `<label class="eo ${v.linkAttendance ? "on" : ""}" style="margin-top:16px"><input type="checkbox" id="evLink" ${v.linkAttendance ? "checked" : ""}><span><b>▣ ALSO CREATE ATTENDANCE TRACKER EVENT</b><small>Same title and date. People who press an "Attending" button show as SIGNED UP — not present. An NCO or above ticks who actually turned up at the Attendance Check, then Staff NCO+ locks it.</small></span></label>
-      ${v.linkAttendance ? `<label class="lbl" for="evAt">ATTENDANCE TYPE</label><select class="fld" id="evAt" data-k="attType" style="max-width:260px">${Object.entries(ATT_TYPES).map(([k, l]) => `<option value="${k}" ${v.attType === k ? "selected" : ""}>${l.toUpperCase()}</option>`).join("")}</select>` : ""}`}
+      `}
       <p class="hint" style="color:#f59e0b">◷ Cortana v2 isn't running yet: the event is saved now and posted to Discord automatically when Cortana v2 goes live.</p>`;
 
   root.querySelector(".wiz-form").innerHTML = `
@@ -251,6 +277,7 @@ async function create() {
   const rec = {
     title: v.title.trim(), description: v.description.trim(), where: v.where, voiceChannel: v.where === "else" ? "" : v.voiceChannel.trim(), location: v.where === "else" ? v.location.trim() : "",
     date: v.date, startTime: v.startTime, endTime: v.endTime, startAtISO: start.toISOString(), endAtISO: end.toISOString(),
+    opType: ATT_TYPES[v.opType] ? v.opType : "main_op",
     repeat: v.repeat, banner: v.banner.trim(), channel: v.channel.trim().replace(/^#/, ""), buttons,
     // Sign-ups come from Discord (Cortana saves them). Only touch them when a button was removed,
     // so an edit never wipes sign-ups made while the editor was open.
@@ -272,7 +299,7 @@ async function create() {
     }
     if (!old?.attendanceEventId && v.linkAttendance) {
       const at = await addDoc(collection(db, "attendance_events"), {
-        title: rec.title, date: rec.date, type: v.attType, attendees: [], excused: [], noShow: [], locked: false, linkedEventId: id,
+        title: rec.title, date: rec.date, type: rec.opType, attendees: [], excused: [], noShow: [], locked: false, linkedEventId: id,
         createdBy: me?.callsign || "Staff", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), updatedBy: me?.callsign || "Staff",
       });
       await updateDoc(doc(db, "community_events", id), { attendanceEventId: at.id });
@@ -291,6 +318,76 @@ async function create() {
   }
 }
 
+/* ───────────────────────────── delete (same flow as RCD) ─────────────────────────────
+ * 1. Ask Cortana to remove the Discord event, the sign-up post and its reminder messages
+ *    (job `event.remove`, with the Discord IDs so it works even after the record is gone).
+ * 2. Wait up to 30 s for Cortana to finish.
+ * 3. Delete the record. The linked attendance record is kept (it may already have stats) and unlinked.
+ */
+async function waitForJob(id, ms = 30000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const d = (await getDoc(doc(db, "bot_jobs", id)).catch(() => null))?.data();
+    if (d && (d.status === "done" || d.status === "failed")) return d;
+    await new Promise((r) => setTimeout(r, 1200));
+  }
+  return null;
+}
+async function deleteEvent(e) {
+  if (!(await ask({ kind: "danger", title: "DELETE EVENT?", body: "The Discord event and the sign-up post are deleted, and the event is removed from the website. Sign-ups are lost.", item: e.title, warn: "THIS CANNOT BE UNDONE.", go: "DELETE EVENT" }))) return;
+  const btn = document.querySelector('#v2Modal [data-x="delete"]');
+  if (btn) { btn.disabled = true; btn.textContent = "DELETING…"; }
+  try {
+    const me = await getMe();
+    const d = e.discord || {};
+    let note = "";
+    if (d.messageId || d.scheduledEventId) {
+      const job = await addDoc(collection(db, "bot_jobs"), {
+        type: "event.remove", status: "pending", attempts: 0, requestedBy: me?.uid || "", createdAtISO: new Date().toISOString(),
+        payload: { eventId: e.id, title: e.title, channelId: d.channelId || null, messageId: d.messageId || null, scheduledEventId: d.scheduledEventId || null, extraMessageIds: [d.reminderMessageId, d.startMessageId].filter(Boolean) },
+      });
+      const r = await waitForJob(job.id);
+      if (!r) note = " — CORTANA IS OFFLINE: THE DISCORD POST WILL BE REMOVED WHEN IT'S BACK";
+      else if (r.status === "failed") note = ` — DISCORD: ${String(r.error || "error").toUpperCase()}`;
+    }
+    await deleteDoc(doc(db, "community_events", e.id));
+    if (e.attendanceEventId) await updateDoc(doc(db, "attendance_events", e.attendanceEventId), { linkedEventId: null }).catch(() => {});
+    await audit("discord", "EVENT DELETED", `${e.title} — ${whenLabel(e)}`);
+    closeModal();
+    notify("✓ EVENT DELETED" + note, !!note);
+    load();
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = "🗑 DELETE"; }
+    notify("DELETE FAILED: " + err.message, 1);
+  }
+}
+
+/** END EVENT: mark completed now; Cortana logs sign-ups to #mission-log, deletes the posts and completes the Discord event. */
+async function endEvent(e) {
+  if (!(await ask({ kind: "info", title: "END EVENT?", body: "The event is marked completed. Cortana logs the sign-ups to the mission log, removes the sign-up post and ends the Discord event.", item: e.title, go: "END EVENT", cancel: "NOT YET" }))) return;
+  const btn = document.querySelector('#v2Modal [data-x="end"]');
+  if (btn) { btn.disabled = true; btn.textContent = "ENDING…"; }
+  try {
+    const me = await getMe();
+    const now = new Date().toISOString();
+    await updateDoc(doc(db, "community_events", e.id), { status: "completed", completedAtISO: now, endAtISO: now, updatedAtISO: now });
+    let note = "";
+    if (e.discord?.messageId || e.discord?.scheduledEventId) {
+      const job = await addDoc(collection(db, "bot_jobs"), { type: "event.complete", status: "pending", attempts: 0, requestedBy: me?.uid || "", createdAtISO: now, payload: { eventId: e.id } });
+      const r = await waitForJob(job.id);
+      if (!r) note = " — CORTANA IS OFFLINE: DISCORD WILL UPDATE WHEN IT'S BACK";
+      else if (r.status === "failed") note = ` — DISCORD: ${String(r.error || "error").toUpperCase()}`;
+    }
+    await audit("discord", "EVENT ENDED", `${e.title} — ${whenLabel(e)}`);
+    closeModal();
+    notify("✓ EVENT ENDED" + note, !!note);
+    load();
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = "✓ END EVENT"; }
+    notify("END FAILED: " + err.message, 1);
+  }
+}
+
 /* ───────────────────────────── event detail ───────────────────────────── */
 function openEvent(id) {
   const e = events.find((x) => x.id === id);
@@ -302,15 +399,15 @@ function openEvent(id) {
     <div class="bd">
       <div class="chips" style="margin-bottom:12px">${e.status === "cancelled" ? '<span class="ch er">Cancelled</span>' : discordChip(e)}${e.repeat !== "none" ? `<span class="ch rp">↻ ${REPEAT[e.repeat]}</span>` : ""}${attChip(e)}</div>
       ${e.description ? `<p style="white-space:pre-wrap;margin:0 0 12px;line-height:1.6">${esc(e.description)}</p>` : ""}
-      <span class="lbl">SIGN-UPS · POSTED IN #${esc(e.channel)}</span>
+      <span class="lbl">SIGN-UPS · POSTED IN #${esc(chanLabel(e.channel))}</span>
       <div class="sg">${counts(e)
         .map(([b, n]) => `<div><b>${esc(b.emoji)} ${esc(b.label)} <span>${n}${b.limit ? "/" + b.limit : ""}</span></b><small>${(e.signups || []).filter((s) => s.choice === b.key).map((s) => esc(s.name)).join(", ") || "—"}</small></div>`)
         .join("")}</div>
       ${e.discord?.status !== "posted" ? '<p class="hint">Sign-ups arrive from the Discord buttons once Cortana v2 posts this event.</p>' : ""}
       <div class="hint">CREATED BY ${esc(e.createdByName || "—")}${e.updatedByName ? ` · LAST EDIT ${esc(e.updatedByName)}` : ""}</div>
     </div>
-    <div class="ft">${e.status !== "cancelled" && acc.ev ? '<button class="b red" data-x="cancel">CANCEL EVENT</button>' : "<span></span>"}
-      <div style="display:flex;gap:8px">${a && acc.att ? '<button class="b" data-x="check">▣ ATTENDANCE CHECK</button>' : ""}${e.status !== "cancelled" && acc.ev ? '<button class="b gold" data-x="edit">EDIT</button>' : ""}</div></div>`,
+    <div class="ft"><div style="display:flex;gap:8px">${e.status !== "cancelled" && e.status !== "completed" && acc.ev ? '<button class="b red" data-x="cancel">CANCEL EVENT</button>' : ""}${acc.ev ? '<button class="b red" data-x="delete">🗑 DELETE</button>' : ""}</div>
+      <div style="display:flex;gap:8px">${e.status !== "cancelled" && e.status !== "completed" && acc.ev && Date.parse(e.startAtISO) <= Date.now() ? '<button class="b" data-x="end" style="border-color:#22e07a;color:#22e07a">✓ END EVENT</button>' : ""}${a && acc.att ? '<button class="b" data-x="check">▣ ATTENDANCE CHECK</button>' : ""}${e.status !== "cancelled" && e.status !== "completed" && acc.ev ? '<button class="b gold" data-x="edit">EDIT</button>' : ""}</div></div>`,
     { width: 720 },
   );
   document.getElementById("v2Modal").addEventListener("click", async (ev) => {
@@ -320,6 +417,8 @@ function openEvent(id) {
       startWizard(e);
     }
     if (x === "check") openCheck(e);
+    if (x === "delete") return deleteEvent(e);
+    if (x === "end") return endEvent(e);
     if (x === "cancel") {
       if (!(await ask({ kind: "warn", title: "CANCEL EVENT?", body: "Cortana marks the Discord event and sign-up post as cancelled.", item: e.title, go: "CANCEL EVENT", cancel: "KEEP IT" }))) return;
       try {
@@ -543,6 +642,16 @@ onReady(() => {
     if (o) return openEvent(o.dataset.open);
     const g = e.target.closest("[data-go]");
     if (g) return go(+g.dataset.go);
+    const ot = e.target.closest("[data-optype]");
+    if (ot) {
+      w.v.opType = ot.dataset.optype;
+      return drawWizard();
+    }
+    const ch = e.target.closest("[data-chan]");
+    if (ch) {
+      w.v.channel = ch.dataset.chan;
+      return drawWizard();
+    }
     const p = e.target.closest("[data-preset]");
     if (p) {
       w.v.buttons = PRESETS[+p.dataset.preset][1].map(mkB);

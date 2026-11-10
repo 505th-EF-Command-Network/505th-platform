@@ -1,0 +1,23 @@
+/* Homepage LIVE NOW / NEXT OPERATIONS banner (plain CSS). */
+.lo{max-width:1100px;margin:18px auto 0;padding:0 16px;position:relative;z-index:2;font-family:Rajdhani,sans-serif}
+.lo-live{--c:#ff3b3b;border:1px solid var(--c);background:linear-gradient(90deg,rgba(255,59,59,.14),rgba(0,0,0,.55) 60%);box-shadow:0 0 30px rgba(255,59,59,.25);display:flex;align-items:center;gap:18px;padding:14px 20px;position:relative;overflow:hidden}
+.lo-live::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 4px);pointer-events:none}
+.lo-pill{display:inline-flex;align-items:center;gap:8px;font-weight:700;letter-spacing:4px;font-size:14px;color:#fff;background:#ff3b3b;padding:5px 12px;flex-shrink:0}
+.lo-dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:loPulse 1.2s infinite}@keyframes loPulse{50%{opacity:.25}}
+.lo-ty{flex-shrink:0;font-weight:700;font-size:11px;letter-spacing:3px;color:var(--t);border:1px solid var(--t);padding:3px 9px;background:color-mix(in srgb,var(--t) 12%,transparent)}
+.lo-live .lo-ty{--t:#ff3b3b}
+.lo-t{flex:1;min-width:0}.lo-t b{display:block;font-size:22px;letter-spacing:3px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lo-t small,.lo-nc small{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:#9fb3c4}
+.lo-prog{width:140px;height:6px;background:rgba(255,255,255,.08);flex-shrink:0}.lo-prog i{display:block;height:100%;background:#ff3b3b;box-shadow:0 0 8px #ff3b3b}
+.lo-btn{flex-shrink:0;border:1px solid #ff3b3b;background:#ff3b3b;color:#fff;padding:10px 16px;font-weight:700;font-size:13px;letter-spacing:3px;text-decoration:none;display:inline-flex;gap:8px;align-items:center}
+.lo-btn:hover{filter:brightness(1.12)}.lo-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.lo-dlogo{height:18px;width:auto}
+.lo-nh{margin:22px 0 10px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;color:#00D9FF;display:flex;align-items:center;gap:12px}.lo-nh::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#00D9FF,transparent)}
+.lo-next{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.lo-nc{border:1px solid rgba(0,217,255,.25);border-top:3px solid var(--t);background:rgba(0,0,0,.45);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.lo-nc .lo-ty{align-self:flex-start}.lo-nc b{font-size:19px;letter-spacing:2px;color:#fff}
+.lo-cd{display:flex;gap:6px;font-weight:700;font-size:20px;color:var(--c);margin:4px 0}
+.lo-cd div{text-align:center;min-width:40px;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);padding:2px 4px;background:rgba(0,0,0,.4)}
+.lo-cd small{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:#9fb3c4}
+@media(max-width:860px){.lo-next{grid-template-columns:1fr!important}.lo-prog{display:none}.lo-live{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.lo-dot{animation:none}}

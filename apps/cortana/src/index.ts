@@ -8,7 +8,17 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { checkGuilds, isAuthorisedGuild } from "./guard.ts";
 import { markOffline, noteError, startHeartbeat } from "./health.ts";
-import { startJobWorker } from "./worker.ts";
+import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
+import { uidAllowed } from "./access.ts";
+import { onDbChange, startLive } from "./live.ts";
+import { onMemberUpdate, onUserDocChange, startRoleSync } from "./rolesync.ts";
+import { startMessages } from "./messages.ts";
+import { startQuickUpload } from "./quick-upload.ts";
+import { handleInfoButton, handleInfoMenu, startInfoPosts } from "./info-posts.ts";
+import { handleTicketButton, onTicketMessage, startTickets } from "./tickets.ts";
+import { startModeration } from "./moderation.ts";
+import { startModlist } from "./modlist.ts";
+import { handleCommandButton, handleCommandModal } from "./commands/staff.ts";
 import { scheduleSync, syncGuild } from "./sync.ts";
 import { commandMap, registerCommands } from "./commands/index.ts";
 import { allowed } from "./access.ts";
@@ -39,8 +49,30 @@ client.once(Events.ClientReady, async (ready) => {
   heartbeat = startHeartbeat(ready);
   await syncGuild(ready).catch((e) => log.error("First sync failed", e));
   await registerCommands().catch((e) => log.error("Command registration failed", e));
+  registerJob("sync.now", async (_j, c) => (await syncGuild(c), { at: new Date().toISOString() })); // Cortana Setup "RE-SYNC"
+  startMessages();
+  startQuickUpload();
+  startInfoPosts(ready);
+  startTickets(ready);
+  startModeration();
+  startModlist();
+  startRoleSync(ready);
+  onDbChange((top, c) => { if (top === "users") void onUserDocChange(ready, c).catch(() => {}); });
+  registerJob("commands.register", async (job) => {
+    if (!(await uidAllowed(job.data.requestedBy, "bot")).ok) throw new PermanentJobError("Only Developers / Command can do that");
+    await registerCommands();
+    return { ok: true };
+  });
+  registerJob("bot.restart", async (job) => {
+    const who = await uidAllowed(job.data.requestedBy, "bot");
+    if (!who.ok) throw new PermanentJobError("Only Developers / Command can restart Cortana");
+    log.warn(`Restart asked from the website by ${who.name}.`);
+    setTimeout(() => void markOffline("restart").finally(() => process.exit(1)), 1500); // after the job is marked done; non-zero → PM2 restarts
+    return { ok: true, supervised: process.env.pm_id !== undefined };
+  });
   stopEvents = startEvents(ready); // registers event jobs before the worker starts
   stopWorker = startJobWorker(ready);
+  startLive(() => wake());
   ready.user.setActivity("the 505th Deployment", { type: 3 /* Watching */ });
 });
 
@@ -52,15 +84,24 @@ client.on(Events.GuildScheduledEventCreate, (se) => client.isReady() && void onD
 client.on(Events.GuildScheduledEventUpdate, (_o, se) => client.isReady() && void onDiscordEventUpdate(client, se).catch((e) => log.error("Discord event update", e)));
 client.on(Events.GuildScheduledEventDelete, (se) => client.isReady() && void onDiscordEventDelete(client, se).catch((e) => log.error("Discord event delete", e)));
 
+client.on(Events.GuildMemberUpdate, (before, after) => client.isReady() && void onMemberUpdate(client, before, after).catch((e) => log.warn(`Role sync failed: ${(e as Error).message}`)));
+
+client.on(Events.MessageCreate, (m) => void onTicketMessage(m).catch((e) => log.warn(`Ticket message failed: ${(e as Error).message}`)));
+
 client.on(Events.InteractionCreate, async (i) => {
-  if (i.isButton() && isAuthorisedGuild(i.guildId)) {
+  if ((i.isButton() || i.isStringSelectMenu()) && isAuthorisedGuild(i.guildId)) {
     try {
-      await handleEventButton(i);
+      if (i.isStringSelectMenu()) await handleInfoMenu(i);
+      else (await handleCommandButton(i)) || (await handleTicketButton(i)) || (await handleInfoButton(i)) || (await handleEventButton(i));
     } catch (e) {
       noteError();
       log.error("Button failed", e);
       if (i.deferred) await i.editReply("⚠️ Something went wrong — it has been logged.").catch(() => {});
     }
+    return;
+  }
+  if (i.isModalSubmit() && isAuthorisedGuild(i.guildId)) {
+    try { await handleCommandModal(i); } catch (e) { noteError(); log.error("Form failed", e); if (!i.replied) await i.reply({ content: "⚠️ Something went wrong — it has been logged.", flags: MessageFlags.Ephemeral }).catch(() => {}); }
     return;
   }
   if (!i.isChatInputCommand()) return;
