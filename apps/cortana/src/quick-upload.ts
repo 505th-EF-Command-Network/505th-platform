@@ -13,6 +13,7 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { PermanentJobError, registerJob } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
+import { mentionsIn } from "./util.ts";
 
 const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
 const img = z.string().url().max(1000).refine((u) => /^https:\/\/res\.cloudinary\.com\//.test(u), "Images must be uploaded through the website");
@@ -40,7 +41,7 @@ export function startQuickUpload() {
     const groupUrl = `https://www.505expeditionaryforce.com/#g-${autoId().slice(0, 8)}`; // same url = Discord groups images into one gallery
     let msg;
     if (p.style === "plain") {
-      msg = await ch.send({ content: [p.caption, ...p.images].filter(Boolean).join("\n").slice(0, 2000), allowedMentions: { parse: [] } });
+      msg = await ch.send({ content: [p.caption, ...p.images].filter(Boolean).join("\n").slice(0, 2000), allowedMentions: { users: mentionsIn(p.caption).users, roles: mentionsIn(p.caption).roles } });
     } else {
       const embeds = p.images.map((u, i) => {
         const e = new EmbedBuilder().setURL(groupUrl).setImage(u).setColor(0x00d9ff);

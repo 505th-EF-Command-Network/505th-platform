@@ -13,7 +13,7 @@ let tickets = [], types = [], chans = [], roles = [], users = [], cases = [], ac
 let filter = "open", typeFilter = "", sel = null, draft = "", note = false, editType = null, busy = false, subs = [];
 const pad = (n) => String(n).padStart(4, "0");
 const typeOf = (id) => types.find((t) => t.id === id);
-const blankType = () => ({ name: "", emoji: "", channelId: "", categoryId: "", purpose: "", staffRoleIds: [], question: "", color: 0x22e07a });
+const blankType = () => ({ name: "", emoji: "", channelId: "", categoryId: "", purpose: "", btnLabel: "", btnEmoji: "", btnStyle: "green", staffRoleIds: [], question: "", color: 0x22e07a });
 
 function kpis() {
   const open = tickets.filter((t) => t.status === "open");
@@ -58,9 +58,12 @@ function typesHtml() {
       <div><label class="lbl" for="ttN">NAME</label><div style="display:flex;gap:6px"><input class="fld" style="width:56px;text-align:center" id="ttE" data-t="emoji" maxlength="64" value="${esc(t.emoji)}" placeholder="🪖" aria-label="Emoji"><input class="fld" id="ttN" data-t="name" maxlength="60" value="${esc(t.name)}" placeholder="e.g. Recruitment"></div></div>
       <div><label class="lbl" for="ttC">PANEL CHANNEL</label><select class="fld" id="ttC" data-t="channelId">${chanOptions(chans, t.channelId, { kinds: ["text"] })}</select></div>
       <div><label class="lbl" for="ttK">TICKETS OPEN IN (CATEGORY)</label><select class="fld" id="ttK" data-t="categoryId">${chanOptions(chans, t.categoryId, { kinds: ["category"], none: "— no category —", needSend: false })}</select></div>
-      <div><label class="lbl" for="ttP">WHAT IT'S FOR (ON THE PANEL)</label><input class="fld" id="ttP" data-t="purpose" maxlength="400" value="${esc(t.purpose)}"></div>
+      <div><label class="lbl" for="ttP">WHAT IT'S FOR (ON THE PANEL)</label><textarea class="fld" id="ttP" data-t="purpose" maxlength="1500" rows="4">${esc(t.purpose)}</textarea></div>
       <div><span class="lbl">STAFF WHO SEE IT</span><div class="chips">${t.staffRoleIds.map((r) => `<span class="ch on">@${esc(roles.find((x) => x.id === r)?.name || "deleted")} <button data-trm="${r}" aria-label="Remove">✕</button></span>`).join("")}<select class="fld tk-add" data-x="troleadd">${roleOptions(roles, "", "＋ ROLE", { exclude: t.staffRoleIds })}</select></div></div>
-      <div><label class="lbl" for="ttQ">FIRST QUESTION (OPTIONAL)</label><input class="fld" id="ttQ" data-t="question" maxlength="300" value="${esc(t.question)}"></div></div>
+      <div><label class="lbl" for="ttQ">FIRST QUESTION (OPTIONAL)</label><textarea class="fld" id="ttQ" data-t="question" maxlength="1000" rows="4">${esc(t.question)}</textarea></div></div>
+      <div class="tk-3" style="margin-top:10px"><div><label class="lbl" for="ttBl">BUTTON TEXT</label><div style="display:flex;gap:6px"><input class="fld" style="width:56px;text-align:center" id="ttBe" data-t="btnEmoji" maxlength="64" value="${esc(t.btnEmoji)}" placeholder="${esc(t.emoji || "🎫")}" aria-label="Button emoji"><input class="fld" id="ttBl" data-t="btnLabel" maxlength="80" value="${esc(t.btnLabel)}" placeholder="Open ${esc(t.name || "")} ticket"></div></div>
+      <div><label class="lbl" for="ttBs">BUTTON COLOUR</label><select class="fld" id="ttBs" data-t="btnStyle">${[["green", "Green"], ["blue", "Blue"], ["grey", "Grey"], ["red", "Red"]].map(([k, l]) => `<option value="${k}" ${(t.btnStyle || "green") === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <div><span class="lbl">BUTTON PREVIEW</span><div style="padding-top:4px"><span style="display:inline-block;padding:8px 16px;border-radius:4px;color:#fff;font:600 14px 'gg sans','Segoe UI',sans-serif;background:${({ green: "#248046", blue: "#5865f2", grey: "#4e5058", red: "#da373c" })[t.btnStyle || "green"]}">${esc(t.btnEmoji || t.emoji || "")} ${esc(t.btnLabel || `Open ${t.name || ""} ticket`)}</span></div></div></div>
       <div style="display:flex;justify-content:space-between;margin-top:10px">${editType.id ? '<button class="b red" data-x="tdel">🗑 DELETE TYPE</button>' : "<span></span>"}<div style="display:flex;gap:6px"><button class="b" data-x="tcancel">CANCEL</button><button class="b gold" data-x="tsave" ${busy ? "disabled" : ""}>SAVE + POST PANEL</button></div></div></td></tr>`; })() : "";
   return `<div class="tk-card" style="margin-top:16px;padding:0"><div class="tk-hd" style="padding:12px 14px"><div><b>TICKET TYPES · EACH HAS ITS OWN CHANNEL</b><small>EACH TYPE = ONE PANEL POST IN ITS OWN CHANNEL</small></div>${canTypes && !editType ? '<button class="b gold" data-x="tnew">＋ ADD TICKET TYPE</button>' : ""}</div>
     <table class="tk-tb"><thead><tr><th>TYPE</th><th>PANEL CHANNEL</th><th>WHAT IT'S FOR</th><th>STAFF WHO SEE IT</th><th>TICKETS OPEN IN</th><th></th></tr></thead><tbody>
@@ -111,7 +114,7 @@ function wire() {
   });
   root.addEventListener("change", async (e) => {
     const t = e.target;
-    if (t.dataset.t && editType) { editType.v[t.dataset.t] = t.value; return; }
+    if (t.dataset.t && editType) { editType.v[t.dataset.t] = t.value; if (/^(btn|emoji|name)/.test(t.dataset.t)) draw(); return; }
     if (t.dataset.x === "troleadd" && t.value) { editType.v.staffRoleIds.push(t.value); return draw(); }
     if (t.dataset.x === "move" && t.value) {
       const to = typeOf(t.value);

@@ -18,9 +18,9 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { PermanentJobError, registerJob } from "./worker.ts";
 import { allowed, uidAllowed } from "./access.ts";
-import { LOGO, auditLog, autoId, nextNumber, nowISO } from "./util.ts";
+import { LOGO, auditLog, autoId, mentionsIn, nextNumber, nowISO } from "./util.ts";
 
-type TType = { name: string; emoji?: string; channelId: string; categoryId?: string; purpose?: string; staffRoleIds?: string[]; question?: string; color?: number; panel?: { channelId?: string; messageId?: string } };
+type TType = { name: string; emoji?: string; channelId: string; categoryId?: string; purpose?: string; staffRoleIds?: string[]; question?: string; color?: number; btnLabel?: string; btnEmoji?: string; btnStyle?: string; panel?: { channelId?: string; messageId?: string } };
 type Line = { who: string; whoId: string; staff: boolean; text: string; images?: string[]; note?: boolean; atISO: string };
 type Ticket = { number: number; typeId: string; typeName: string; channelId: string; openerId: string; openerName: string; status: "open" | "closed";
   claimedByName?: string; openedAtISO: string; closedAtISO?: string; lastActivityISO: string; waiting: "staff" | "member"; firstReplyMs?: number; transcript: Line[] };
@@ -44,8 +44,10 @@ function panelBody(id: string, t: TType) {
   const e = new EmbedBuilder().setColor(t.color ?? 0x22e07a).setTitle(`${t.emoji ? t.emoji + " " : ""}${t.name}`.slice(0, 256))
     .setDescription(`${t.purpose || "Need help?"}\n\nPress the button — a private channel opens just for you and our staff.`.slice(0, 4000))
     .setFooter({ text: `505th Expeditionary Force · ${t.name}`.slice(0, 2048), iconURL: LOGO });
-  const b = new ButtonBuilder().setCustomId(`tko:${id}`).setLabel(`Open ${t.name} ticket`.slice(0, 80)).setStyle(ButtonStyle.Success);
-  if (t.emoji) b.setEmoji(t.emoji);
+  const style = ({ green: ButtonStyle.Success, blue: ButtonStyle.Primary, grey: ButtonStyle.Secondary, red: ButtonStyle.Danger } as Record<string, ButtonStyle>)[t.btnStyle || "green"] ?? ButtonStyle.Success;
+  const b = new ButtonBuilder().setCustomId(`tko:${id}`).setLabel((t.btnLabel?.trim() || `Open ${t.name} ticket`).slice(0, 80)).setStyle(style);
+  const emo = t.btnEmoji?.trim() || t.emoji;
+  if (emo) b.setEmoji(emo);
   return { embeds: [e], components: [new ActionRowBuilder<ButtonBuilder>().addComponents(b)], allowedMentions: { parse: [] as const } };
 }
 async function postPanel(client: Client<true>, id: string) {
@@ -207,7 +209,8 @@ export function startTickets(client: Client<true>) {
     if (tk.status !== "open") throw new PermanentJobError("Ticket is closed");
     const ch = await c.channels.fetch(tk.channelId).catch(() => null);
     if (!ch || !("send" in ch)) throw new PermanentJobError("Ticket channel is gone");
-    await ch.send({ embeds: [new EmbedBuilder().setColor(0x00d9ff).setAuthor({ name: `${by} · staff (via website)` }).setDescription(body)], allowedMentions: { parse: [] } });
+    const m = mentionsIn(body);
+    await ch.send({ content: m.text || undefined, embeds: [new EmbedBuilder().setColor(0x00d9ff).setAuthor({ name: `${by} · staff (via website)` }).setDescription(body)], allowedMentions: { users: m.users, roles: m.roles } });
     const set: Record<string, unknown> = { lastActivityISO: nowISO(), waiting: "member" };
     if (tk.firstReplyMs == null) set.firstReplyMs = Date.now() - Date.parse(tk.openedAtISO);
     await patch(String(ticketId), set, { who: by, whoId: "", staff: true, text: body, atISO: nowISO() });

@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { PermissionFlagsBits, type Guild, type Role } from "discord.js";
 import { TerminalDoc } from "@505th/db";
+import { env } from "./env.ts";
 
 export const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
 export const nowISO = () => new Date().toISOString();
@@ -38,4 +39,12 @@ export function safeRole(g: Guild, id: unknown): { role: Role | null; why: strin
   if (!me || r.position >= me.roles.highest.position) return { role: null, why: "Cortana's role must be above that role (Server Settings → Roles)." };
   if (DANGEROUS.some((p) => r.permissions.has(p))) return { role: null, why: "That role has staff powers, so buttons can't give it out." };
   return { role: r, why: "" };
+}
+
+/** User / role mentions typed in text (<@id>, <@&id>). @everyone is never taken from text — only the confirmed ping option. */
+export function mentionsIn(...texts: (string | null | undefined)[]): { users: string[]; roles: string[]; text: string } {
+  const t = texts.filter(Boolean).join("\n");
+  const users = [...new Set([...t.matchAll(/<@!?(\d{17,20})>/g)].map((m) => m[1]))].slice(0, 100);
+  const roles = [...new Set([...t.matchAll(/<@&(\d{17,20})>/g)].map((m) => m[1]))].filter((r) => r !== env.AUTHORISED_GUILD_ID).slice(0, 100);
+  return { users, roles, text: [...users.map((u) => `<@${u}>`), ...roles.map((r) => `<@&${r}>`)].join(" ") };
 }

@@ -38,7 +38,7 @@ export async function cortanaJob(type, payload, { wait = true, ms = 20000 } = {}
 }
 
 export const hex = (n) => "#" + Number(n ?? 0x194a77).toString(16).padStart(6, "0");
-export const md = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*(?!\s)(.+?)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");
+export const md = (t) => esc(t).replace(/&lt;@(&amp;)?!?(\d{17,20})&gt;/g, (_, r, id) => `<span class="mn">${esc((window.__mn && window.__mn[id]) || (r ? "@role" : "@member"))}</span>`).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*(?!\s)(.+?)\*/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\n/g, "<br>");
 export const ukTime = (iso, o = { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", ...o }) : "—");
 export const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? "now" : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
 

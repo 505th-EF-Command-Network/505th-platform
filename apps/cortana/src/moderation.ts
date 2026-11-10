@@ -133,6 +133,18 @@ export async function doAction(client: Client<true>, by: ModBy, input: ModInput)
   return { caseNumber: c.number, dmSent: dmed };
 }
 
+/** Delete a case for good (test data / mistakes). Developers / Command only; active timeouts and bans must be lifted first. */
+async function removeCase(client: Client<true>, job: { data: { requestedBy?: string; payload?: unknown } }) {
+  const caseId = String((job.data.payload as any)?.caseId ?? "");
+  const cs = (await TerminalDoc.findById(`mod_cases/${caseId}`, { data: 1 }).lean())?.data as any;
+  if (!cs) return { ok: true };
+  const by = await requester(job, "set");
+  if (cs.active && (cs.action === "timeout" || cs.action === "ban")) throw new PermanentJobError(`Lift the ${cs.action} first, then delete the case`);
+  await TerminalDoc.deleteOne({ _id: `mod_cases/${caseId}` });
+  await modLog(client, new EmbedBuilder().setColor(COLOR.lift).setTitle(`🗑 Case #${cs.number} deleted`).setDescription(`**Member:** <@${cs.discordId}> (${cs.targetName})\n**Was:** ${cs.action} — ${String(cs.reason || "").slice(0, 300)}\n**By:** ${by.name}`).setFooter({ text: "505th Moderation", iconURL: LOGO }).setTimestamp());
+  await auditLog("MOD CASE DELETED", `Case #${cs.number} · ${cs.action} · ${cs.targetName}`, by.name, "security");
+  return { ok: true };
+}
 async function lift(client: Client<true>, job: { data: { requestedBy?: string; payload?: unknown } }) {
   const caseId = String((job.data.payload as any)?.caseId ?? "");
   const cs = (await TerminalDoc.findById(`mod_cases/${caseId}`, { data: 1 }).lean())?.data as any;
@@ -157,6 +169,7 @@ async function expire() {
 export function startModeration() {
   registerJob("mod.action", (job, c) => act(c, job));
   registerJob("mod.lift", (job, c) => lift(c, job));
+  registerJob("mod.delete", (job, c) => removeCase(c, job));
   void expire().catch(() => {});
   const t = setInterval(() => void expire().catch(() => {}), 3600_000);
   return () => clearInterval(t);

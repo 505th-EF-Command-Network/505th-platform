@@ -16,6 +16,7 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { PermanentJobError, registerJob } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
+import { mentionsIn } from "./util.ts";
 
 const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
 const https = z.string().trim().url().max(1000).refine((u) => u.startsWith("https://"), "Links must start with https://");
@@ -91,8 +92,13 @@ export function startMessages() {
     const p = parse(SendP, job.data.payload);
     const ch = await textChannel(client, p.channelId);
     const roles = (p.ping?.roles ?? []).filter((r) => r !== env.AUTHORISED_GUILD_ID);
-    const pingText = [p.ping?.everyone ? "@everyone" : "", ...roles.map((r) => `<@&${r}>`)].filter(Boolean).join(" ");
-    const msg = await ch.send({ ...build(p, by, pingText), allowedMentions: { parse: p.ping?.everyone ? ["everyone"] : [], roles } } as MessageCreateOptions)
+    // Mentions typed in the embed don't ping on their own — add them to the ping line.
+    const inEmbed = mentionsIn(p.embed?.title, p.embed?.description);
+    const inText = mentionsIn(p.content);
+    const extra = [...inEmbed.users.filter((u) => !inText.users.includes(u)).map((u) => `<@${u}>`), ...inEmbed.roles.filter((r) => !inText.roles.includes(r) && !roles.includes(r)).map((r) => `<@&${r}>`)];
+    const pingText = [p.ping?.everyone ? "@everyone" : "", ...roles.map((r) => `<@&${r}>`), ...extra].filter(Boolean).join(" ");
+    const m = mentionsIn(p.content, p.embed?.title, p.embed?.description);
+    const msg = await ch.send({ ...build(p, by, pingText), allowedMentions: { parse: p.ping?.everyone ? ["everyone"] : [], roles: [...new Set([...roles, ...m.roles])], users: m.users } } as MessageCreateOptions)
       .catch((e: Error) => { throw new PermanentJobError(`Discord refused: ${e.message}`); });
     const id = autoId();
     const now = new Date();

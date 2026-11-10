@@ -55,7 +55,7 @@ function casesHtml() {
   return `<div class="md-card" style="padding:0"><div class="md-hd"><b class="md-h" style="margin:0">CASES</b><div class="chips"><button class="ch ${cf === "all" ? "on" : ""}" data-cf="all">ALL</button><button class="ch ${cf === "active" ? "on" : ""}" data-cf="active">ACTIVE</button><input class="fld md-q" id="mdQ" value="${esc(q)}" placeholder="Search member…" aria-label="Search cases by member"></div></div>
     <div style="overflow:auto"><table class="md-tb"><thead><tr><th>#</th><th>MEMBER</th><th>ACTION</th><th>REASON</th><th>BY</th><th>WHEN</th><th></th></tr></thead><tbody>
     ${list.map((c) => `<tr><td>${c.number}</td><td>${esc(c.targetName)}</td><td>${tag(c)}${c.auto ? ' <span class="md-n" style="display:inline">AUTO</span>' : ""}</td><td title="${esc(c.note ? "Staff note: " + c.note : "")}">${esc(c.reason)}${c.note ? " 🗒" : ""}</td><td>${esc(c.byName)}</td><td title="${esc(ukTime(c.atISO))}">${ago(c.atISO)}</td>
-      <td>${c.active ? lift(c) : `<span class="pill">${c.liftedByName ? "LIFTED" : c.action === "kick" ? "DONE" : "EXPIRED"}</span>`}</td></tr>`).join("") || '<tr><td colspan="7" class="empty">No cases.</td></tr>'}</tbody></table></div></div>`;
+      <td style="white-space:nowrap">${c.active ? lift(c) : `<span class="pill">${c.liftedByName ? "LIFTED" : c.action === "kick" ? "DONE" : "EXPIRED"}</span>`}${acc.set ? ` <button class="b red" data-del="${c.id}" title="Delete case (Developers / Command)" aria-label="Delete case #${c.number}">🗑</button>` : ""}</td></tr>`).join("") || '<tr><td colspan="7" class="empty">No cases.</td></tr>'}</tbody></table></div></div>`;
 }
 function draw() {
   if (!acc.modw && !acc.modk) { root.innerHTML = '<div class="panel-title">MODERATION</div><div class="empty">You don\'t have Moderation access.</div>'; return; }
@@ -139,6 +139,14 @@ function wire() {
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.act) { v.action = b.dataset.act; return draw(); }
     if (b.dataset.cf) { cf = b.dataset.cf; return draw(); }
+    if (b.dataset.del) {
+      const c = cases.find((x) => x.id === b.dataset.del);
+      if (c.active && (c.action === "timeout" || c.action === "ban")) return notify(`LIFT THE ${c.action.toUpperCase()} FIRST, THEN DELETE`, 1);
+      if (!(await ask({ kind: "danger", title: `DELETE CASE #${c.number}?`, body: `${c.action.toUpperCase()} · ${c.targetName} — removed for good (for test data or mistakes). Logged to the mod log and audit log.`, go: "DELETE", cancel: "KEEP" }))) return;
+      busy = true; draw();
+      try { const r = await cortanaJob("mod.delete", { caseId: c.id }); notify(r ? "✓ CASE DELETED" : "◷ CORTANA IS OFFLINE — DONE WHEN IT'S BACK", !r); } catch (err) { notify("FAILED: " + err.message, 1); }
+      busy = false; return draw();
+    }
     if (b.dataset.lift) {
       const c = cases.find((x) => x.id === b.dataset.lift);
       const word = c.action === "ban" ? "UNBAN" : c.action === "timeout" ? "LIFT TIMEOUT" : "CLEAR WARNING";
