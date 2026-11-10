@@ -347,6 +347,7 @@ async function loadSettings() {
   const snaps = await Promise.all(ids.map((i) => getDoc(doc(db, "settings", i))));
   S = Object.fromEntries(ids.map((i, n) => [i, snaps[n].exists() ? snaps[n].data() : {}]));
   S.discord_role_map.map ||= {};
+  S.cstat = await cortanaStatus().catch(() => ({ online: false }));
   renderSettings();
 }
 const mask = (u) => (u ? "•••••••••••••••" + String(u).slice(-4) : "");
@@ -361,11 +362,10 @@ function renderSettings() {
     hooks: `<p class="hint" style="margin-top:0">Where the terminal posts notices. Saved links show as ••••• — paste a new one to replace it; leave empty to keep. <b style="color:#f59e0b">The old links were in the old site's code — replace them all.</b></p>
       ${WEBHOOKS.map(([k, l, d]) => `<div class="hk"><div><b>${l}</b><small>${d}</small></div><input class="fld" data-hook="${k}" placeholder="${S.webhooks[k] ? mask(S.webhooks[k]) + "  (SET — PASTE TO REPLACE)" : "NOT SET — PASTE A DISCORD WEBHOOK LINK"}" autocomplete="off"><span class="pill" style="--c:${S.webhooks[k] ? "#22e07a" : "#4b5765"}">${S.webhooks[k] ? "SET" : "EMPTY"}</span>${S.webhooks[k] ? `<button class="b sm red" data-hookclear="${k}">CLEAR</button>` : "<span></span>"}</div>`).join("")}
       <div class="act"><span style="flex:1"></span><button class="b gold" data-save="hooks">SAVE</button></div>`,
-    cortana: `<div class="kvr"><span>STATUS</span><b style="color:#7d8a99">○ NOT RUNNING (CORTANA v2 PENDING)</b></div>
-      <div class="g2">${[["memberLog", "MEMBER JOIN / LEAVE LOG"], ["modLog", "MODERATION LOG"], ["messageLog", "MESSAGE LOG (DELETED / EDITED)"], ["welcome", "WELCOME MESSAGE"]].map(([k, l]) => `<div><label class="lbl">${l}</label><input class="fld" data-cort="${k}Channel" value="${esc(S.cortana[k + "Channel"] || "")}" placeholder="channel name, or empty = off"></div>`).join("")}</div>
-      <span class="lbl">PRESENCE</span><div class="g2"><select class="fld" data-cort="activityType">${["watching", "playing", "listening", "competing"].map((t) => `<option ${S.cortana.activityType === t ? "selected" : ""}>${t}</option>`).join("")}</select><input class="fld" data-cort="activityText" value="${esc(S.cortana.activityText || "over the 505th")}"></div>
-      <p class="hint">Channel lists become dropdowns once Cortana v2 syncs the Discord channels.</p>
-      <div class="act"><span style="flex:1"></span><button class="b gold" data-save="cortana">SAVE</button></div>`,
+    cortana: `<div class="kvr"><span>STATUS</span>${S.cstat?.online ? `<b style="color:#22e07a">● ONLINE${S.cstat.version ? " · v" + esc(S.cstat.version) : ""}${S.cstat.lastHeartbeatISO ? " · LAST CHECK-IN " + esc(new Date(S.cstat.lastHeartbeatISO).toLocaleTimeString("en-GB", { timeZone: "Europe/London" })) : ""}</b>` : '<b style="color:#ff4d4d">○ OFFLINE — NO CHECK-IN IN THE LAST 90 SECONDS</b>'}</div>
+      <span class="lbl">PRESENCE · SHOWN UNDER CORTANA'S NAME IN DISCORD</span><div class="g2"><select class="fld" data-cort="activityType" aria-label="Activity type">${[["watching", "Watching"], ["playing", "Playing"], ["listening", "Listening to"], ["competing", "Competing in"]].map(([t, l]) => `<option value="${t}" ${(S.cortana.activityType || "watching") === t ? "selected" : ""}>${l}</option>`).join("")}</select><input class="fld" data-cort="activityText" maxlength="128" aria-label="Activity text" value="${esc(S.cortana.activityText || "the 505th Deployment")}"></div>
+      <p class="hint">Changes show in Discord within a few seconds — no restart. Channels, logs, welcome message and pings are set in <b>COMMAND → Cortana Setup</b>.</p>
+      <div class="act"><button class="b" data-gocs>OPEN CORTANA SETUP →</button><span style="flex:1"></span><button class="b gold" data-save="cortana">SAVE</button></div>`,
     site: `<span class="lbl" style="margin-top:0">SIGN-UP PAGE</span><p class="hint" style="margin:0">Follows the recruitment switch in COMMAND → UNIT STATUS (currently <b style="color:${status.recruitmentOpen !== false ? "#22e07a" : "#ff4d4d"}">${status.recruitmentOpen !== false ? "OPEN" : "CLOSED"}</b>).</p>
       <label class="lbl" for="sRet">AUDIT LOG RETENTION</label><select class="fld" id="sRet" style="max-width:280px">${[30, 90, 180, 365, 0].map((d) => `<option value="${d}" ${(S.audit.retentionDays ?? 90) === d ? "selected" : ""}>${d ? d + " DAYS" : "FOREVER"}</option>`).join("")}</select>
       <div class="act"><span style="flex:1"></span><button class="b gold" data-save="site">SAVE</button></div>`,
@@ -577,6 +577,7 @@ onReady(() => {
   se?.addEventListener("click", async (e) => {
     const t = e.target.closest("[data-stab]");
     if (t) return (stab = t.dataset.stab), renderSettings();
+    if (e.target.closest("[data-gocs]")) return window.showPanel?.("panel-cmd-cortana");
     const s = e.target.closest("[data-save]");
     if (s) return saveSettings(s.dataset.save);
     const hc = e.target.closest("[data-hookclear]");

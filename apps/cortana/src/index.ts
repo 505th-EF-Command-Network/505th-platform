@@ -2,7 +2,7 @@
  * Cortana v2 — 505th Expeditionary Force Discord bot.
  * Talks to the website ONLY through MongoDB (see apps/cortana/README.md).
  */
-import { Client, Events, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
+import { ActivityType, Client, Events, GatewayIntentBits, MessageFlags, Partials } from "discord.js";
 import { connectDb, disconnectDb } from "@505th/db";
 import { env } from "./env.ts";
 import { log } from "./log.ts";
@@ -11,6 +11,7 @@ import { markOffline, noteError, startHeartbeat } from "./health.ts";
 import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
 import { onDbChange, startLive } from "./live.ts";
+import { cortanaSettings } from "./util.ts";
 import { onMemberUpdate, onUserDocChange, startRoleSync } from "./rolesync.ts";
 import { startMessages } from "./messages.ts";
 import { startQuickUpload } from "./quick-upload.ts";
@@ -76,7 +77,14 @@ client.once(Events.ClientReady, async (ready) => {
   stopEvents = startEvents(ready); // registers event jobs before the worker starts
   stopWorker = startJobWorker(ready);
   startLive(() => wake());
-  ready.user.setActivity("the 505th Deployment", { type: 3 /* Watching */ });
+  // Presence: Settings → CORTANA (website). Applied at start and whenever settings change.
+  const applyPresence = async () => {
+    const c = await cortanaSettings().catch(() => ({} as Record<string, any>));
+    const type = ({ playing: ActivityType.Playing, listening: ActivityType.Listening, watching: ActivityType.Watching, competing: ActivityType.Competing } as Record<string, ActivityType>)[String(c.activityType || "watching")] ?? ActivityType.Watching;
+    ready.user.setActivity(String(c.activityText || "the 505th Deployment").slice(0, 128), { type });
+  };
+  void applyPresence();
+  onDbChange((top) => { if (top === "settings") void applyPresence(); });
 });
 
 for (const evt of [Events.ChannelCreate, Events.ChannelDelete, Events.ChannelUpdate, Events.GuildRoleCreate, Events.GuildRoleDelete, Events.GuildRoleUpdate] as const) {
