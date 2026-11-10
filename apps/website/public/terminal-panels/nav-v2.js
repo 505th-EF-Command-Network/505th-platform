@@ -41,6 +41,7 @@ const GROUPS = [
     ["label", "UNIT"], ["panel-cmd-status", "&#9673; Unit Status"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-cmd-staff", "&#9823; Command Staff"],
     ["panel-cmd-promote", "&#9650; Command Promotions"], ["panel-cmd-suspend", "&#9940; Suspensions"],
     ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-cortana", "&#9670; Cortana Setup"], ["panel-cmd-rolesync", "&#8644; Discord Role Sync"], ["panel-cmd-settings", "&#9881; Settings"]] },
+  { id: "nav-help", icon: "&#10067;", label: "HELP", tip: "What every page does, how-to steps and guided tours.", links: [["panel-help", "&#10067; Help &amp; Guided Tours"]] },
 ];
 
 let me = null; // { uid, role, access }
@@ -87,7 +88,7 @@ function buildMenu() {
   const hr = document.createElement("hr");
   hr.className = "sidebar-divider";
   hr.id = "nv2-cmd-hr";
-  frag.insertBefore(hr, frag.lastChild);
+  frag.insertBefore(hr, frag.querySelector("#nav-command"));
   anchor.parentNode.insertBefore(frag, anchor);
   for (const o of old) o?.remove();
   // The old Command Panel popup is replaced by the COMMAND pages: keep its button (original code uses it) but never show it.
@@ -107,7 +108,7 @@ function buildPanels() {
   const main = document.querySelector(".main-content");
   if (!main) return;
   for (const id of ["panel-tickets", "panel-events", "panel-send", "panel-quick", "panel-info", "panel-mod", "panel-projects", "panel-notes", "panel-officers", "panel-network",
-    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync"]) {
+    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help"]) {
     if (document.getElementById(id)) continue;
     const p = document.createElement("div");
     p.className = "panel hidden";

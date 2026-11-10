@@ -32,7 +32,7 @@ function blank() {
     welcome: { on: false, channelId: "", roleId: "", dm: false, text: "Welcome to the 505th, {user}!\nRead the rules, then sign up on the website to start Basic Training." },
     announce: { channelId: "", ping: "everyone", minRole: "officer" },
     aux: { channelId: "", pingRoleId: "", template: "📦 Aux Mod {version} is out!\n{changes}\nUpdate via the launcher: {link}" },
-    logs: { modLogId: "", joinLeaveId: "", auditId: "" },
+    logs: { modLogId: "", joinLeaveId: "", messageLogId: "", auditId: "" },
   };
 }
 /** Fill empty settings by matching channel / role names. Returns [found, tried]. */
@@ -72,7 +72,7 @@ function tabState(t) {
     case "welcome": return cfg.welcome.on ? w(chk(cfg.welcome.channelId), cfg.welcome.roleId && !role(cfg.welcome.roleId) ? "bad" : "ok") : "off";
     case "ann": return chk(cfg.announce.channelId);
     case "aux": return chk(cfg.aux.channelId);
-    case "logs": return w(chk(cfg.logs.modLogId, false), chk(cfg.logs.joinLeaveId, false), chk(cfg.logs.auditId, false));
+    case "logs": return w(chk(cfg.logs.modLogId, false), chk(cfg.logs.joinLeaveId, false), chk(cfg.logs.messageLogId, false), chk(cfg.logs.auditId, false));
     case "info": case "tickets": return "later";
     default: return "ok";
   }
@@ -129,7 +129,8 @@ function body() {
       <div class="cs-mini"><b style="color:${chans.length ? "var(--g)" : "var(--a)"}">${chans.length ? "✓ SYNCED" : "▲ NOT SYNCED"}</b><small>${chans.length} channels · ${roles.length} roles</small></div>
       <div class="cs-mini"><b style="color:${chans.filter(isText).every((x) => x.botCanSend) ? "var(--g)" : "var(--a)"}">${chans.filter((x) => isText(x) && x.botCanSend).length}/${chans.filter(isText).length} TEXT</b><small>Channels Cortana can post in</small></div></div>
       <div class="cs-card" style="margin-top:14px"><h3>PROBLEMS FOUND <span class="cs-pill ${probs.length ? "wr" : "ok"}">${probs.length}</span></h3>
-      ${probs.length ? probs.map(([k, l]) => `<p>${MARK[tabState(k)][0]} <a href="#" data-tab="${k}">${l}</a></p>`).join("") : "<p>None — everything Cortana needs is set up.</p>"}</div>`;
+      ${probs.length ? probs.map(([k, l]) => `<p>${MARK[tabState(k)][0]} <a href="#" data-tab="${k}">${l}</a></p>`).join("") : "<p>None — everything Cortana needs is set up.</p>"}</div>
+      ${canEdit ? `<div class="cs-card"><h3>⤓ IMPORT FROM OLD CORTANA</h3><p>Switch-over night only (Cortana running on the real 505th server). Brings in the old Rules, Info, Unit Info, Stalker and Notification Roles posts as Info Posts — they keep the old messages, so UPDATE IN DISCORD edits them in place — and fills empty settings (logs, mission log, events, mod updates, announcements). Never overwrites anything.</p><button class="b" data-x="legacy">⤓ IMPORT FROM OLD CORTANA</button></div>` : ""}`;
   }
   if (tab === "events") {
     const pings = c.signupChannels.map((id) => `<span># ${esc(chan(id)?.name || "deleted")}</span>${sel(`channelPings.${id}`, roleOptions(c.channelPings[id] || "", "Use default ping"))}`).join("");
@@ -158,7 +159,7 @@ function body() {
       ${row("ALSO SEND A DM", tog("welcome.dm", c.welcome.dm))}
       <label class="cs-lbl" for="csWt">MESSAGE · {user} {server}</label><textarea class="fld" id="csWt" data-p="welcome.text" maxlength="1500" ${canEdit ? "" : "disabled"}>${esc(c.welcome.text)}</textarea></div>
       <div><div class="cs-lbl">LIVE PREVIEW</div><div class="dc"><div class="h"><i></i><b>Cortana</b></div><div class="e">${prev}</div></div>
-      <p class="cs-n" style="margin-top:10px">▲ Cortana needs the "Server Members" intent switched on in the Discord Developer Portal to see joins. Sending goes live in the next Cortana update.</p></div></div>`;
+      <p class="cs-n" style="margin-top:10px">Cortana needs the "Server Members" intent on (Discord Developer Portal → Bot) to see people joining.</p></div></div>`;
   }
   if (tab === "info")
     return `<h2>INFO POSTS</h2><p class="sub">Permanent posts are made and edited on DISCORD → Info Posts.</p><div class="cs-card"><p>Coming with the Info Posts update.</p></div>`;
@@ -179,6 +180,7 @@ function body() {
   return `<h2>LOGS</h2><p class="sub">Where Cortana writes its logs. Leave empty to turn a log off.</p><div class="cs-card">
     ${row("MODERATION LOG", sel("logs.modLogId", chanOptions(c.logs.modLogId, undefined, "— off —")) + note(c.logs.modLogId))}
     ${row("JOIN / LEAVE LOG", sel("logs.joinLeaveId", chanOptions(c.logs.joinLeaveId, undefined, "— off —")) + note(c.logs.joinLeaveId))}
+    ${row("MESSAGE LOG (DELETED / EDITED)", sel("logs.messageLogId", chanOptions(c.logs.messageLogId, undefined, "— off —")) + note(c.logs.messageLogId))}
     ${row("WEBSITE AUDIT TO DISCORD", sel("logs.auditId", chanOptions(c.logs.auditId, undefined, "— off —")) + note(c.logs.auditId))}</div>`;
 }
 
@@ -240,6 +242,19 @@ function wire() {
     const tg = e.target.closest("[data-tog]");
     if (tg) { setPath(tg.dataset.tog, !getPath(tg.dataset.tog)); return draw(); }
     if (e.target.closest("[data-save]")) return save().catch((err) => notify("SAVE FAILED: " + err.message, 1));
+    if (e.target.closest('[data-x="legacy"]')) {
+      if (!(await ask({ kind: "warn", title: "IMPORT FROM OLD CORTANA?", body: "Adds the old posts as Info Posts and fills EMPTY settings only. Safe to run twice.", go: "IMPORT", cancel: "CANCEL" }))) return;
+      try {
+        const me = await getMe();
+        const ref = await addDoc(collection(db, "bot_jobs"), { type: "legacy.import", requestedBy: me?.uid || "", createdAtISO: new Date().toISOString(), payload: {} });
+        let d = null;
+        for (let n = 0; n < 20 && !(d && (d.status === "done" || d.status === "failed")); n++) { await new Promise((r) => setTimeout(r, 1000)); d = (await getDoc(doc(db, "bot_jobs", ref.id))).data(); }
+        if (d?.status === "failed") throw new Error(d.error || "failed");
+        notify(d?.status === "done" ? `✓ IMPORTED ${d.result?.posts ?? 0} POSTS + ${d.result?.filled ?? 0} SETTINGS — CHECK INFO POSTS` : "◷ CORTANA IS OFFLINE", d?.status !== "done");
+        await load();
+      } catch (err) { notify("IMPORT FAILED: " + err.message, 1); }
+      return;
+    }
     if (e.target.closest("[data-discard]")) { if (await ask({ kind: "warn", title: "DISCARD CHANGES?", body: "Go back to the last saved setup.", go: "DISCARD", cancel: "KEEP EDITING" })) load(); return; }
     if (e.target.closest("[data-sync]")) {
       const b = e.target.closest("[data-sync]");

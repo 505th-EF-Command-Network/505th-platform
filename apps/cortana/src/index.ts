@@ -18,6 +18,8 @@ import { handleInfoButton, handleInfoMenu, startInfoPosts } from "./info-posts.t
 import { handleTicketButton, onTicketMessage, startTickets } from "./tickets.ts";
 import { startModeration } from "./moderation.ts";
 import { startModlist } from "./modlist.ts";
+import { startLegacyImport } from "./legacy-import.ts";
+import { onJoin, onLeave, onMessageDelete, onMessageEdit } from "./logs.ts";
 import { handleCommandButton, handleCommandModal } from "./commands/staff.ts";
 import { scheduleSync, syncGuild } from "./sync.ts";
 import { commandMap, registerCommands } from "./commands/index.ts";
@@ -56,6 +58,7 @@ client.once(Events.ClientReady, async (ready) => {
   startTickets(ready);
   startModeration();
   startModlist();
+  startLegacyImport();
   startRoleSync(ready);
   onDbChange((top, c) => { if (top === "users") void onUserDocChange(ready, c).catch(() => {}); });
   registerJob("commands.register", async (job) => {
@@ -85,6 +88,11 @@ client.on(Events.GuildScheduledEventUpdate, (_o, se) => client.isReady() && void
 client.on(Events.GuildScheduledEventDelete, (se) => client.isReady() && void onDiscordEventDelete(client, se).catch((e) => log.error("Discord event delete", e)));
 
 client.on(Events.GuildMemberUpdate, (before, after) => client.isReady() && void onMemberUpdate(client, before, after).catch((e) => log.warn(`Role sync failed: ${(e as Error).message}`)));
+
+client.on(Events.GuildMemberAdd, (m) => void onJoin(client, m).catch((e) => log.warn(`Join log failed: ${(e as Error).message}`)));
+client.on(Events.GuildMemberRemove, (m) => void onLeave(client, m).catch(() => {}));
+client.on(Events.MessageDelete, (m) => void onMessageDelete(client, m).catch(() => {}));
+client.on(Events.MessageUpdate, (a, b) => void onMessageEdit(client, a, b).catch(() => {}));
 
 client.on(Events.MessageCreate, (m) => void onTicketMessage(m).catch((e) => log.warn(`Ticket message failed: ${(e as Error).message}`)));
 

@@ -36,7 +36,7 @@ const Post = z.object({
   name: z.string().max(100).default(""), channelId: z.string().regex(/^\d{5,25}$/), content: z.string().max(1900).default(""),
   embeds: z.array(Embed).max(10).default([]), buttons: z.array(Btn).max(25).default([]),
   menu: z.object({ placeholder: z.string().max(150).default("Pick…"), roleIds: z.array(z.string()).max(25).default([]), max: z.number().int().min(1).max(25).default(1) }).nullable().default(null),
-  pin: z.boolean().default(false), discord: z.any().optional(),
+  pin: z.boolean().default(false), clearReactions: z.boolean().default(false), discord: z.any().optional(),
 });
 type PostT = z.infer<typeof Post>;
 
@@ -95,6 +95,10 @@ async function publish(client: Client<true>, id: string) {
     if (oc && "messages" in oc) await (await oc.messages.fetch(p.discord.messageId).catch(() => null))?.delete().catch(() => {});
   }
   const msg = old ? await old.edit(body) : await ch.send({ ...body, content: body.content ?? undefined });
+  if (p.clearReactions) { // imported from the old reaction-role message → buttons now
+    await msg.reactions.removeAll().catch(() => {});
+    await TerminalDoc.updateOne({ _id: `info_posts/${id}` }, { $set: { "data.clearReactions": false } });
+  }
   if (p.pin && !msg.pinned) await msg.pin().catch(() => {});
   if (!p.pin && msg.pinned) await msg.unpin().catch(() => {});
   await setDiscord(id, { channelId: ch.id, messageId: msg.id, jumpUrl: msg.url, postedAtISO: new Date().toISOString(), missing: false, error: null });

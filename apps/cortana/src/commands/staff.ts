@@ -23,6 +23,12 @@ const eph = { flags: MessageFlags.Ephemeral } as const;
 const COLORS: Record<string, number> = { blue: 0x194a77, cyan: 0x00d9ff, green: 0x22e07a, amber: 0xf59e0b, red: 0xff4d4d };
 const pending = new Map<string, { kind: string; userId: string; data: any; at: number }>();
 const token = () => randomBytes(6).toString("hex");
+/** Cortana-only delayed delete (job without requestedBy — the website can't make these). */
+async function queueDelete(channelId: string, messageId: string, inMs: number) {
+  const id = randomBytes(10).toString("hex"), now = new Date();
+  await TerminalDoc.create({ _id: `bot_jobs/${id}`, parent: "bot_jobs", docId: id, createTime: now, updateTime: now,
+    data: { type: "message.deleteLater", status: "pending", attempts: 0, createdAtISO: now.toISOString(), runAtISO: new Date(Date.now() + inMs).toISOString(), payload: { channelId, messageId } } }).catch(() => {});
+}
 const keep = (data: any, kind: string, userId: string) => { const t = token(); pending.set(t, { kind, userId, data, at: Date.now() }); for (const [k, v] of pending) if (Date.now() - v.at > 600_000) pending.delete(k); return t; };
 
 async function modBy(m: GuildMember): Promise<ModBy> {
@@ -151,8 +157,9 @@ const auxmod: Cmd = {
     const link = i.options.getString("link") ?? "";
     if (link && !/^https:\/\/\S+$/.test(link)) return void (await i.reply({ content: "The link must start with https://", ...eph }));
     const t = keep({ version: i.options.getString("version", true), link }, "auxmod", i.user.id);
-    await i.showModal(new ModalBuilder().setCustomId(`cmdm:${t}`).setTitle("Aux Mod update").addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId("changes").setLabel("What changed (one per line)").setStyle(TextInputStyle.Paragraph).setMaxLength(3500).setRequired(true)),
+    const field = (id: string, label: string) => new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Paragraph).setMaxLength(1000).setRequired(false).setPlaceholder("One per line (or split with commas)"));
+    await i.showModal(new ModalBuilder().setCustomId(`cmdm:${t}`).setTitle(`Aux Mod Update ${i.options.getString("version", true)}`.slice(0, 45)).addComponents(
+      field("added", "Added"), field("changed", "Changed"), field("fixed", "Fixed"), field("removed", "Removed"),
     ));
   },
 };
@@ -166,27 +173,60 @@ const restart: Cmd = {
 };
 const modlist: Cmd = {
   key: null,
-  data: new SlashCommandBuilder().setName("modlist").setDescription("Show the 505th modlist — staff: attach a new Arma 3 Launcher preset to post it.")
+  data: new SlashCommandBuilder().setName("modlist").setDescription("Show the 505th modlist — staff: post a new preset, or list mods added / removed.")
     .addAttachmentOption((o) => o.setName("preset").setDescription("Arma 3 Launcher preset .html (Developers / Command)"))
-    .addStringOption((o) => o.setName("note").setDescription("Extra message, e.g. what was added or removed").setMaxLength(1500)),
+    .addStringOption((o) => o.setName("add").setDescription("Mods added (split with commas)").setMaxLength(1000))
+    .addStringOption((o) => o.setName("remove").setDescription("Mods removed (split with commas)").setMaxLength(1000))
+    .addStringOption((o) => o.setName("version").setDescription("Version label, e.g. Modlist v3.6").setMaxLength(60))
+    .addStringOption((o) => o.setName("note").setDescription("Extra message").setMaxLength(1500)),
   async run(i) {
-    const file = i.options.getAttachment("preset");
-    if (!file) {
+    const file = i.options.getAttachment("preset"), add = i.options.getString("add"), remove = i.options.getString("remove");
+    if (!file && !add && !remove) {
       const d = (await TerminalDoc.findById("bot_state/modlist", { data: 1 }).lean())?.data as { mods?: Mod[]; presetName?: string; updatedAtISO?: string; jumpUrl?: string } | undefined;
       if (!d?.mods?.length) return void (await i.reply({ content: "No modlist has been posted yet.", ...eph }));
       const e = new EmbedBuilder().setColor(0x22e07a).setTitle(`📦 ${d.presetName ?? "505th Modlist"} · ${d.mods.length} mods`).setThumbnail(LOGO)
         .setDescription(`Last updated ${d.updatedAtISO ? `<t:${Math.floor(Date.parse(d.updatedAtISO) / 1000)}:R>` : "—"}.${d.jumpUrl ? ` [Full list + preset](${d.jumpUrl})` : ""}`);
       return void (await i.reply({ embeds: [e], ...eph }));
     }
-    if (!(await allowed(i.member as GuildMember, "set"))) return void (await i.reply({ content: "⛔ Only Developers / Command can post a new modlist.", ...eph }));
-    if (!/\.html?$/i.test(file.name) || file.size > 2_000_000) return void (await i.reply({ content: "Attach the Arma 3 Launcher preset (.html, under 2 MB).", ...eph }));
-    await i.deferReply(eph);
-    const html = await fetch(file.url, { signal: AbortSignal.timeout(10_000) }).then((r) => r.text()).catch(() => "");
-    const { mods, presetName } = parsePreset(html);
-    if (!mods.length) return void (await i.editReply("That file isn't an Arma 3 Launcher preset (no mods found)."));
-    const ch = i.channel as SendableChannels;
-    const r = await postModlist(i.client, { mods, presetName, note: i.options.getString("note") ?? "" }, (i.member as GuildMember).displayName, ch);
-    await i.editReply(`✅ Posted **${mods.length} mods**${r.first ? "" : ` (+${r.added} / −${r.removed})`}.`);
+    if (!(await allowed(i.member as GuildMember, "set"))) return void (await i.reply({ content: "⛔ Only Developers / Command can post the modlist.", ...eph }));
+    const s = await cortanaSettings();
+    const ch = ((s.modlistChannelId || s.aux?.channelId) ? await i.client.channels.fetch(s.modlistChannelId || s.aux.channelId).catch(() => null) : null) ?? i.channel;
+    if (!ch || !("send" in ch)) return void (await i.reply({ content: "Modlist channel not found — set the Aux Mod channel in Cortana Setup.", ...eph }));
+    const note = i.options.getString("note") ?? "";
+    if (file) {
+      if (!/\.html?$/i.test(file.name) || file.size > 2_000_000) return void (await i.reply({ content: "Attach the Arma 3 Launcher preset (.html, under 2 MB).", ...eph }));
+      await i.deferReply(eph);
+      const html = await fetch(file.url, { signal: AbortSignal.timeout(10_000) }).then((r) => r.text()).catch(() => "");
+      const { mods, presetName } = parsePreset(html);
+      if (!mods.length) return void (await i.editReply("That file isn't an Arma 3 Launcher preset (no mods found)."));
+      const extra = [add ? `➕ **Added:** ${add}` : "", remove ? `➖ **Removed:** ${remove}` : "", note].filter(Boolean).join("\n");
+      const r = await postModlist(i.client, { mods, presetName: i.options.getString("version") || presetName, note: extra }, (i.member as GuildMember).displayName, ch as SendableChannels);
+      return void (await i.editReply(`✅ Posted **${mods.length} mods**${r.first ? "" : ` (+${r.added} / −${r.removed})`}.`));
+    }
+    // Text only (like the old Cortana): ➕ added / ➖ removed.
+    const list = (v: string | null) => (v ? v.split(",").map((x) => x.trim()).filter(Boolean) : []);
+    const a = list(add), rm = list(remove);
+    const e = new EmbedBuilder().setColor(0x22e07a).setTitle(`📦 ${i.options.getString("version") || "Modlist Update"}`).setThumbnail(LOGO)
+      .setDescription([note, a.length ? `➕ **Added Mods:**\n${a.map((x) => `• ${x}`).join("\n")}` : "", rm.length ? `➖ **Removed Mods:**\n${rm.map((x) => `• ${x}`).join("\n")}` : ""].filter(Boolean).join("\n\n").slice(0, 4000))
+      .setFooter({ text: `505th Expeditionary Force · ${(i.member as GuildMember).displayName}`, iconURL: LOGO }).setTimestamp();
+    await (ch as SendableChannels).send({ embeds: [e], allowedMentions: { parse: [] } });
+    await auditLog("MODLIST UPDATE", `+${a.length} / −${rm.length}`, (i.member as GuildMember).displayName);
+    await i.reply({ content: `✅ Modlist update posted in <#${ch.id}>.`, ...eph });
+  },
+};
+const help: Cmd = {
+  key: null,
+  data: new SlashCommandBuilder().setName("help").setDescription("What Cortana can do."),
+  async run(i) {
+    const e = new EmbedBuilder().setColor(0x00d9ff).setTitle("◈ Cortana — Help").setThumbnail(LOGO).addFields(
+      { name: "Everyone", value: "`/modlist` current modlist + preset · `/coinflip` · `/ping` · `/status`" },
+      { name: "Moderation (staff)", value: "`/warn` `/timeout` `/purge` · `/kick` `/ban` (confirm first)" },
+      { name: "Posting (staff)", value: "`/announce` (form) · `/say` · `/poll`" },
+      { name: "Developers / Command", value: "`/auxmod` (Added / Changed / Fixed / Removed form) · `/modlist` with a preset or add / remove · `/restart`" },
+      { name: "Automatic", value: "Event sign-ups + Upcoming Events · tickets · role buttons · rank / unit / squad sync with the website · join / leave + message logs" },
+      { name: "Website", value: "Most staff tools are in the **Command Terminal** on the 505th website." },
+    ).setFooter({ text: "505th Expeditionary Force · Cortana v2", iconURL: LOGO });
+    await i.reply({ embeds: [e], ...eph });
   },
 };
 const coinflip: Cmd = {
@@ -197,7 +237,7 @@ const coinflip: Cmd = {
   },
 };
 
-export const staffCommands: Cmd[] = [warn, timeout, kickOrBan("kick"), kickOrBan("ban"), purge, announce, say, poll, auxmod, modlist, coinflip, restart];
+export const staffCommands: Cmd[] = [warn, timeout, kickOrBan("kick"), kickOrBan("ban"), purge, announce, say, poll, auxmod, modlist, help, coinflip, restart];
 
 /* ───────── follow-ups: confirm buttons + forms ───────── */
 export async function handleCommandButton(i: ButtonInteraction): Promise<boolean> {
@@ -252,18 +292,27 @@ export async function handleCommandModal(i: ModalSubmitInteraction): Promise<boo
   }
   if (job.kind === "auxmod") {
     if (!(await allowed(m, "bot"))) return void (await i.reply({ content: "⛔ No access.", ...eph })), true;
+    // Same layout as the old Cortana: Version + Added / Changed / Fixed / Removed, posted in the Aux Mod channel,
+    // plus a short announcement pinging the Mod Updates role that deletes itself after 24 h.
     const ch = s.aux?.channelId ? await i.client.channels.fetch(s.aux.channelId).catch(() => null) : i.channel;
     if (!ch || !("send" in ch)) return void (await i.reply({ content: "Aux Mod channel not found — set it in Cortana Setup.", ...eph })), true;
-    const changes = i.fields.getTextInputValue("changes").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => (/^[•\-*]/.test(l) ? l.replace(/^[-*]\s*/, "• ") : "• " + l)).join("\n");
-    const tpl: string = s.aux?.template || "📦 Aux Mod {version} is out!\n{changes}\nUpdate via the launcher: {link}";
-    const text = tpl.replace(/\{version\}/g, job.data.version).replace(/\{changes\}/g, changes).replace(/\{link\}/g, job.data.link || "the launcher");
-    const [title, ...rest] = text.split("\n");
-    const e = new EmbedBuilder().setColor(0x22e07a).setTitle(title.slice(0, 256)).setDescription(rest.join("\n").slice(0, 4000) || null).setFooter({ text: "505th Expeditionary Force · Developers", iconURL: LOGO }).setTimestamp();
+    const section = (label: string, raw: string) => {
+      const lines = raw.split(/\r?\n|,/).map((l) => l.trim().replace(/^[•\-*]\s*/, "")).filter(Boolean);
+      return `**${label}:**\n${lines.length ? lines.map((l) => `• ${l}`).join("\n") : "• N/A"}`;
+    };
+    const v = job.data.version;
+    const desc = [`**Version:** ${v}`, section("Added", i.fields.getTextInputValue("added")), section("Changed", i.fields.getTextInputValue("changed")), section("Fixed", i.fields.getTextInputValue("fixed")), section("Removed", i.fields.getTextInputValue("removed"))].join("\n\n");
+    const e = new EmbedBuilder().setColor(0x0099ff).setTitle(`Aux Mod Update V ${v}`.slice(0, 256)).setDescription(desc.slice(0, 4000)).setThumbnail(LOGO).setFooter({ text: "505th Mod Team • Aux Mod Update", iconURL: LOGO }).setTimestamp();
     const row = job.data.link ? [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Download").setEmoji("⬇").setURL(job.data.link))] : [];
+    const post = await ch.send({ embeds: [e], components: row, allowedMentions: { parse: [] } });
     const role = s.aux?.pingRoleId;
-    await ch.send({ content: role ? `<@&${role}>` : undefined, embeds: [e], components: row, allowedMentions: { roles: role ? [role] : [] } });
-    await auditLog("AUX MOD UPDATE", job.data.version, m.displayName);
-    await i.reply({ content: "📦 Aux Mod update posted.", ...eph });
+    const ann = s.announce?.channelId ? await i.client.channels.fetch(s.announce.channelId).catch(() => null) : null;
+    if (ann && "send" in ann) {
+      const a = await ann.send({ content: `# 📦 Aux Mod Update V ${v}\n\n${role ? `<@&${role}> — ` : ""}check ${post.url} for full details.`, allowedMentions: { roles: role ? [role] : [] } }).catch(() => null);
+      if (a) await queueDelete(a.channelId, a.id, 24 * 3600_000);
+    }
+    await auditLog("AUX MOD UPDATE", `V ${v}`, m.displayName);
+    await i.reply({ content: `✅ Aux Mod update **V ${v}** posted${ann ? " and announced (the announcement deletes itself in 24 h)" : ""}.`, ...eph });
     return true;
   }
   return false;

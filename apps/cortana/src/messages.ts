@@ -78,6 +78,14 @@ async function textChannel(client: Client<true>, id: string) {
 }
 
 export function startMessages() {
+  // Cortana's own delayed deletes (e.g. the 24 h Aux Mod announcement). Website jobs always carry requestedBy → refused.
+  registerJob("message.deleteLater", async (job, client) => {
+    if (job.data.requestedBy) throw new PermanentJobError("Not allowed");
+    const { channelId, messageId } = (job.data.payload ?? {}) as Record<string, string>;
+    const ch = channelId ? await client.channels.fetch(channelId).catch(() => null) : null;
+    if (ch && "messages" in ch && messageId) await (await ch.messages.fetch(messageId).catch(() => null))?.delete().catch(() => {});
+    return { ok: true };
+  });
   registerJob("message.send", async (job, client) => {
     const by = await mustAllow(job);
     const p = parse(SendP, job.data.payload);
