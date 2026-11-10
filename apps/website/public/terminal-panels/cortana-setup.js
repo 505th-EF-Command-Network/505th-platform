@@ -16,6 +16,7 @@ const TABS = [
   ["ann", "ANNOUNCEMENTS"], ["aux", "AUX MOD UPDATES"], ["tickets", "TICKETS"], ["logs", "LOGS"],
 ];
 
+let posts = [], ttypes = [];
 let chans = [], roles = [], cfg = null, saved = "", tab = "check", root = null, canEdit = false, autoNote = null;
 const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 const chan = (id) => chans.find((c) => c.id === id);
@@ -73,7 +74,8 @@ function tabState(t) {
     case "ann": return chk(cfg.announce.channelId);
     case "aux": return chk(cfg.aux.channelId);
     case "logs": return w(chk(cfg.logs.modLogId, false), chk(cfg.logs.joinLeaveId, false), chk(cfg.logs.messageLogId, false), chk(cfg.logs.auditId, false));
-    case "info": case "tickets": return "later";
+    case "info": return posts.length ? w(...posts.map((p) => (p.discord?.missing ? "bad" : p.channelId ? chk(p.channelId) : "warn"))) : "warn";
+    case "tickets": return ttypes.length ? w(...ttypes.map((t) => (!t.panel?.messageId ? "warn" : chk(t.channelId)))) : "warn";
     default: return "ok";
   }
 }
@@ -162,7 +164,9 @@ function body() {
       <p class="cs-n" style="margin-top:10px">Cortana needs the "Server Members" intent on (Discord Developer Portal → Bot) to see people joining.</p></div></div>`;
   }
   if (tab === "info")
-    return `<h2>INFO POSTS</h2><p class="sub">Permanent posts are made and edited on DISCORD → Info Posts.</p><div class="cs-card"><p>Coming with the Info Posts update.</p></div>`;
+    return `<h2>INFO POSTS</h2><p class="sub">Rules, info, role pickers and FAQ. Made and edited on DISCORD → Info Posts.</p><div class="cs-card">
+      ${posts.length ? posts.sort((a, b) => String(a.name).localeCompare(b.name)).map((p) => { const st = p.discord?.missing ? ["MISSING", "bad"] : p.discord?.messageId ? ["LIVE", "ok"] : ["DRAFT", "warn"]; return row(esc(p.name || "(no name)"), `<span>#${esc(chan(p.channelId)?.name || "—")}</span> <b style="color:${MARK[st[1]][1]}">${MARK[st[1]][0]} ${st[0]}</b>`); }).join("") : '<p class="cs-n">No info posts yet. Use SERVER CHECK → IMPORT FROM OLD CORTANA, or make one on the Info Posts page.</p>'}
+      <div style="margin-top:12px"><button class="b" data-go="panel-info">OPEN INFO POSTS →</button></div></div>`;
   if (tab === "ann")
     return `<h2>ANNOUNCEMENTS</h2><p class="sub">Post from the website — Cortana sends it.</p><div class="cs-card">
       ${row("CHANNEL", sel("announce.channelId", chanOptions(c.announce.channelId)) + note(c.announce.channelId))}
@@ -176,7 +180,9 @@ function body() {
       <label class="cs-lbl" for="csAt">TEMPLATE · {version} {changes} {link}</label><textarea class="fld" id="csAt" data-p="aux.template" maxlength="1500" ${canEdit ? "" : "disabled"}>${esc(c.aux.template)}</textarea></div>
       <div><div class="cs-lbl">LIVE PREVIEW</div><div class="dc"><div class="h"><i></i><b>Cortana</b></div>${c.aux.pingRoleId && role(c.aux.pingRoleId) ? `<span class="mn">@${esc(role(c.aux.pingRoleId).name)}</span>` : ""}<div class="e">${prev}</div></div></div></div>`;
   }
-  if (tab === "tickets") return `<h2>TICKETS</h2><p class="sub">Recruitment and Tech Support.</p><div class="cs-card"><p>Set up when the ticket system is built.</p></div>`;
+  if (tab === "tickets") return `<h2>TICKETS</h2><p class="sub">Each ticket type has its own channel with an "open ticket" button. Set up on DISCORD → Tickets.</p><div class="cs-card">
+      ${ttypes.length ? ttypes.sort((a, b) => String(a.name).localeCompare(b.name)).map((t) => { const st = t.panel?.messageId ? ["POSTED", chk(t.channelId)] : ["NOT POSTED", "warn"]; return row(`${esc(t.emoji || "")} ${esc(t.name)}`, `<span>#${esc(chan(t.channelId)?.name || "—")}</span> <b style="color:${MARK[st[1]][1]}">${MARK[st[1]][0]} ${st[0]}</b>`); }).join("") : '<p class="cs-n">No ticket types yet. Add Recruitment and Tech Support on the Tickets page.</p>'}
+      <div style="margin-top:12px"><button class="b" data-go="panel-tickets">OPEN TICKETS →</button></div></div>`;
   return `<h2>LOGS</h2><p class="sub">Where Cortana writes its logs. Leave empty to turn a log off.</p><div class="cs-card">
     ${row("MODERATION LOG", sel("logs.modLogId", chanOptions(c.logs.modLogId, undefined, "— off —")) + note(c.logs.modLogId))}
     ${row("JOIN / LEAVE LOG", sel("logs.joinLeaveId", chanOptions(c.logs.joinLeaveId, undefined, "— off —")) + note(c.logs.joinLeaveId))}
@@ -205,6 +211,7 @@ const getPath = (path) => path.split(".").reduce((o, k) => o?.[k], cfg);
 
 async function load() {
   const [cs, rs, s] = await Promise.all([getDocs(collection(db, "discord_channels")), getDocs(collection(db, "discord_roles")), getDoc(DOC())]);
+  [posts, ttypes] = await Promise.all(["info_posts", "ticket_types"].map((c) => getDocs(collection(db, c)).then((q) => q.docs.map((d) => ({ id: d.id, ...d.data() }))).catch(() => [])));
   chans = cs.docs.map((d) => ({ id: d.id, ...d.data() }));
   roles = rs.docs.map((d) => ({ id: d.id, ...d.data() }));
   const b = blank();
@@ -237,6 +244,8 @@ function wire() {
   root.addEventListener("click", async (e) => {
     const t = e.target.closest("[data-tab]");
     if (t) { e.preventDefault(); tab = t.dataset.tab; return draw(); }
+    const go = e.target.closest("[data-go]");
+    if (go) { e.preventDefault(); return window.showPanel?.(go.dataset.go); }
     const rm = e.target.closest("[data-rm]");
     if (rm) { const p = rm.dataset.rm; setPath(p, getPath(p).filter((x) => x !== rm.dataset.id)); if (p === "signupChannels") delete cfg.channelPings[rm.dataset.id]; return draw(); }
     const tg = e.target.closest("[data-tog]");
