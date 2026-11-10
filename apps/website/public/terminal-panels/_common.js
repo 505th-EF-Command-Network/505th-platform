@@ -370,3 +370,31 @@ window.cfConfirm = (msg, opts = {}) => {
   const go = opts.go || (first.match(/^(DELETE|REMOVE|CLEAR|RESET|UNLOCK|SUSPEND|REINSTATE|MIGRATE|BACKFILL|ASSIGN|FORCE)/i)?.[1] || "CONFIRM").toUpperCase();
   return ask({ kind: opts.kind || (danger ? "danger" : "warn"), title: first.trim().toUpperCase(), body, warn: /cannot be undone|permanent/i.test(msg) ? "THIS CANNOT BE UNDONE." : "", go, ...opts });
 };
+
+/* ───────── Cortana v2 status (bot_status/cortana, written every 30 s) ───────── */
+let _cs = null, _csAt = 0;
+/** → { online, ...data } ; online = heartbeat within 90 s. Cached 15 s. */
+export async function cortanaStatus() {
+  if (_cs && Date.now() - _csAt < 15000) return _cs;
+  try {
+    const s = await getDoc(doc(db, "bot_status", "cortana"));
+    const d = s.exists() ? s.data() : {};
+    _cs = { ...d, online: d.online !== false && !!d.lastHeartbeatISO && Date.now() - Date.parse(d.lastHeartbeatISO) < 90_000 };
+  } catch {
+    _cs = { online: false };
+  }
+  _csAt = Date.now();
+  return _cs;
+}
+/** Last 30 UK days of uptime % (null = no data) — oldest first. */
+export function uptimeDays(d) {
+  const m = d?.uptimeMinutes || {};
+  return Array.from({ length: 30 }, (_, i) => {
+    const k = new Date(Date.now() - (29 - i) * 864e5).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+    return m[k] == null ? null : Math.min(100, Math.round((m[k] / (i === 29 ? Math.max(1, minutesTodayUK()) : 1440)) * 1000) / 10);
+  });
+}
+function minutesTodayUK() {
+  const t = new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour12: false }).split(":");
+  return +t[0] * 60 + +t[1];
+}

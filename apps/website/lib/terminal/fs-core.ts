@@ -28,7 +28,10 @@ export const TOP_COLLECTIONS = new Set([
   "presence_sessions", "roster", "settings", "unit_config", "users",
   // v2 terminal pages
   "projects", "notes", "community_events", "bot_jobs",
+  // written by Cortana v2 only (read-only here)
+  "bot_status", "bot_state", "discord_channels", "discord_roles",
 ]);
+const BOT_ONLY = new Set(["bot_status", "bot_state", "discord_channels", "discord_roles"]);
 const SUB_COLLECTIONS: Record<string, string> = { conversations: "messages", notifications: "items" };
 const SEGMENT = /^[A-Za-z0-9_\-]{1,200}$/;
 
@@ -287,6 +290,7 @@ export function checkWrite(
   };
 
   if (target.top === "notes") deny("Notes are saved through the Notes page");
+  if (BOT_ONLY.has(target.top)) deny("Only Cortana writes this");
   const needs = writeNeeds(target.top, target.docId, fields, newValues);
   if (needs && !needs.some((k) => can(actor.role, actor.access, k))) deny("You don't have access to change this");
 

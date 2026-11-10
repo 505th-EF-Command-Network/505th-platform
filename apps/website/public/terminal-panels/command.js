@@ -7,7 +7,7 @@
  * Discord actions are queued in bot_jobs for Cortana v2.
  */
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from "/terminal-shim/firestore.js";
-import { addCss, audit, closeModal, db, esc, getMe, getUsers, hexAvatar, isMember, memberName, mountPanel, notify, notifyMember, onReady, openModal, rankOrder, ukDate } from "./_common.js";
+import { addCss, cortanaStatus, audit, closeModal, db, esc, getMe, getUsers, hexAvatar, isMember, memberName, mountPanel, notify, notifyMember, onReady, openModal, rankOrder, ukDate } from "./_common.js";
 import { ask, tell } from "./_common.js";
 
 const OPS = [["Active", "ACTIVE", "Full operations", "#22e07a"], ["Stand Down", "STAND DOWN", "Reduced operations", "#7d8a99"], ["On Op", "ON OP", "Active deployment", "#f59e0b"], ["Training Cycle", "TRAINING", "Training cycle", "#00D9FF"], ["Maintenance", "MAINTENANCE", "Admin period", "#a78bfa"]];
@@ -47,7 +47,11 @@ function strip() {
   if (!el) return;
   const o = OPS.find((x) => x[0] === status.opStatus) || ["", "NOT SET", "", "#7d8a99"];
   const open = status.recruitmentOpen !== false;
-  el.innerHTML = `<b style="color:${o[3]}">◉ UNIT: ${o[1]}</b><b style="color:${open ? "#22e07a" : "#ff4d4d"}">${open ? "● RECRUITING" : "○ RECRUITMENT CLOSED"}</b><b style="color:#7d8a99">CORTANA: ○ NOT RUNNING</b>`;
+  el.innerHTML = `<b style="color:${o[3]}">◉ UNIT: ${o[1]}</b><b style="color:${open ? "#22e07a" : "#ff4d4d"}">${open ? "● RECRUITING" : "○ RECRUITMENT CLOSED"}</b><b id="cmdStripCort" style="color:#7d8a99">CORTANA: ○ …</b>`;
+  cortanaStatus().then((c) => {
+    const b = document.getElementById("cmdStripCort");
+    if (b) { b.style.color = c.online ? "#22e07a" : c.lastHeartbeatISO ? "#ff4d4d" : "#7d8a99"; b.textContent = c.online ? `CORTANA: ● ONLINE · ${c.pingMs} MS` : c.lastHeartbeatISO ? "CORTANA: ✕ OFFLINE" : "CORTANA: ○ NOT RUNNING"; }
+  });
 }
 
 /* ───────────────────────────────── UNIT STATUS ──────────────────────────── */
@@ -294,13 +298,14 @@ async function renderOverall() {
     loadUsers(true), getDocs(collection(db, "community_events")), getDocs(collection(db, "bot_jobs")), getDocs(collection(db, "attendance_events")), getDocs(collection(db, "aars")),
   ]);
   const dbMs = Math.round(performance.now() - t0);
+  const cort = await cortanaStatus();
   const wk = Date.now() - 7 * 86400000;
   const pending = jobs.docs.filter((d) => d.data().status === "pending").length;
   const up = ev.docs.filter((d) => d.data().status !== "cancelled" && Date.parse(d.data().startAtISO) > Date.now()).length;
   const svc = [
     ["WEBSITE", "ok", "● ONLINE", "YOU'RE USING IT"],
     ["DATABASE (MONGODB)", dbMs < 1500 ? "ok" : "warn", dbMs < 1500 ? "● ONLINE" : "▲ SLOW", `${dbMs} ms FOR 5 QUERIES`],
-    ["CORTANA v2", "off", "○ NOT RUNNING YET", `QUEUED DISCORD JOBS: ${pending}`],
+    cort.online ? ["CORTANA v2", "ok", "● ONLINE", `${cort.pingMs} MS PING · QUEUED JOBS: ${pending}`] : cort.lastHeartbeatISO ? ["CORTANA v2", "bad", "✕ OFFLINE", `LAST SEEN ${new Date(cort.lastHeartbeatISO).toLocaleString("en-GB")} · QUEUED: ${pending}`] : ["CORTANA v2", "off", "○ NOT RUNNING YET", `QUEUED DISCORD JOBS: ${pending}`],
     ["FIREBASE (OLD SITE)", "warn", "▲ STILL LIVE", "KEEP UNTIL CUT-OVER IS APPROVED"],
     ["505TH HUB", "off", "○ NOT CONNECTED", "DESKTOP APP NOT BUILT YET"],
   ];
@@ -319,11 +324,17 @@ async function renderOverall() {
 async function renderBot() {
   const root = document.getElementById("cmdBotV2");
   if (!root) return;
-  const s = await getDocs(collection(db, "bot_jobs"));
+  const [s, cort] = await Promise.all([getDocs(collection(db, "bot_jobs")), cortanaStatus()]);
   const jobs = s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.createdAtISO).localeCompare(String(a.createdAtISO)));
   root.querySelector(".body").innerHTML = `
-    <div class="note">◷ Cortana v2 isn't running yet. When it is, this page shows the live process (same as RCD Hub's Server page): status, CPU, memory, uptime, live log, reload / restart / shut down.</div>
-    <div class="kp"><div><b style="color:#4b5765">OFFLINE</b><span>STATUS</span></div><div><b style="color:#4b5765">—</b><span>UPTIME</span></div><div><b style="color:#4b5765">—</b><span>CPU</span></div><div><b style="color:#4b5765">—</b><span>MEMORY</span></div></div>
+    ${(() => {
+      const c = cort;
+      const up = c.startedAtISO ? Math.floor((Date.now() - Date.parse(c.startedAtISO)) / 60000) : null;
+      const g = (v, col) => `<b style="color:${c.online ? col : "#4b5765"}">${c.online && v != null ? v : "—"}</b>`;
+      return `${c.online ? "" : `<div class="note">${c.lastHeartbeatISO ? `✕ Cortana is OFFLINE — last seen ${esc(new Date(c.lastHeartbeatISO).toLocaleString("en-GB"))}${c.stopReason ? ` (${esc(c.stopReason)})` : ""}.` : "◷ Cortana v2 hasn't started yet. Start it on the server (see apps/cortana/README.md)."} Restart / shut down buttons and the live log come in a later Cortana update.</div>`}
+      <div class="kp"><div><b style="color:${c.online ? "#22e07a" : c.lastHeartbeatISO ? "#ff4d4d" : "#4b5765"}">${c.online ? "ONLINE" : "OFFLINE"}</b><span>STATUS</span></div><div>${g(up != null ? `${Math.floor(up / 1440)}d ${Math.floor((up % 1440) / 60)}h ${up % 60}m` : null, "#fff")}<span>UPTIME</span></div><div>${g(c.cpuPercent != null ? c.cpuPercent + "%" : null, "#22e07a")}<span>CPU</span></div><div>${g(c.memoryMb != null ? c.memoryMb + " MB" : null, "#fff")}<span>MEMORY</span></div></div>
+      ${c.botTag ? `<p class="hint">${esc(c.botTag)} · ${esc(c.guildName || "")}${c.memberCount ? ` · ${c.memberCount} members` : ""} · v${esc(c.version || "")}${c.supervised ? " · running under PM2" : " · not under PM2"}</p>` : ""}`;
+    })()}
     <div class="cd"><span class="lbl" style="margin-top:0">QUEUED FOR CORTANA (${jobs.filter((j) => j.status === "pending").length} WAITING)</span>
       <table class="t"><tbody>${jobs.slice(0, 40).map((j) => `<tr><td>${esc(j.type)}</td><td class="dim">${esc(JSON.stringify(j.payload || {}).slice(0, 80))}</td><td><span class="pill" style="--c:${j.status === "pending" ? "#f59e0b" : j.status === "failed" ? "#ff4d4d" : "#22e07a"}">${esc(String(j.status).toUpperCase())}</span></td><td class="dim">${ukDate(j.createdAtISO, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td></tr>`).join("") || '<tr><td class="empty">NOTHING QUEUED</td></tr>'}</tbody></table></div>`;
 }
@@ -441,7 +452,7 @@ const CSS2 = `
 .cmdv2 .warn,.cmdv2 .note{border:1px solid rgba(245,158,11,.5);background:rgba(245,158,11,.06);color:#f5c26b;padding:10px 14px;font-size:11.5px;margin-bottom:14px;line-height:1.6}
 .cmdv2 .pick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.cmdv2 .pk{border:1px solid var(--l);background:none;color:#d6dde6;padding:6px 10px;font:inherit;font-size:11.5px;cursor:pointer}.cmdv2 .pk small{display:block;font-size:9px;color:var(--d)}.cmdv2 .pk.on{border-color:var(--r);color:var(--r)}
 .cmdv2 .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}.cmdv2 .kp>div{border:1px solid var(--l);background:var(--p2);padding:12px;text-align:center}.cmdv2 .kp b{display:block;font-family:Rajdhani,sans-serif;font-size:24px;color:var(--a)}.cmdv2 .kp span{font-size:9px;letter-spacing:2px;color:var(--d)}
-.cmdv2 .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.cmdv2 .sc{border:1px solid var(--l);border-left:3px solid var(--sc);background:var(--p);padding:14px}.cmdv2 .sc.ok{--sc:#22e07a}.cmdv2 .sc.warn{--sc:#f59e0b}.cmdv2 .sc.off{--sc:#4b5765}
+.cmdv2 .svc{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.cmdv2 .sc{border:1px solid var(--l);border-left:3px solid var(--sc);background:var(--p);padding:14px}.cmdv2 .sc.ok{--sc:#22e07a}.cmdv2 .sc.warn{--sc:#f59e0b}.cmdv2 .sc.off{--sc:#4b5765}.cmdv2 .sc.bad{--sc:#ff4d4d}
 .cmdv2 .sh{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:1.5px;gap:8px}.cmdv2 .sh b{font-family:Rajdhani,sans-serif;font-size:15px;color:#fff;letter-spacing:2px}.cmdv2 .sh span{color:var(--sc);white-space:nowrap}.cmdv2 .sm2{font-size:10px;color:var(--d);letter-spacing:1px;margin-top:6px}
 .cmdv2 .kvr{display:flex;justify-content:space-between;font-size:11.5px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04)}.cmdv2 .kvr span{color:var(--d);letter-spacing:1.5px;font-size:10px}.cmdv2 .kvr b{font-weight:400;color:#fff}
 .cmdv2 .tabs2{display:flex;gap:4px;margin:14px 0 12px;flex-wrap:wrap}.cmdv2 .tabs2 button{background:none;border:1px solid var(--l);color:var(--d);padding:8px 14px;font:inherit;font-size:10.5px;letter-spacing:2px;cursor:pointer}.cmdv2 .tabs2 button.on{color:var(--am);border-color:var(--am)}

@@ -69,7 +69,7 @@ function attChip(e) {
   }
   return '<span class="ch ac">▣ ATTENDANCE LINKED</span>';
 }
-const discordChip = (e) => (e.discord?.status === "posted" ? "" : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
+const discordChip = (e) => (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
 const signedUpUids = (e) => {
   const att = new Set((e.buttons || []).filter((b) => b.attending).map((b) => b.key));
   return [...new Set((e.signups || []).filter((s) => att.has(s.choice) && s.uid).map((s) => s.uid))];
@@ -252,7 +252,9 @@ async function create() {
     title: v.title.trim(), description: v.description.trim(), where: v.where, voiceChannel: v.where === "else" ? "" : v.voiceChannel.trim(), location: v.where === "else" ? v.location.trim() : "",
     date: v.date, startTime: v.startTime, endTime: v.endTime, startAtISO: start.toISOString(), endAtISO: end.toISOString(),
     repeat: v.repeat, banner: v.banner.trim(), channel: v.channel.trim().replace(/^#/, ""), buttons,
-    signups: (old?.signups || []).filter((s) => keys.has(s.choice)),
+    // Sign-ups come from Discord (Cortana saves them). Only touch them when a button was removed,
+    // so an edit never wipes sign-ups made while the editor was open.
+    ...(!old ? { signups: [] } : (old.signups || []).some((s) => !keys.has(s.choice)) ? { signups: (old.signups || []).filter((s) => keys.has(s.choice)) } : {}),
     updatedAtISO: new Date().toISOString(), updatedByName: memberName(me),
   };
   try {
@@ -293,6 +295,7 @@ async function create() {
 function openEvent(id) {
   const e = events.find((x) => x.id === id);
   if (!e) return;
+  setTimeout(() => { const m = document.getElementById("v2Modal"); if (m) m.dataset.ev = id; }, 0);
   const a = e.attendanceEventId && attById.get(e.attendanceEventId);
   openModal(
     `<div class="hd"><div><h2>${esc(e.title.toUpperCase())}</h2><small>${esc(ukFmt(e.startAtISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase())} · ${esc(e.startTime)}–${esc(e.endTime)} UK · ${esc(whereLabel(e))}</small></div><button class="xx" data-close aria-label="Close">✕</button></div>
@@ -446,6 +449,9 @@ function onCheckChange(ev) {
 
 /* ─────────────────────────────────── CSS ─────────────────────────────────── */
 const CSS = `
+#evV2 .ch.ok{color:#22e07a;border-color:rgba(34,224,122,.45)}
+#evV2 .live-flash{animation:evFlash 1.6s ease-out}@keyframes evFlash{0%{box-shadow:0 0 0 2px #22e07a;background:rgba(34,224,122,.1)}100%{box-shadow:0 0 0 0 transparent}}
+@media(prefers-reduced-motion:reduce){#evV2 .live-flash{animation:none;outline:1px solid #22e07a}}
 #${ROOT} .evh{font-family:Rajdhani,sans-serif;letter-spacing:3px;font-size:14px;color:#fff;margin:20px 0 10px}#${ROOT} .evh.live{color:var(--g)}
 #${ROOT} .evr{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;width:100%;text-align:left;border:1px solid var(--l);background:var(--p);padding:12px 16px;margin-bottom:8px;cursor:pointer;font:inherit;color:inherit}
 #${ROOT} .evr:hover,#${ROOT} .evr:focus-visible{border-color:var(--am)}#${ROOT} .evr.dim{opacity:.55}
@@ -494,8 +500,37 @@ const CSS = `
 @media(max-width:1100px){#${ROOT} .wiz{grid-template-columns:1fr}#${ROOT} .ebl li{grid-template-columns:22px 56px 1fr 90px}.v2m .ak{grid-template-columns:1fr 1fr}}
 `;
 
+/* ── live: Discord sign-ups show here within a few seconds ── */
+let live = null;
+let liveKey = "";
+function startLive() {
+  if (live) return;
+  live = onSnapshot(collection(db, "community_events"), (snap) => {
+    const panel = document.getElementById("panel-events");
+    if (!panel || panel.classList.contains("hidden") || w) return; // not on screen, or wizard open
+    const next = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const key = JSON.stringify(next.map((e) => [e.id, e.signups, e.discord, e.status, e.updatedAtISO]));
+    if (key === liveKey) return;
+    const first = !liveKey;
+    liveKey = key;
+    if (first) return; // load() already drew the page
+    const changed = new Set(next.filter((e) => JSON.stringify(e) !== JSON.stringify(events.find((x) => x.id === e.id))).map((e) => e.id));
+    events = next;
+    renderList();
+    changed.forEach((id) => document.querySelector(`#${ROOT} [data-open="${id}"]`)?.classList.add("live-flash"));
+    // Event details open? Redraw it with the new sign-ups.
+    const m = document.getElementById("v2Modal");
+    if (m?.dataset.ev && changed.has(m.dataset.ev)) {
+      const body = m.querySelector(".bd");
+      const y = body?.scrollTop || 0;
+      openEvent(m.dataset.ev);
+      setTimeout(() => { const b = document.querySelector("#v2Modal .bd"); if (b) b.scrollTop = y; }, 0);
+    }
+  });
+}
+
 onReady(() => {
-  const root = mountPanel("panel-events", ROOT, () => !w && load().catch((e) => notify("EVENTS LOAD FAILED: " + e.message, 1)));
+  const root = mountPanel("panel-events", ROOT, () => !w && load().then(startLive).catch((e) => notify("EVENTS LOAD FAILED: " + e.message, 1)));
   if (!root) return;
   addCss(ROOT, CSS);
   root.innerHTML = `

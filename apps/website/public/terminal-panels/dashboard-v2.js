@@ -7,7 +7,7 @@
  */
 import { onAuthStateChanged } from "/terminal-shim/auth.js";
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, updateDoc } from "/terminal-shim/firestore.js";
-import { addCss, auth, db, esc, getMe, getUsers, hexAvatar, isMember, memberName, notify, onReady, platoonOrder, rateColor, toDate } from "./_common.js";
+import { addCss, auth, cortanaStatus, db, esc, uptimeDays, getMe, getUsers, hexAvatar, isMember, memberName, notify, onReady, platoonOrder, rateColor, toDate } from "./_common.js";
 import { onAccess } from "./nav-v2.js";
 
 addCss("dash2", `
@@ -68,7 +68,7 @@ let acc = {};
 let L = [];
 let WIDE = new Set();
 let editing = false;
-const D = { users: [], fragos: null, events: [], att: [], tasks: [], notes: [], audit: [], pres: [], status: {}, ping: {} };
+const D = { cortana: { online: false }, users: [], fragos: null, events: [], att: [], tasks: [], notes: [], audit: [], pres: [], status: {}, ping: {} };
 
 const ukTime = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : ""; };
 const ukDay = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Europe/London" }).toUpperCase() : ""; };
@@ -129,12 +129,28 @@ const WID = {
   } },
   system: { t: "◎ SYSTEM STATUS", d: "Website, database, Cortana, Discord, Cloudinary, Hub — ping and 30-day uptime", ico: "◎", g: "STATUS", acc: "net", accL: "NETWORK STATUS", b: () => {
     const p = D.ping;
+    const c = D.cortana;
     const tile = (n, ok, sub) => `<div class="d2-sy ${ok === true ? "ok" : ok === false ? "bad" : "off"}"><b>${n}</b><span>${ok === true ? "● ONLINE" : ok === false ? "✕ DOWN" : "○ NOT RUNNING"}</span><small>${sub}</small></div>`;
-    return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", null, "NOT BUILT YET")}${tile("DISCORD API", null, "CHECKED BY CORTANA")}${tile("CLOUDINARY", null, "CHECKED BY CORTANA")}${tile("505TH HUB", null, "NOT BUILT YET")}</div>
-      <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${["WEBSITE", "DATABASE", "CORTANA", "505TH HUB"].map((n) => `<div class="d2-hbar"><span>${n}</span>${ub(NO_HISTORY)}<b>—</b></div>`).join("")}<small class="dim">UPTIME HISTORY STARTS WHEN CORTANA v2 RECORDS HEALTH CHECKS.</small>`;
+    const cortOk = c.online ? true : c.lastHeartbeatISO ? false : null;
+    const cortSub = c.online ? `${c.pingMs} MS DISCORD PING` : c.lastHeartbeatISO ? `LAST SEEN ${ukDay(c.lastHeartbeatISO)} ${ukTime(c.lastHeartbeatISO)}` : "NOT STARTED YET";
+    const up = uptimeDays(c);
+    const pct = (a) => { const v = a.filter((x) => x != null); return v.length ? (v.reduce((x, y) => x + y, 0) / v.length).toFixed(2) + "%" : "—"; };
+    return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", cortOk, cortSub)}${tile("DISCORD API", c.online ? c.pingMs < 1000 : null, c.online ? "CHECKED BY CORTANA" : "NEEDS CORTANA")}${tile("CLOUDINARY", null, "CHECK COMING LATER")}${tile("505TH HUB", null, "NOT BUILT YET")}</div>
+      <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${[["WEBSITE", NO_HISTORY], ["DATABASE", NO_HISTORY], ["CORTANA", up], ["505TH HUB", NO_HISTORY]].map(([n, a]) => `<div class="d2-hbar"><span>${n}</span>${ub(a)}<b>${pct(a)}</b></div>`).join("")}<small class="dim">CORTANA UPTIME IS RECORDED EVERY 30 SECONDS. WEBSITE / HUB HISTORY COMES LATER.</small>`;
   } },
-  cortana: { t: "◈ CORTANA HEALTH", d: "Bot status, ping, memory, queued jobs, errors", ico: "◈", g: "STATUS", acc: "bot", accL: "BOT SERVER", b: () =>
-    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span style="color:#7d8a99;letter-spacing:2px;font-size:11px">○ NOT RUNNING — CORTANA v2</span><button class="b sm" data-go="panel-bot">BOT SERVER ▸</button></div><div class="d2-cort"><div><b>—</b><span>PING</span></div><div><b>—</b><span>CPU</span></div><div><b>—</b><span>MEMORY</span></div><div><b>—</b><span>JOBS QUEUED</span></div></div><div class="d2-lb">DISCORD PING — LAST 24H</div><div class="d2-ch">${Array(24).fill('<i class="off"></i>').join("")}</div><small class="dim">NO DATA YET</small>` },
+  cortana: { t: "◈ CORTANA HEALTH", d: "Bot status, ping, memory, queued jobs, errors", ico: "◈", g: "STATUS", acc: "bot", accL: "BOT SERVER", b: () => {
+    const c = D.cortana;
+    const up = c.startedAtISO ? Math.floor((Date.now() - Date.parse(c.startedAtISO)) / 60000) : 0;
+    const hrs = Array.from({ length: 24 }, (_, i) => new Date(Date.now() - (23 - i) * 3600_000).toISOString().slice(0, 13));
+    const vals = hrs.map((h) => c.pingByHour?.[h] ?? null);
+    const max = Math.max(100, ...vals.filter((v) => v != null));
+    const st = c.online ? `<span style="color:#22e07a;letter-spacing:2px;font-size:11px">● ONLINE · UP ${Math.floor(up / 1440)}D ${Math.floor((up % 1440) / 60)}H</span>` : c.lastHeartbeatISO ? `<span style="color:#ff4d4d;letter-spacing:2px;font-size:11px">✕ OFFLINE — LAST SEEN ${ukDay(c.lastHeartbeatISO)} ${ukTime(c.lastHeartbeatISO)}</span>` : `<span style="color:#7d8a99;letter-spacing:2px;font-size:11px">○ NOT STARTED YET</span>`;
+    const n = (v, u = "", col = "#22e07a") => `<b style="color:${c.online ? col : "#4b5765"}">${c.online && v != null ? v + u : "—"}</b>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">${st}<button class="b sm" data-go="panel-bot">BOT SERVER ▸</button></div>
+      <div class="d2-cort"><div>${n(c.pingMs, "ms")}<span>PING</span></div><div>${n(c.cpuPercent, "%")}<span>CPU</span></div><div>${n(c.memoryMb, "MB", "#fff")}<span>MEMORY</span></div><div>${n(c.jobsQueued, "", c.jobsQueued ? "#f59e0b" : "#22e07a")}<span>JOBS QUEUED</span></div></div>
+      <div class="d2-lb">DISCORD PING — LAST 24H</div><div class="d2-ch">${vals.map((v) => `<i class="${v == null ? "off" : ""}" style="height:${v == null ? 3 : Math.max(4, Math.round((v / max) * 100))}%;${v > 300 ? "background:#f59e0b" : ""}" title="${v ?? "—"} ms"></i>`).join("")}</div>
+      <small class="dim">${c.errors24h ?? 0} ERRORS (24H)${c.version ? ` · v${esc(c.version)}` : ""}${c.supervised ? " · PM2" : ""}</small>`;
+  } },
   staff: { t: "♟ STAFF ONLINE", d: "Staff online now — in the terminal, and where", ico: "♟", g: "STATUS", b: () => {
     const on = onlineNow().filter((p) => STAFF.has(userOf(p.uid).role || p.role));
     if (!on.length) return empty("NO STAFF ONLINE RIGHT NOW.");
@@ -284,6 +300,7 @@ async function load() {
     acc.audit ? safe(getDocs(query(collection(db, "audit_logs"), orderBy("createdAt", "desc"), limit(12))), (s) => (D.audit = s.docs.map((d) => d.data()))) : null,
     safe(getDocs(collection(db, "presence_sessions")), (s) => (D.pres = s.docs.map((d) => d.data()))),
     safe(getDoc(doc(db, "unit_config", "status")), (s) => (D.status = s.data() || {})),
+    safe(cortanaStatus(), (c) => (D.cortana = c)),
   ]);
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
   D.ping.db = await timed(() => getDoc(doc(db, "unit_config", "status"))).catch(() => ((D.ping.dbErr = 1), null));

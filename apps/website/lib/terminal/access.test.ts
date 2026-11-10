@@ -59,3 +59,9 @@ test("server write / read checks use the grid", () => {
   assert.doesNotThrow(() => checkRead({ uid: "o", role: "officer" }, "audit_logs"));
   assert.deepEqual(writeNeeds("settings", "webhooks", new Set()), ["set"]);
 });
+
+test("Cortana-only collections can't be written from the terminal", () => {
+  for (const top of ["bot_status", "discord_channels", "discord_roles"]) {
+    assert.throws(() => checkWrite({ uid: "c", role: "commander", access: {} }, "set", { top, path: `${top}/x`, docId: "x" }, new Set(["online"]), {}, null), /Only Cortana/);
+  }
+});
