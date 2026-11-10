@@ -218,6 +218,14 @@ async function load() {
   const d = s.exists() ? s.data() : null;
   cfg = d ? { ...b, ...d, welcome: { ...b.welcome, ...d.welcome }, announce: { ...b.announce, ...d.announce }, aux: { ...b.aux, ...d.aux }, logs: { ...b.logs, ...d.logs }, channelPings: { ...(d.channelPings || {}) } } : b;
   saved = d ? JSON.stringify(cfg) : "";
+  // A role that no longer exists in Discord = no role. Clear it (shows as unsaved so SAVE fixes Cortana too).
+  if (roles.length) {
+    const gone = [];
+    if (cfg.welcome.roleId && !role(cfg.welcome.roleId)) { cfg.welcome.roleId = ""; gone.push("Welcome role"); }
+    if (cfg.aux.pingRoleId && !role(cfg.aux.pingRoleId)) { cfg.aux.pingRoleId = ""; gone.push("Aux ping role"); }
+    if (cfg.announce.ping && !["everyone", "here"].includes(cfg.announce.ping) && !role(cfg.announce.ping)) { cfg.announce.ping = ""; gone.push("Announcement ping"); }
+    if (gone.length) setTimeout(() => notify(`${gone.join(" · ").toUpperCase()}: OLD ROLE GONE FROM DISCORD — SET TO NONE. PRESS SAVE.`), 400);
+  }
   autoNote = d ? null : chans.length ? autoFill(cfg) : null;
   draw();
 }
