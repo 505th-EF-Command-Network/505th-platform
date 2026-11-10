@@ -149,7 +149,7 @@ function enhance(sel) {
   btn.className = "ukp-btn";
   btn.setAttribute("aria-haspopup", "listbox");
   btn.setAttribute("aria-expanded", "false");
-  if (sel.id) { btn.id = sel.id + "-ukp"; for (const l of document.querySelectorAll(`label[for="${CSS.escape(sel.id)}"]`)) l.htmlFor = btn.id; }
+  if (sel.id) { btn.id = sel.id + "-ukp"; for (const l of document.querySelectorAll(`label[for="${window.CSS.escape(sel.id)}"]`)) l.htmlFor = btn.id; }
   w.appendChild(btn);
   w._sel = sel;
   w._btn = btn;
