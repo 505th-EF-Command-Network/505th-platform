@@ -4,8 +4,9 @@
 module.exports = {
   apps: [
     {
-      name: "cortana-v2",
-      script: "node_modules/tsx/dist/cli.mjs",
+      name: "Cortana_V2",
+      // Finds tsx whether npm put it in apps/cortana/node_modules or the repo root (workspaces).
+      script: require.resolve("tsx/cli", { paths: [__dirname] }),
       args: "--env-file=.env.local src/index.ts",
       cwd: __dirname,
       autorestart: true,
