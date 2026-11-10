@@ -20,6 +20,7 @@ import { handleTicketButton, onTicketMessage, startTickets } from "./tickets.ts"
 import { startModeration } from "./moderation.ts";
 import { startModlist } from "./modlist.ts";
 import { startLegacyImport } from "./legacy-import.ts";
+import { startCleanup } from "./cleanup.ts";
 import { onJoin, onLeave, onMessageDelete, onMessageEdit } from "./logs.ts";
 import { handleCommandButton, handleCommandModal } from "./commands/staff.ts";
 import { scheduleSync, syncGuild } from "./sync.ts";
@@ -60,6 +61,7 @@ client.once(Events.ClientReady, async (ready) => {
   startModeration();
   startModlist();
   startLegacyImport();
+  startCleanup(ready);
   startRoleSync(ready);
   onDbChange((top, c) => { if (top === "users") void onUserDocChange(ready, c).catch(() => {}); });
   registerJob("commands.register", async (job) => {

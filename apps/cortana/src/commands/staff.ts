@@ -216,17 +216,27 @@ const modlist: Cmd = {
 };
 const help: Cmd = {
   key: null,
-  data: new SlashCommandBuilder().setName("help").setDescription("What Cortana can do."),
+  data: new SlashCommandBuilder().setName("help").setDescription("What Cortana can do (only shows what you can use)."),
   async run(i) {
-    const e = new EmbedBuilder().setColor(0x00d9ff).setTitle("◈ Cortana — Help").setThumbnail(LOGO).addFields(
-      { name: "Everyone", value: "`/modlist` current modlist + preset · `/coinflip` · `/ping` · `/status`" },
-      { name: "Moderation (staff)", value: "`/warn` `/timeout` `/purge` · `/kick` `/ban` (confirm first)" },
-      { name: "Posting (staff)", value: "`/announce` (form) · `/say` · `/poll`" },
-      { name: "Developers / Command", value: "`/auxmod` (Added / Changed / Fixed / Removed form) · `/modlist` with a preset or add / remove · `/restart`" },
-      { name: "Automatic", value: "Event sign-ups + Upcoming Events · tickets · role buttons · rank / unit / squad sync with the website · join / leave + message logs" },
-      { name: "Website", value: "Most staff tools are in the **Command Terminal** on the 505th website." },
-    ).setFooter({ text: "505th Expeditionary Force · Cortana v2", iconURL: LOGO });
-    await i.reply({ embeds: [e], ...eph });
+    const m = i.member as GuildMember;
+    const [mw, mk, sd, ev, bt, st] = await Promise.all(["modw", "modk", "send", "ev", "bot", "set"].map((k) => allowed(m, k)));
+    const site = "https://www.505expeditionaryforce.com";
+    const fields = [
+      { name: "🌐 Everyone", value: "`/modlist` current modlist + preset file\n`/coinflip` heads or tails\n`/help` this list" },
+      mw || mk ? { name: "🛡 Moderation", value: [mw ? "`/warn` warn a member (case + DM)\n`/timeout` time someone out\n`/purge` delete recent messages" : "", mk ? "`/kick` `/ban` (asks you to confirm)" : ""].filter(Boolean).join("\n") } : null,
+      sd || ev ? { name: "📣 Posting", value: [sd ? "`/announce` 505th announcement (a form opens)\n`/say` Cortana says something" : "", ev ? "`/poll` start a Discord poll" : ""].filter(Boolean).join("\n") } : null,
+      bt || st ? { name: "⚙ Developers / Command", value: [bt ? "`/auxmod` Aux Mod update (Added / Changed / Fixed / Removed)\n`/restart` restart Cortana (confirm first)" : "", st ? "`/modlist` with a preset, or add / remove mods" : ""].filter(Boolean).join("\n") } : null,
+      { name: "🤖 Automatic", value: "Event sign-ups + Upcoming Events · tickets · role buttons · rank / unit / squad sync with the website" },
+      { name: "🖥 Website & Hub", value: mw || sd || ev || bt || st ? "Events, tickets, messages, info posts, moderation and personnel files are in the **Command Terminal** — press **?** on any page for help and a guided tour." : "Rules, handbook, roster and your profile are on the 505th website." },
+    ].filter((f): f is { name: string; value: string } => !!f);
+    const e = new EmbedBuilder().setColor(0x00d9ff).setTitle("◈ Cortana — Help").setThumbnail(LOGO).setDescription("Commands you can use:").addFields(fields)
+      .setFooter({ text: "505th Expeditionary Force · Cortana v2", iconURL: LOGO });
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setLabel("Website").setEmoji("🌐").setStyle(ButtonStyle.Link).setURL(site),
+      new ButtonBuilder().setLabel("Handbook").setEmoji("📘").setStyle(ButtonStyle.Link).setURL(`${site}/resources-handbook.html`),
+      ...(mw || sd || ev || bt || st ? [new ButtonBuilder().setLabel("Command Terminal").setEmoji("🖥").setStyle(ButtonStyle.Link).setURL(`${site}/terminal`)] : []),
+    );
+    await i.reply({ embeds: [e], components: [row], ...eph });
   },
 };
 const coinflip: Cmd = {

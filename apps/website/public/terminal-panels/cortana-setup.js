@@ -7,7 +7,8 @@
  */
 import { addDoc, collection, doc, getDoc, getDocs, setDoc } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
-import { addCss, ask, audit, cortanaStatus, db, esc, getMe, memberName, mountPanel, notify, onReady } from "./_common.js";
+import { addCss, ask, audit, closeModal, cortanaStatus, db, esc, getMe, memberName, mountPanel, notify, onReady, openModal } from "./_common.js";
+import { cortanaJob } from "./discord-common.js";
 
 const DOC = () => doc(db, "settings", "cortana");
 const OFFICIAL_SIGNUP = ["killjoy-1-1", "killjoy-1-2", "jtf-23", "hm", "pilots", "event-schedule"];
@@ -56,6 +57,45 @@ function autoFill(c) {
   c.logs.joinLeaveId = pick(c.logs.joinLeaveId, text, "join-leave", "joins");
   c.logs.auditId = pick(c.logs.auditId, text, "staff-audit", "audit-log");
   return [found, tried];
+}
+
+/* ───────── clean test data (switch-over prep) ───────── */
+async function cleanTest() {
+  const all = (c) => getDocs(collection(db, c)).then((q) => q.docs.map((d) => ({ id: d.id, ...d.data() }))).catch(() => null);
+  const [evs, tks, cs, ms] = await Promise.all(["community_events", "tickets", "mod_cases", "discord_messages"].map(all));
+  const n = (x) => (x ? x.length : "?");
+  const events = (evs || []).sort((a, b) => String(b.startAtISO || "").localeCompare(String(a.startAtISO || "")));
+  const day = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "no date");
+  const ov = openModal(`<div class="cl">
+    <div class="cl-h"><b>🧹 CLEAN TEST DATA</b><button class="b" data-close aria-label="Close">✕</button></div>
+    <p class="cl-n">Tick what to remove. Database only — the Discord messages stay. Members, ranks, settings, info posts and ticket types are never touched.</p>
+    <div class="cl-g"><b>EVENTS · ${events.length}</b><span><button class="b" data-cl="all">TICK ALL</button> <button class="b" data-cl="none">NONE</button></span></div>
+    <div class="cl-list">${events.map((e) => `<label class="cl-r"><input type="checkbox" data-ev="${esc(e.id)}"><span><b>${esc(e.title || "(no title)")}</b><small>${esc(day(e.startAtISO))} · ${esc(String(e.status || "upcoming").toUpperCase())} · ${(e.signups || []).length} sign-ups</small></span></label>`).join("") || '<p class="cl-n">No events.</p>'}</div>
+    <div class="cl-g"><b>EVERYTHING IN</b></div>
+    <label class="cl-r"><input type="checkbox" data-k="tickets" checked><span><b>Tickets · ${n(tks)}</b><small>All ticket records + chats (ticket types stay)</small></span></label>
+    <label class="cl-r"><input type="checkbox" data-k="cases" checked><span><b>Moderation cases · ${n(cs)}</b><small>All warnings / timeouts / kicks / bans on record</small></span></label>
+    <label class="cl-r"><input type="checkbox" data-k="messages" checked><span><b>Sent messages list · ${n(ms)}</b><small>Send Message → Recently sent (the Discord messages stay)</small></span></label>
+    <label class="cl-r"><input type="checkbox" data-k="counters" checked><span><b>Reset numbers</b><small>Next ticket = #0001 · next case = #1</small></span></label>
+    <div class="cl-f"><button class="b" data-close>CANCEL</button><button class="b red" data-cl="go">CLEAN…</button></div></div>`, { color: "rgba(255,77,77,.45)", title: "#ff4d4d", width: 640, pad: true });
+  addCss("cs-clean", `.cl{display:grid;gap:10px;font-family:'Share Tech Mono',monospace;color:#cfe9f2}.cl-h{display:flex;justify-content:space-between;align-items:center}.cl-h b{color:#ff4d4d;letter-spacing:2px}
+.cl-n{color:#6f8a96;font-size:12px;margin:0}.cl-g{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:11px;letter-spacing:2px;color:#00D9FF}
+.cl-list{max-height:260px;overflow:auto;border:1px solid rgba(0,217,255,.18)}.cl-r{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-bottom:1px solid rgba(0,217,255,.08);cursor:pointer}
+.cl-r input{accent-color:#ff4d4d;width:16px;height:16px;margin-top:2px}.cl-r b{display:block;font-size:13px}.cl-r small{color:#6f8a96;font-size:11px}.cl-f{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}`);
+  ov.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-cl]");
+    if (!b) return;
+    if (b.dataset.cl === "all" || b.dataset.cl === "none") return ov.querySelectorAll("[data-ev]").forEach((c) => (c.checked = b.dataset.cl === "all"));
+    const eventIds = [...ov.querySelectorAll("[data-ev]:checked")].map((c) => c.dataset.ev);
+    const k = Object.fromEntries([...ov.querySelectorAll("[data-k]")].map((c) => [c.dataset.k, c.checked]));
+    const parts = [eventIds.length ? `${eventIds.length} events` : "", k.tickets ? `${n(tks)} tickets` : "", k.cases ? `${n(cs)} cases` : "", k.messages ? `${n(ms)} sent messages` : "", k.counters ? "reset numbers" : ""].filter(Boolean);
+    if (!parts.length) return notify("NOTHING TICKED", 1);
+    closeModal();
+    if (!(await ask({ kind: "big", title: "CLEAN TEST DATA?", body: `Removes: ${parts.join(" · ")}.`, warn: "THIS CANNOT BE UNDONE.", go: "CLEAN" }))) return;
+    try {
+      const r = await cortanaJob("cleanup.testdata", { eventIds, ...k }, { ms: 30000 });
+      notify(r ? `✓ CLEANED — ${parts.join(" · ").toUpperCase()}` : "◷ CORTANA IS OFFLINE — DONE WHEN IT'S BACK", !r);
+    } catch (err) { notify("CLEAN FAILED: " + err.message, 1); }
+  });
 }
 
 /* ───────── status per tab ───────── */
@@ -132,7 +172,8 @@ function body() {
       <div class="cs-mini"><b style="color:${chans.filter(isText).every((x) => x.botCanSend) ? "var(--g)" : "var(--a)"}">${chans.filter((x) => isText(x) && x.botCanSend).length}/${chans.filter(isText).length} TEXT</b><small>Channels Cortana can post in</small></div></div>
       <div class="cs-card" style="margin-top:14px"><h3>PROBLEMS FOUND <span class="cs-pill ${probs.length ? "wr" : "ok"}">${probs.length}</span></h3>
       ${probs.length ? probs.map(([k, l]) => `<p>${MARK[tabState(k)][0]} <a href="#" data-tab="${k}">${l}</a></p>`).join("") : "<p>None — everything Cortana needs is set up.</p>"}</div>
-      ${canEdit ? `<div class="cs-card"><h3>⤓ IMPORT FROM OLD CORTANA</h3><p>Switch-over night only (Cortana running on the real 505th server). Brings in the old Rules, Info, Unit Info, Stalker and Notification Roles posts as Info Posts — they keep the old messages, so UPDATE IN DISCORD edits them in place — and fills empty settings (logs, mission log, events, mod updates, announcements). Never overwrites anything.</p><button class="b" data-x="legacy">⤓ IMPORT FROM OLD CORTANA</button></div>` : ""}`;
+      ${canEdit ? `<div class="cs-card"><h3>⤓ IMPORT FROM OLD CORTANA</h3><p>Switch-over night only (Cortana running on the real 505th server). Brings in the old Rules, Info, Unit Info, Stalker and Notification Roles posts as Info Posts — they keep the old messages, so UPDATE IN DISCORD edits them in place — and fills empty settings (logs, mission log, events, mod updates, announcements). Never overwrites anything.</p><button class="b" data-x="legacy">⤓ IMPORT FROM OLD CORTANA</button></div>
+      <div class="cs-card" style="border-color:rgba(255,77,77,.35)"><h3 style="color:var(--r)">🧹 CLEAN TEST DATA</h3><p>Before the switch-over: remove test events, tickets, moderation cases and the sent-messages list, and start ticket # and case # again at 1. You choose exactly what goes. Database only — nothing in Discord is deleted. Members, ranks, settings, info posts and ticket types are never touched.</p><button class="b red" data-x="clean">🧹 CLEAN TEST DATA…</button></div>` : ""}`;
   }
   if (tab === "events") {
     const pings = c.signupChannels.map((id) => `<span># ${esc(chan(id)?.name || "deleted")}</span>${sel(`channelPings.${id}`, roleOptions(c.channelPings[id] || "", "Use default ping"))}`).join("");
@@ -259,6 +300,7 @@ function wire() {
     const tg = e.target.closest("[data-tog]");
     if (tg) { setPath(tg.dataset.tog, !getPath(tg.dataset.tog)); return draw(); }
     if (e.target.closest("[data-save]")) return save().catch((err) => notify("SAVE FAILED: " + err.message, 1));
+    if (e.target.closest('[data-x="clean"]')) return cleanTest().catch((err) => notify("FAILED: " + err.message, 1));
     if (e.target.closest('[data-x="legacy"]')) {
       if (!(await ask({ kind: "warn", title: "IMPORT FROM OLD CORTANA?", body: "Adds the old posts as Info Posts and fills EMPTY settings only. Safe to run twice.", go: "IMPORT", cancel: "CANCEL" }))) return;
       try {
