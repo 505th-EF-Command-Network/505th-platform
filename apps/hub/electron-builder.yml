@@ -22,8 +22,6 @@ win:
       arch: [x64]
   icon: build/icon.ico
   artifactName: 505th-Command-Network-Setup-${version}.${ext}
-  publisherName: Rev Creative Developer
-  legalTrademarks: "505th Expeditionary Force"
 nsis:
   oneClick: false
   perMachine: false
