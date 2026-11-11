@@ -404,7 +404,7 @@ async function refreshAll(all) {
   notify(all ? "↻ REFRESHING ALL SIGN-UP POSTS…" : "↻ FIXING SIGN-UP POSTS…");
   try {
     const r = await cortanaJob("event.refreshAll", { all }, { ms: 60000 });
-    if (!r) return notify("◷ CORTANA IS OFFLINE — IT FIXES THEM BY ITSELF WHEN IT'S BACK", 1);
+    if (!r) return notify(cortanaOnline ? "◷ CORTANA IS ONLINE BUT DIDN'T PICK THIS UP — IT MAY NEED UPDATING (PULL + pm2 restart Cortana_V2). IT RUNS WHEN UPDATED." : "◷ CORTANA IS OFFLINE — IT FIXES THEM BY ITSELF WHEN IT'S BACK", 1);
     const x = r.result || {};
     notify(`✓ ${x.fixed || 0} RE-POSTED · ${x.updated || 0} UPDATED${x.failed ? ` · ${x.failed} FAILED` : ""}`, !!x.failed);
     audit("discord", "EVENT POSTS REFRESHED", `${x.fixed || 0} re-posted · ${x.updated || 0} updated`);
@@ -414,7 +414,7 @@ async function refreshOne(e, ping) {
   notify(ping ? "↻ RE-POSTING WITH PING…" : "↻ REFRESHING POST…");
   try {
     const r = await cortanaJob("event.refresh", { eventId: e.id, ping: !!ping }, { ms: 45000 });
-    if (!r) return notify("◷ CORTANA IS OFFLINE — IT FIXES THIS BY ITSELF WHEN IT'S BACK", 1);
+    if (!r) return notify(cortanaOnline ? "◷ CORTANA IS ONLINE BUT DIDN'T PICK THIS UP — IT MAY NEED UPDATING (PULL + pm2 restart Cortana_V2). IT RUNS WHEN UPDATED." : "◷ CORTANA IS OFFLINE — IT FIXES THIS BY ITSELF WHEN IT'S BACK", 1);
     const x = r.result || {};
     notify(x.skipped ? "THIS EVENT IS FINISHED — NOTHING TO REFRESH" : x.fixed ? "✓ SIGN-UP POST RE-POSTED" : "✓ SIGN-UP POST UPDATED");
     if (!x.skipped) audit("discord", "EVENT POST REFRESHED", `${e.title}${x.fixed ? " · re-posted" : " · updated"}${ping ? " · with ping" : ""}`);
