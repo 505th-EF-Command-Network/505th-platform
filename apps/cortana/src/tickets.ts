@@ -30,7 +30,7 @@ import { LOGO, auditLog, autoId, cortanaSettings, mentionsIn, nextNumber, nowISO
 type TType = { name: string; emoji?: string; channelId: string; categoryId?: string; purpose?: string; staffRoleIds?: string[]; question?: string; color?: number; btnLabel?: string; btnEmoji?: string; btnStyle?: string; panel?: { channelId?: string; messageId?: string } };
 type Line = { who: string; whoId: string; staff: boolean; text: string; images?: string[]; note?: boolean; atISO: string };
 type Ticket = { number: number; typeId: string; typeName: string; channelId: string; openerId: string; openerName: string; status: "open" | "closed";
-  claimedByName?: string; openedAtISO: string; closedAtISO?: string; closedByName?: string; closeReason?: string; channelDeleted?: boolean; deleteAtISO?: string; lastActivityISO: string; waiting: "staff" | "member"; firstReplyMs?: number; transcript: Line[] };
+  claimedByName?: string; openedAtISO: string; closedAtISO?: string; closedByName?: string; closeReason?: string; channelDeleted?: boolean; deleteAtISO?: string; lastActivityISO: string; waiting: "staff" | "member"; firstReplyMs?: number; transcriptAtISO?: string; transcript: Line[] };
 
 const MEMBER_PERMS = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks];
 const pad = (n: number) => String(n).padStart(4, "0");
@@ -182,6 +182,7 @@ export async function close(client: Client<true>, id: string, by: string, reason
     await ch.send({ embeds: [new EmbedBuilder().setColor(0xef4444).setDescription(`🔒 Ticket closed by **${by}**.\n**Reason:** ${why}`)], allowedMentions: { parse: [] } }).catch(() => {});
     await ch.send({ embeds: [new EmbedBuilder().setColor(0x4e5058).setDescription("```Support team ticket controls```")], components: [closedRow(id)], allowedMentions: { parse: [] } }).catch(() => {});
   }
+  await sendTranscript(client, id, by).catch((e) => log.warn(`Transcript on close failed: ${(e as Error).message}`));
   await tlog(client, new EmbedBuilder().setColor(0xef4444).setTitle(`🔒 Ticket #${pad(tk.number)} closed`).setDescription(`${tk.typeName} · ${tk.openerName}\nBy **${by}** · ${why}`));
   await auditLog("TICKET CLOSED", `#${pad(tk.number)} ${tk.typeName} — ${tk.openerName} — ${why}`, by);
 }
@@ -203,38 +204,138 @@ async function reopen(client: Client<true>, id: string, by: string) {
 }
 
 const h = (v: unknown) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-function transcriptHtml(tk: Ticket) {
-  const d = (iso?: string) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
-  const rows = (tk.transcript ?? []).map((l) => `<div class="m${l.note ? " n" : ""}"><div class="w"><b>${h(l.who)}</b>${l.staff ? '<em>STAFF</em>' : ""}${l.note ? '<em class="nt">STAFF NOTE</em>' : ""}<small>${h(d(l.atISO))}</small></div><div class="t">${h(l.text).replace(/\n/g, "<br>")}${(l.images ?? []).map((u) => `<br><a href="${h(u)}">📎 image</a>`).join("")}</div></div>`).join("");
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Ticket #${pad(tk.number)} · ${h(tk.typeName)}</title><style>
-body{margin:0;background:#0a0e12;color:#dbe7ee;font:14px/1.5 "Segoe UI",Arial,sans-serif}.w0{max-width:860px;margin:0 auto;padding:24px}
-h1{color:#00d9ff;font-size:20px;margin:0}.meta{color:#8aa0ab;font-size:13px;margin:6px 0 18px}.m{border-top:1px solid #1d2a31;padding:10px 0}.m.n{background:#1a1505}
-.w b{color:#fff}.w em{font-style:normal;font-size:10px;letter-spacing:1px;padding:1px 6px;margin-left:6px;border:1px solid #00d9ff;color:#00d9ff}.w em.nt{border-color:#f59e0b;color:#f59e0b}
-.w small{color:#6f8a96;margin-left:8px;font-size:11px}.t{margin-top:2px;white-space:normal;word-wrap:break-word}a{color:#00a8fc}</style></head><body><div class="w0">
-<h1>505th · Ticket #${pad(tk.number)} · ${h(tk.typeName)}</h1>
-<div class="meta">Opened by <b>${h(tk.openerName)}</b> (${h(tk.openerId)}) · ${h(d(tk.openedAtISO))}${tk.claimedByName ? ` · claimed by ${h(tk.claimedByName)}` : ""}${tk.closedAtISO ? ` · closed ${h(d(tk.closedAtISO))} by ${h(tk.closedByName)} — “${h(tk.closeReason)}”` : ""} · ${(tk.transcript ?? []).length} messages</div>
-${rows}</div></body></html>`;
+const dur = (ms: number) => { const m = Math.max(0, Math.round(ms / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h`; };
+const ukT = (iso?: string, o: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", ...o }) : "—");
+
+/** Discord id → `Sgt. S. "Raven"` for everyone in the ticket who is on the website. */
+async function rankNames(tk: Ticket) {
+  const ids = [...new Set([tk.openerId, ...(tk.transcript ?? []).map((l) => l.whoId)].filter((x) => /^\d{17,20}$/.test(x)))];
+  const us = await TerminalDoc.find({ parent: "users", "data.discordId": { $in: ids } }, { data: 1 }).lean();
+  const out = new Map<string, string>();
+  for (const u of us) { const d = (u as any).data ?? {}; out.set(String(d.discordId), await signName(String((u as any).docId ?? ""), "", d)); }
+  return out;
+}
+type Who = { key: string; name: string; staff: boolean; bot: boolean; n: number };
+function stats(tk: Ticket, names: Map<string, string>) {
+  const lines = (tk.transcript ?? []).filter((l) => !l.note);
+  const by = new Map<string, Who>();
+  for (const l of lines) {
+    const bot = l.who === "Cortana" && !l.whoId;
+    const key = l.whoId || `n:${l.who}`;
+    const w = by.get(key) ?? { key, name: (l.whoId && names.get(l.whoId)) || l.who, staff: l.staff, bot, n: 0 };
+    w.n++; by.set(key, w);
+  }
+  const people = [...by.values()].sort((a, b) => b.n - a.n);
+  return { people, msgs: lines.length, images: lines.reduce((s, l) => s + (l.images?.length ?? 0), 0), notes: (tk.transcript ?? []).filter((l) => l.note).length };
+}
+const ini = (n: string) => (n.replace(/^[A-Za-z0-9]+\.\s*/, "").replace(/["“”]/g, "").match(/\b\w/g) ?? ["?"]).slice(0, 2).join("").toUpperCase();
+
+/** Approved mock 2026-11-11: details sidebar, people, timeline, search + filters, day dividers, inline images. Staff copy (has notes). */
+function transcriptHtml(tk: Ticket, names: Map<string, string>) {
+  const s = stats(tk, names);
+  const nm = (l: Line) => (l.whoId && names.get(l.whoId)) || l.who;
+  let day = "";
+  const rows = (tk.transcript ?? []).map((l) => {
+    const dd = ukT(l.atISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
+    const div = dd !== day ? `<div class="day">${h((day = dd))}</div>` : "";
+    const sys = l.who === "Cortana" && !l.whoId && /^(🔒|🔓|➕|➖|✋)/.test(l.text);
+    if (sys) return `${div}<div class="sys" data-k="staff">${h(l.text)}</div>`;
+    const bot = l.who === "Cortana" && !l.whoId;
+    const k = l.note ? "note" : l.staff ? "staff" : "member";
+    return `${div}<div class="m ${l.staff ? "s" : ""} ${l.note ? "note" : ""}" data-k="${k}"${l.images?.length ? ' data-img="1"' : ""}><div class="a">${h(bot ? "CO" : ini(nm(l)))}</div><div><b>${h(nm(l))}</b>${bot ? '<span class="tag b">BOT</span>' : l.note ? '<span class="tag n">STAFF NOTE</span>' : l.staff ? '<span class="tag">STAFF</span>' : ""}<small>${h(ukT(l.atISO, { hour: "2-digit", minute: "2-digit" }))}</small>
+<div class="t">${h(l.text).replace(/\n/g, "<br>")}</div>${(l.images ?? []).map((u) => `<a href="${h(u)}" target="_blank" rel="noopener"><img src="${h(u)}" alt="Attached image" loading="lazy"></a>`).join("")}</div></div>`;
+  }).join("");
+  const open = Date.parse(tk.openedAtISO), closed = tk.closedAtISO ? Date.parse(tk.closedAtISO) : Date.now();
+  const tl = (tk.transcript ?? []).filter((l) => l.who === "Cortana" && !l.whoId && /^(🔒|🔓|➕|➖|✋)/.test(l.text)).map((l) => `<div>${h(ukT(l.atISO))} · ${h(l.text.replace(/^\S+\s/, ""))}</div>`).join("");
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ticket #${pad(tk.number)} · ${h(tk.typeName)}</title><style>
+body{margin:0;background:#06090d;color:#dbe7ee;font:14px/1.5 "Segoe UI",Arial,sans-serif}.tp{max-width:1150px;margin:20px auto;border:1px solid #00d9ff33;background:#0a0e12}
+.tph{display:flex;gap:16px;align-items:center;padding:20px 24px;border-bottom:1px solid #00d9ff22;background:linear-gradient(90deg,#00d9ff12,transparent)}.tph img{width:58px;height:58px}
+.tph h1{margin:0;font-size:21px;letter-spacing:3px;color:#fff}.tph p{margin:2px 0 0;color:#7d8a99;font-size:12px;letter-spacing:1.5px}.pill{border:1px solid;padding:2px 8px;font-size:10px;letter-spacing:1.5px;margin-left:auto}
+.body{display:grid;grid-template-columns:260px 1fr}.side{border-right:1px solid #00d9ff1a;padding:18px;font-size:12.5px}.side h4{margin:16px 0 8px;font-size:10px;letter-spacing:2px;color:#7d8a99;font-weight:400}.side h4:first-child{margin-top:0}
+.kv{display:flex;justify-content:space-between;gap:8px;padding:3px 0}.kv span{color:#7d8a99}.kv b{font-weight:400;color:#fff;text-align:right}
+.p2{display:flex;align-items:center;gap:8px;padding:4px 0}.p2 i{width:26px;height:26px;display:grid;place-items:center;font-style:normal;font-size:10px;background:#ffffff0d;color:#aeb9c4;flex-shrink:0}.p2 i.s{background:#00d9ff22;color:#00d9ff}.p2 small{margin-left:auto;color:#7d8a99}
+.tl div{border-left:2px solid #00d9ff33;padding:0 0 10px 10px;position:relative;font-size:11.5px;color:#aeb9c4}.tl div:before{content:"";position:absolute;left:-5px;top:4px;width:8px;height:8px;background:#00d9ff;border-radius:50%}
+.main{padding:14px 22px;min-width:0}.tools{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;position:sticky;top:0;background:#0a0e12;padding:6px 0;z-index:2}
+.tools input{flex:1;min-width:180px;background:#070a0f;border:1px solid #00d9ff33;color:#fff;padding:6px 10px;font:inherit;font-size:12.5px}
+.chip{border:1px solid #00d9ff33;color:#7d8a99;padding:5px 10px;font-size:10.5px;letter-spacing:1.5px;background:none;cursor:pointer;font-family:inherit}.chip.on{border-color:#00d9ff;color:#00d9ff}
+.day{text-align:center;color:#4b5765;font-size:10.5px;letter-spacing:2px;margin:14px 0 8px;display:flex;align-items:center;gap:10px}.day:before,.day:after{content:"";flex:1;height:1px;background:#00d9ff1a}
+.m{display:flex;gap:10px;padding:7px 8px}.m:hover{background:#00d9ff08}.m .a{width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;font-size:11px;background:#ffffff0d;color:#aeb9c4}.m.s .a{background:#00d9ff1f;color:#00d9ff}
+.m b{color:#fff;font-weight:600}.m.s b{color:#00d9ff}.tag{font-size:9px;letter-spacing:1px;border:1px solid #00d9ff;color:#00d9ff;padding:0 5px;margin-left:6px;vertical-align:2px}.tag.n{border-color:#f59e0b;color:#f59e0b}.tag.b{border-color:#5865f2;color:#8b93f8}
+.m small{color:#4b5765;font-size:11px;margin-left:6px}.m .t{color:#d6dde6;font-size:13.5px;word-wrap:break-word}.m.note{background:#f59e0b0d;border-left:2px solid #f59e0b}.m img{display:block;margin-top:6px;max-width:320px;max-height:240px;border:1px solid #00d9ff22}
+.sys{text-align:center;font-size:11.5px;color:#7d8a99;padding:6px}mark{background:#f59e0b55;color:#fff}.hide{display:none}
+.foot{border-top:1px solid #00d9ff1a;padding:12px 24px;font-size:11px;color:#4b5765;display:flex;justify-content:space-between}a{color:#00a8fc}
+@media(max-width:820px){.body{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid #00d9ff1a}}
+</style></head><body><div class="tp">
+<div class="tph"><img src="${h(LOGO)}" alt="505th"><div><h1>TICKET #${pad(tk.number)} · ${h(tk.typeName.toUpperCase())}</h1><p>505TH EXPEDITIONARY FORCE · TRANSCRIPT SAVED ${h(ukT(nowISO(), { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase())} UK</p></div>
+<span class="pill" style="color:${tk.status === "closed" ? "#ef4444" : "#22e07a"}">${tk.status === "closed" ? "CLOSED" : "OPEN"}</span></div>
+<div class="body"><div class="side"><h4>DETAILS</h4>
+<div class="kv"><span>Opened by</span><b>${h(names.get(tk.openerId) || tk.openerName)}</b></div><div class="kv"><span>Panel</span><b>${h(tk.typeName)}</b></div>
+<div class="kv"><span>Claimed by</span><b>${h(tk.claimedByName || "—")}</b></div><div class="kv"><span>Opened</span><b>${h(ukT(tk.openedAtISO))}</b></div>
+<div class="kv"><span>Closed</span><b>${h(ukT(tk.closedAtISO))}</b></div><div class="kv"><span>Open for</span><b>${dur(closed - open)}</b></div>
+<div class="kv"><span>First reply</span><b>${tk.firstReplyMs != null ? dur(tk.firstReplyMs) : "—"}</b></div>${tk.closeReason ? `<div class="kv"><span>Reason</span><b>${h(tk.closeReason)}</b></div>` : ""}
+<h4>PEOPLE</h4>${s.people.map((p) => `<div class="p2"><i class="${p.staff ? "s" : ""}">${h(p.bot ? "CO" : ini(p.name))}</i>${h(p.name)}<small>${p.n}</small></div>`).join("")}
+${tl ? `<h4>TIMELINE</h4><div class="tl"><div>${h(ukT(tk.openedAtISO))} · Ticket opened</div>${tl}</div>` : ""}</div>
+<div class="main"><div class="tools"><input id="q" placeholder="🔍 Search this transcript…" aria-label="Search this transcript">
+${[["all", "ALL"], ["staff", "STAFF"], ["member", "MEMBER"], ["img", "📎 IMAGES"], ["note", "🔒 NOTES"]].map(([k, l], i) => `<button class="chip${i ? "" : " on"}" data-f="${k}">${l}</button>`).join("")}</div>
+<div id="log">${rows || '<p style="color:#4b5765;text-align:center">No messages.</p>'}</div></div></div>
+<div class="foot"><span>505th Expeditionary Force · Command Network</span><span>${s.msgs} messages · ${s.images} images · ${s.notes} staff notes</span></div></div>
+<script>(function(){var f="all",q=document.getElementById("q"),ms=[].slice.call(document.querySelectorAll("#log .m,#log .sys"));
+ms.forEach(function(m){var t=m.querySelector(".t")||m;t.dataset.raw=t.innerHTML;});
+function run(){var s=q.value.trim().toLowerCase();ms.forEach(function(m){var t=m.querySelector(".t")||m,k=m.dataset.k;
+var okF=f==="all"||(f==="img"?m.dataset.img:k===f);var txt=t.textContent.toLowerCase();var okQ=!s||txt.indexOf(s)>-1||(m.querySelector("b")||{textContent:""}).textContent.toLowerCase().indexOf(s)>-1;
+m.classList.toggle("hide",!(okF&&okQ));t.innerHTML=t.dataset.raw;if(s&&okQ&&m.querySelector(".t")){var e=s.replace(/[.*+?^\${}()|[\\]\\\\]/g,"\\\\$&");t.innerHTML=t.dataset.raw.replace(new RegExp("(?![^<]*>)("+e+")","gi"),"<mark>$1</mark>");}});}
+q.addEventListener("input",run);[].forEach.call(document.querySelectorAll("[data-f]"),function(b){b.onclick=function(){f=b.dataset.f;[].forEach.call(document.querySelectorAll("[data-f]"),function(x){x.classList.toggle("on",x===b);});run();};});})();</script>
+</body></html>`;
+}
+
+/** Transcript channel: Cortana Setup → Tickets, else a channel called #transcripts, else the log channel. */
+async function transcriptChannel(client: Client<true>) {
+  const S = await tset();
+  for (const id of [S.transcriptChannelId]) if (id) { const c = await textChan(client, id); if (c) return c; }
+  const byName = client.guilds.cache.get(env.AUTHORISED_GUILD_ID)?.channels.cache.find((c) => c.type === ChannelType.GuildText && c.name === "transcripts");
+  if (byName && byName.type === ChannelType.GuildText) return byName;
+  return S.logChannelId ? textChan(client, S.logChannelId) : null;
 }
 
 async function sendTranscript(client: Client<true>, id: string, by: string) {
   const tk = await getTicket(id);
   if (!tk) throw new PermanentJobError("Ticket not found");
-  const S = await tset();
-  const target = S.transcriptChannelId || S.logChannelId;
-  if (!target) throw new PermanentJobError("Pick a transcript channel in Cortana Setup → Tickets first");
-  const ch = await client.channels.fetch(target).catch(() => null);
-  if (!ch || !("send" in ch)) throw new PermanentJobError("The transcript channel is missing");
-  const file = new AttachmentBuilder(Buffer.from(transcriptHtml(tk), "utf8"), { name: `transcript-ticket-${pad(tk.number)}.html` });
-  await ch.send({ embeds: [new EmbedBuilder().setColor(0x00d9ff).setTitle(`📑 Transcript · Ticket #${pad(tk.number)}`)
-    .setDescription(`${tk.typeName} · opened by <@${tk.openerId}> · ${(tk.transcript ?? []).length} messages\nSaved by **${by}**. Open the file in a web browser.`).setTimestamp()], files: [file], allowedMentions: { parse: [] } });
+  const ch = await transcriptChannel(client);
+  if (!ch) throw new PermanentJobError("No #transcripts channel — make one, or pick it in Cortana Setup → Tickets");
+  const names = await rankNames(tk);
+  const s = stats(tk, names);
+  const total = Math.max(1, s.msgs);
+  const COL = ["🟦", "🟩", "🟪", "🟧", "⬜"];
+  const bar = s.people.map((p, i) => COL[Math.min(i, 4)]!.repeat(Math.max(1, Math.round((p.n / total) * 12)))).join("").slice(0, 60);
+  const ment = (discordId: string, fallback: string) => (discordId ? `<@${discordId}>` : `**${fallback}**`);
+  const closer = tk.closedByName ? `Closed by **${tk.closedByName}**${tk.closeReason ? ` — “${tk.closeReason}”` : ""}` : `Saved by **${by}** (still open)`;
+  const end = tk.closedAtISO ? Date.parse(tk.closedAtISO) : Date.now();
+  const e = new EmbedBuilder().setColor(0x00d9ff).setTitle(`📑 Transcript · Ticket #${pad(tk.number)} · ${tk.typeName}`.slice(0, 256)).setThumbnail(LOGO).setDescription(closer.slice(0, 500))
+    .addFields(
+      { name: "Opened by", value: ment(tk.openerId, tk.openerName), inline: true },
+      { name: "Claimed by", value: tk.claimedByName || "—", inline: true },
+      { name: "Panel", value: tk.typeName || "—", inline: true },
+      { name: "Opened", value: `<t:${Math.floor(Date.parse(tk.openedAtISO) / 1000)}:f>`, inline: true },
+      { name: "Closed", value: tk.closedAtISO ? `<t:${Math.floor(end / 1000)}:f>` : "—", inline: true },
+      { name: "Open for", value: dur(end - Date.parse(tk.openedAtISO)), inline: true },
+      { name: "First staff reply", value: tk.firstReplyMs != null ? dur(tk.firstReplyMs) : "—", inline: true },
+      { name: "Messages", value: `${s.msgs}${s.images ? ` · 📎 ${s.images} image${s.images === 1 ? "" : "s"}` : ""}`, inline: true },
+      { name: "Staff notes", value: `${s.notes}`, inline: true },
+      { name: "Who talked", value: `${bar}\n${s.people.slice(0, 6).map((p, i) => `${COL[Math.min(i, 4)]} ${p.n} · ${/^\d{17,20}$/.test(p.key) ? `<@${p.key}>` : `**${p.name}**`}`).join("\n")}`.slice(0, 1024) },
+    ).setFooter({ text: "505th Expeditionary Force · Ticket System" }).setTimestamp();
+  const slug = (names.get(tk.openerId) || tk.openerName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "member";
+  const file = new AttachmentBuilder(Buffer.from(transcriptHtml(tk, names), "utf8"), { name: `transcript-${pad(tk.number)}-${slug}.html` });
+  const rows = env.SITE_URL ? [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("View on website").setEmoji("📑").setURL(`${env.SITE_URL.replace(/\/$/, "")}/terminal`))] : [];
+  await ch.send({ embeds: [e], files: [file], components: rows, allowedMentions: { parse: [] } });
   await patch(id, { transcriptAtISO: nowISO() });
 }
 
 async function removeChannel(client: Client<true>, id: string, by: string) {
   const tk = await getTicket(id);
   if (!tk) throw new PermanentJobError("Ticket not found");
-  if (tk.status === "open") await close(client, id, by, "Deleted");
-  await sendTranscript(client, id, by).catch((e) => log.warn(`Transcript before delete failed: ${(e as Error).message}`));
+  const wasOpen = tk.status === "open";
+  if (wasOpen) await close(client, id, by, "Deleted");
+  if (!wasOpen && !tk.transcriptAtISO) await sendTranscript(client, id, by).catch((e) => log.warn(`Transcript before delete failed: ${(e as Error).message}`));
   await patch(id, { channelDeleted: true, deleteAtISO: null });
   openChannels.delete(tk.channelId);
   const ch = await textChan(client, tk.channelId);
@@ -333,8 +434,8 @@ export async function onTicketMessage(m: Message) {
 
 /* ───────── website jobs ───────── */
 /** Plain-text reply signature, like /say: `Sgt. S. "Raven"` or `Cpl. J. Harper`. */
-async function signName(uid: unknown, fallback: string) {
-  const u = typeof uid === "string" && uid ? ((await TerminalDoc.findById(`users/${uid}`, { data: 1 }).lean())?.data as Record<string, any> | undefined) : undefined;
+async function signName(uid: unknown, fallback: string, pre?: Record<string, any>) {
+  const u = pre ?? (typeof uid === "string" && uid ? ((await TerminalDoc.findById(`users/${uid}`, { data: 1 }).lean())?.data as Record<string, any> | undefined) : undefined);
   if (!u) return fallback;
   const first = String(u.firstName || "").trim(), last = String(u.lastName || "").trim(), cs = String(u.callsign || "").trim();
   const hasCs = cs && cs !== first && cs !== `${first} ${last}`;
