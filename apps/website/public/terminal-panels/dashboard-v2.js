@@ -6,7 +6,7 @@
  * Cortana / Discord / Hub numbers show as "not running" until Cortana v2 reports them.
  */
 import { onAuthStateChanged } from "/terminal-shim/auth.js";
-import { collection, doc, getDoc, getDocs, limit, orderBy, query, updateDoc } from "/terminal-shim/firestore.js";
+import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, updateDoc } from "/terminal-shim/firestore.js";
 import { addCss, auth, cortanaStatus, db, esc, uptimeDays, getMe, getUsers, hexAvatar, isMember, memberName, notify, onReady, platoonOrder, rateColor, toDate } from "./_common.js";
 import { onAccess } from "./nav-v2.js";
 
@@ -75,8 +75,16 @@ const ukDay = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleDa
 const empty = (t) => `<p class="dim">${t}</p>`;
 const active = () => D.users.filter((u) => isMember(u) && !["retired_veteran", "left", "inactive"].includes(u.status) && u.status !== "suspended");
 const pending = () => D.users.filter((u) => u.status === "pending");
+/** "Discord: 42 online · 6 in voice" from Cortana (bot_status/discord_live). */
+const discordLine = () => {
+  const d = D.dl;
+  const fresh = d?.atISO && Date.now() - Date.parse(d.atISO) < 5 * 60000;
+  if (!fresh) return '<small class="dim" style="display:block;margin-top:10px">IN THE TERMINAL · DISCORD: WAITING FOR CORTANA</small>';
+  const v = (d.voice || []).reduce((a, c) => a + c.members.length, 0);
+  return `<small class="dim" style="display:block;margin-top:10px">ABOVE: IN THE TERMINAL · DISCORD: <b style="color:#22e07a">${d.online ?? "—"} ONLINE</b> OF ${d.members ?? "—"} · <b style="color:#00D9FF">${v} IN VOICE</b>${v ? " (" + (d.voice || []).map((c) => `${esc(c.name)} ${c.members.length}`).join(" · ") + ")" : ""}</small>`;
+};
 const onlineNow = () => {
-  const cut = Date.now() - 3 * 60 * 1000;
+  const cut = Date.now() - 2 * 60 * 1000; // check-ins every 30 s → gone within 2 min of closing
   const m = new Map();
   D.pres.filter((p) => Date.parse(p.updatedAt || 0) > cut).forEach((p) => m.set(p.uid, p));
   // You're looking at the dashboard, so you're online — even if your check-in hasn't been saved yet.
@@ -160,12 +168,20 @@ const WID = {
   } },
   staff: { t: "♟ STAFF ONLINE", d: "Staff online now — in the terminal, and where", ico: "♟", g: "STATUS", b: () => {
     const on = onlineNow().filter((p) => STAFF.has(userOf(p.uid).role || p.role));
-    if (!on.length) return empty("NO STAFF ONLINE RIGHT NOW.");
-    return on.map((p) => { const u = { ...p, ...userOf(p.uid) }; return `<div class="d2-stf">${hexAvatar(u, "sm")}<span><b>${esc(memberName(u))}${p.uid === uid ? ' <small style="display:inline">(YOU)</small>' : ""}</b><small>${ROLE_L[u.role] || ""}</small></span><span class="wh2">TERMINAL<br><i>${esc(panelName(p.panel))}</i></span></div>`; }).join("") + `<small class="dim">${on.length} STAFF IN THE TERMINAL · DISCORD VOICE SHOWS ONCE CORTANA v2 IS RUNNING</small>`;
+    // Staff in Discord voice (from Cortana, every minute) — matched to website members by Discord ID.
+    const fresh = D.dl?.atISO && Date.now() - Date.parse(D.dl.atISO) < 5 * 60000;
+    const inVoice = new Map();
+    if (fresh) for (const ch of D.dl.voice || []) for (const m of ch.members) { const u = D.users.find((x) => x.discordId === m.id); if (u && STAFF.has(u.role)) inVoice.set(u.id, { u, ch: ch.name }); }
+    const rows = new Map();
+    on.forEach((p) => rows.set(p.uid, { u: { ...p, ...userOf(p.uid) }, uidKey: p.uid, term: panelName(p.panel) }));
+    inVoice.forEach((v, id) => { const r = rows.get(id) || { u: { ...v.u, uid: id }, uidKey: id }; r.voice = v.ch; rows.set(id, r); });
+    if (!rows.size) return empty("NO STAFF ONLINE RIGHT NOW.") + (fresh ? "" : '<small class="dim">DISCORD VOICE: WAITING FOR CORTANA</small>');
+    return [...rows.values()].map((r) => `<div class="d2-stf">${hexAvatar(r.u, "sm")}<span><b>${esc(memberName(r.u))}${r.uidKey === uid ? ' <small style="display:inline">(YOU)</small>' : ""}</b><small>${ROLE_L[r.u.role] || ""}</small></span><span class="wh2">${r.term ? `TERMINAL<br><i>${esc(r.term)}</i>` : ""}${r.term && r.voice ? "<br>" : ""}${r.voice ? `🔊 VOICE<br><i>${esc(r.voice)}</i>` : ""}</span></div>`).join("")
+      + `<small class="dim">${on.length} IN THE TERMINAL · ${inVoice.size} IN DISCORD VOICE${fresh ? "" : " (WAITING FOR CORTANA)"}</small>`;
   } },
   online: { t: "● ONLINE NOW", d: "Everyone online now, with hex pictures", ico: "●", g: "UNIT", b: () => {
     const on = onlineNow();
-    return on.length ? `<div class="d2-onl">${on.map((p) => { const u = { ...p, ...userOf(p.uid) }; return `<span class="d2-ou">${hexAvatar(u, "sm")}<small>${esc(u.callsign || u.lastName || "")}</small></span>`; }).join("")}</div><small class="dim" style="display:block;margin-top:10px">IN THE TERMINAL · DISCORD ONLINE SHOWS ONCE CORTANA v2 IS RUNNING</small>` : empty("NOBODY ONLINE.");
+    return on.length ? `<div class="d2-onl">${on.map((p) => { const u = { ...p, ...userOf(p.uid) }; return `<span class="d2-ou">${hexAvatar(u, "sm")}<small>${esc(u.callsign || u.lastName || "")}</small></span>`; }).join("")}</div>${discordLine()}` : empty("NOBODY IN THE TERMINAL.") + discordLine();
   } },
   activity: { t: "☍ RECENT ACTIVITY", d: "Latest changes from the Audit Log", ico: "☍", g: "WORK", acc: "audit", accL: "AUDIT LOG", b: () =>
     D.audit.length ? D.audit.slice(0, 5).map((a) => { const u = userOf(a.uid); return `<div class="d2-act">${hexAvatar(u.id ? u : { callsign: a.by }, "xs")}<span><b>${esc(u.id ? memberName(u) : a.by || "System")}</b> ${esc(String(a.action || "").toLowerCase())}</span><small>${ukTime(a.createdAtISO || a.createdAt)}</small></div>`; }).join("") : empty("NO ACTIVITY YET.") },
@@ -315,6 +331,7 @@ async function load() {
     safe(getDoc(doc(db, "unit_config", "status")), (s) => (D.status = s.data() || {})),
     safe(cortanaStatus(), (c) => (D.cortana = c)),
     safe(getDoc(doc(db, "bot_status", "monitors")), (s) => (D.mon = s.data() || null)),
+    safe(getDoc(doc(db, "bot_status", "discord_live")), (s) => (D.dl = s.data() || null)),
     acc.tk ? safe(getDocs(collection(db, "tickets")), (s) => (D.tickets = s.docs.map((d) => { const x = d.data(); return { number: x.number, status: x.status, typeEmoji: x.typeEmoji, openerName: x.openerName, waiting: x.waiting, openedAtISO: x.openedAtISO, lastActivityISO: x.lastActivityISO }; }))) : null,
   ]);
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
@@ -415,6 +432,9 @@ onReady(() => {
       drawW();
       await refresh();
       setInterval(() => (document.getElementById("panel-dashboard")?.classList.contains("hidden") ? hello() : refresh()), 60000);
+      // Online Now / Staff Online update live (instant updates), not once a minute.
+      onSnapshot(collection(db, "presence_sessions"), (s) => { D.pres = s.docs.map((d) => d.data()); if (!editing) drawW(); }, () => {});
+      onSnapshot(doc(db, "bot_status", "discord_live"), (s) => { D.dl = s.data() || null; if (!editing) drawW(); }, () => {});
     });
   });
 });

@@ -37,6 +37,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildScheduledEvents,
+    GatewayIntentBits.GuildVoiceStates, // who is in which voice channel (Dashboard → Staff Online). Not a privileged intent.
   ],
   partials: [Partials.GuildMember, Partials.Message, Partials.Channel],
   // Never ping @everyone / roles unless a feature explicitly allows it.

@@ -6,7 +6,7 @@ import "server-only";
  * Callers MUST be behind requireTerminal() (see lib/terminal/guard.ts).
  */
 import {
-  AccessAttempt, Aar, AttendanceEvent, AuditLog, Member, connectDb, memberDisplayName, rankByKey, rankLabel, ROLE_LABEL, type MemberDoc, type MemberStatus, type Role,
+  AccessAttempt, Aar, AttendanceEvent, AuditLog, Member, TerminalDoc, connectDb, memberDisplayName, rankByKey, rankLabel, ROLE_LABEL, type MemberDoc, type MemberStatus, type Role,
 } from "@505th/db";
 
 const iso = (d: unknown) => (d instanceof Date ? d.toISOString() : typeof d === "string" ? d : null);
@@ -43,7 +43,7 @@ export async function getRoster(filter: { status?: MemberStatus[] } = {}): Promi
         roleLabel: ROLE_LABEL[m.role as Role] ?? m.role ?? "",
         status: m.status ?? "",
         platoon: m.platoon ?? "",
-        attendance: m.attendance?.percent ?? 0,
+        attendance: m.attendance?.opsEligible ? Math.round(((m.attendance.opsAttended ?? 0) / m.attendance.opsEligible) * 100) : m.attendance?.percent ?? 0,
         hasDiscord: !!m.discordId,
         joinedAt: iso(m.joinedAt),
       };
@@ -80,8 +80,17 @@ export type ServiceRecord = {
 export async function getServiceRecord(id: string): Promise<ServiceRecord | null> {
   if (!/^[a-f0-9]{24}$/i.test(id)) return null;
   await connectDb();
-  const m = await Member.findById(id).lean();
-  if (!m) return null;
+  const base = await Member.findById(id).lean();
+  if (!base) return null;
+  // The live record is the Command Terminal's users/<firebase uid> (Personnel Files, Role Sync and Cortana write there).
+  // The Member copy is from the migration, so prefer the live lists and status when they exist.
+  const live = base.legacyId ? ((await TerminalDoc.findById(`users/${base.legacyId}`, { data: 1 }).lean())?.data as Record<string, any> | undefined) : undefined;
+  const m = { ...base } as typeof base & Record<string, any>;
+  if (live) {
+    for (const k of ["promotionHistory", "platoonHistory", "commendationHistory", "ribbonHistory", "warningHistory"] as const) if (Array.isArray(live[k])) (m as any)[k] = live[k];
+    for (const k of ["platoon", "callsign", "discordUsername", "recruitSource", "joinedPlatoon"] as const) if (typeof live[k] === "string" && live[k]) (m as any)[k] = live[k];
+    if (typeof live.rank === "string" && live.rank) (m as any).rankRaw = live.rank;
+  }
   const r = rankByKey(m.rankKey);
   const h = (arr: any[] | undefined, tone: HistoryEntry["tone"], title: (x: any) => string): HistoryEntry[] =>
     (arr ?? []).map((x) => ({ date: x.date || iso(x.addedAt)?.slice(0, 10) || "", title: title(x), note: x.note ?? "", by: x.addedBy ?? "", tone }));
@@ -99,7 +108,7 @@ export async function getServiceRecord(id: string): Promise<ServiceRecord | null
     middleName: m.middleName ?? "",
     lastName: m.lastName ?? "",
     callsign: m.callsign ?? "",
-    rank: r ? rankLabel(r) : m.rankRaw ?? "",
+    rank: live?.rank ? String(live.rank) : r ? rankLabel(r) : m.rankRaw ?? "",
     rankAbbrev: r?.abbrev ?? m.rankRaw ?? "",
     role: m.role ?? "",
     roleLabel: ROLE_LABEL[m.role as Role] ?? m.role ?? "",
@@ -112,7 +121,8 @@ export async function getServiceRecord(id: string): Promise<ServiceRecord | null
     discordUsername: m.discordUsername ?? "",
     hasDiscord: !!m.discordId,
     attendance: {
-      percent: m.attendance?.percent ?? 0,
+      // Work the % out from the counts (the stored % was wrong for some migrated members, e.g. 36/94 showed 1%).
+      percent: m.attendance?.opsEligible ? Math.round(((m.attendance.opsAttended ?? 0) / m.attendance.opsEligible) * 100) : m.attendance?.percent ?? 0,
       opsAttended: m.attendance?.opsAttended ?? 0,
       opsEligible: m.attendance?.opsEligible ?? 0,
       lastAttendedDate: m.attendance?.lastAttendedDate ?? null,

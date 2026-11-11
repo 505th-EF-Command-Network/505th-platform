@@ -51,6 +51,22 @@ function step(m: Mon, ms: number | null) {
   else { m.fails = 0; m.up = true; }
 }
 
+/** Discord "who's online" for the Dashboard: online count (from Discord's own counts — no presence intent needed)
+ *  and who is in each voice channel. Saved to bot_status/discord_live every minute. */
+async function discordLive(client: Client<true>) {
+  const g = client.guilds.cache.get(env.AUTHORISED_GUILD_ID);
+  if (!g) return;
+  const counts = await client.guilds.fetch({ guild: g.id, withCounts: true, force: true }).catch(() => null);
+  const byCh = new Map<string, { channelId: string; name: string; members: { id: string; name: string }[] }>();
+  for (const vs of g.voiceStates.cache.values()) {
+    if (!vs.channelId || !vs.member || vs.member.user.bot) continue;
+    const ch = byCh.get(vs.channelId) ?? { channelId: vs.channelId, name: vs.channel?.name ?? "voice", members: [] };
+    ch.members.push({ id: vs.member.id, name: vs.member.displayName.slice(0, 60) });
+    byCh.set(vs.channelId, ch);
+  }
+  await patchDoc("bot_status", "discord_live", { online: counts?.approximatePresenceCount ?? null, members: counts?.approximateMemberCount ?? g.memberCount, voice: [...byCh.values()], atISO: new Date().toISOString() });
+}
+
 export function startMonitors(client: Client<true>) {
   const run = async () => {
     const cur = ((await TerminalDoc.findById("bot_status/monitors", { data: 1 }).lean())?.data ?? {}) as Record<string, Mon>;
@@ -72,6 +88,7 @@ export function startMonitors(client: Client<true>) {
       }
     }
     await patchDoc("bot_status", "monitors", { ...state, checkedAtISO: new Date().toISOString() });
+    await discordLive(client).catch((e) => log.warn(`Discord online count failed: ${(e as Error).message}`));
   };
   const go = () => void run().catch((e) => log.warn(`Uptime check failed: ${(e as Error).message}`));
   go();

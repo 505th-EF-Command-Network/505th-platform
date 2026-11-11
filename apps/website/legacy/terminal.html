@@ -148,6 +148,7 @@
         const _ROLE_COLORS = {commander:'#f59e0b',officer:'#d97706',developer:'#a78bfa',staff_nco:'#2DD4BF',nco:'#34d399',recruiter:'#fb923c',marine:'#94a3b8',enlistee:'#64748b'};
 
         async function dashPresJoin() {
+            return; // replaced by /terminal-panels/presence.js (checks in on every page, survives tab switches)
             if (!currentUser || !currentUserData || _dashPresSession || _dashPresJoining) return;
             _dashPresJoining = true;
             try {
@@ -173,6 +174,7 @@
         }
 
         async function dashPresLeave() {
+            return; // replaced by /terminal-panels/presence.js
             if (_dashPresHb)    { clearInterval(_dashPresHb); _dashPresHb = null; }
             if (_dashPresUnsub) { _dashPresUnsub(); _dashPresUnsub = null; }
             if (_dashPresSession) {
@@ -7276,6 +7278,7 @@
     <script type="module" src="/terminal-panels/role-sync.js"></script>
     <script type="module" src="/terminal-panels/help.js"></script>
     <script type="module" src="/terminal-panels/mention.js"></script>
+    <script type="module" src="/terminal-panels/presence.js"></script>
     <script type="module" src="/terminal-panels/topbar.js"></script>
     <script type="module" src="/terminal-panels/messages-v2.js"></script>
     <script type="module" src="/terminal-panels/dashboard-v2.js"></script>
