@@ -117,7 +117,7 @@ function live(k) {
 }
 function renderHome() {
   const root = document.getElementById("ccHome");
-  if (!root || !me) return;
+  if (!root || !me || !D.status) return; // data not loaded yet — loadHome() draws it when ready
   const a = me.access;
   const [ol, oc] = OPS[D.status.opStatus] || ["NOT SET", "#7d8a99"];
   const rOpen = D.status.recruitmentOpen !== false;

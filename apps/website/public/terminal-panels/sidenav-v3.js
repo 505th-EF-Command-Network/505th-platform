@@ -215,8 +215,6 @@ async function start() {
   cortana();
   setInterval(cortana, 60_000);
 }
-onReady(start);
-
 const CSS = `
 #sidebar{display:flex;flex-direction:column;width:272px;padding:0;transition:width .15s}
 #sidebar>*{flex-shrink:0}
@@ -255,3 +253,6 @@ body.sn3-rail #sidebar .nav-tip{font-size:13px}
 @media(max-width:768px){#sidebar{width:280px}body.sn3-rail #sidebar{width:280px}#sn3Col{display:none}}
 @media(prefers-reduced-motion:reduce){#sidebar{transition:none}}
 `;
+
+// After CSS is defined (onReady can run straight away — same mistake as the AAR fix).
+onReady(start);
