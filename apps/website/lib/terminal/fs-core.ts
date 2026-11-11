@@ -298,7 +298,7 @@ export function checkWrite(
   // Audit entries can only be ADDED here. Removing them is Cortana's clean-up / clear (Audit Log v3, leaves a locked record).
   if ((target.top === "audit_log" || target.top === "audit_logs") && op !== "add") deny("Audit entries can only be removed from Security → Audit Log");
   // Suspending is a Command action (Commander / Developer by default).
-  if (target.top === "users" && ["suspended", "suspendedUntil", "suspendReason"].some((f) => fields.has(f)) && !can(actor.role, actor.access, "set")) {
+  if (target.top === "users" && ["suspended", "suspendedUntil", "suspendReason"].some((f) => fields.has(f)) && !can(actor.role, actor.access, "set") && !can(actor.role, actor.access, "cmd_suspend")) {
     deny("Only Command can suspend or restore members");
   }
   if (target.top === "users" && target.docId !== actor.uid && !USER_EDIT_KEYS.some((k) => can(actor.role, actor.access, k))) {
@@ -310,6 +310,7 @@ export function checkWrite(
 
   // Access overrides are only changed through Officer Management (/api/terminal/access).
   if (target.top === "users" && fields.has("access")) deny("Access is changed in Officer Management only");
+  if (target.top === "users" && fields.has("cmdGrant")) deny("Command Access is changed in Command → Command Access only");
 
   if (target.top !== "users" || target.path.split("/").length !== 2) return;
 

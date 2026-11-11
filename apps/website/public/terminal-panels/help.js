@@ -106,6 +106,47 @@ const H = {
       { sel: "#netV2 .nt-btns", h: "CONTROL", p: "Developers / Command: restart Cortana, re-sync channels and roles, re-register commands." },
     ] },
   "panel-auditv2": { g: "SECURITY", t: "Audit Log", who: "Officer+", key: "audit", s: "Every action: who did what, and when." },
+  "panel-cmd-home": { g: "COMMAND", t: "Command Centre", who: "Commander + Command Access", key: "__cmd", s: "One home for Command: the unit right now, and a card for every Command job — what it's for and when to use it.",
+    how: ["Read the 4 boxes at the top — what everyone else sees right now.", "Each card says WHAT it is for and WHEN to use it.", "Coloured tags show the live state. Press OPEN → to go there."],
+    tour: [
+      { sel: "#ccHead", h: "WELCOME TO THE COMMAND CENTRE", p: "Your home for running the 505th. Everything a Commander needs is on this page — one card per job." },
+      { sel: "#ccStatus", h: "THE UNIT RIGHT NOW", p: "What everyone else sees: unit status, recruitment, the latest SITREP and whether Cortana is online.<br>Green = good · Amber = have a look · Red = act now." },
+      { sel: "#ccUnit", h: "UNIT — RUNNING THE 505TH", p: "Day-to-day command: unit status, SITREPs, your staff, command promotions, suspensions — and Command Access (who else can use this)." },
+      { sel: "#ccSys", h: "SYSTEM — KEEPING IT RUNNING", p: "The technical side: website and Cortana health, Cortana's Discord channels, role sync and settings. Mostly set once." },
+      { sel: "#ccTourBtn", h: "HELP IS ALWAYS HERE", p: "Run this tour again any time. Every Command page has a <b>WHAT IS THIS?</b> box with its own <b>▶ TOUR</b>." },
+    ] },
+  "panel-cmd-status": { g: "COMMAND", t: "Unit Status", who: "Commander + Command Access", key: "cmd_status", s: "The unit status badge, recruitment open / closed and a short message — shown to everyone.",
+    tour: [
+      { sel: "#cmdStatusV2 .cc-explain", h: "WHAT IT DOES", p: "Read this box once — then HIDE it. ℹ WHAT IS THIS? brings it back." },
+      { sel: "#cmdStatusV2 [data-op]", up: 1, h: "1 · PICK THE STATUS", p: "ACTIVE, STAND DOWN, ON OP, TRAINING or MAINTENANCE." },
+      { sel: "#cmdStatusV2 [data-act=gate]", h: "2 · RECRUITMENT", p: "Opens or closes the public sign-up page." },
+      { sel: "#usMsg", h: "3 · MESSAGE", p: "Optional line under the badge, e.g. \"Ops resume 1 December\"." },
+      { sel: "#cmdStatusV2 [data-act=save]", h: "4 · SAVE", p: "Members see it straight away. Logged in the Audit Log." },
+    ] },
+  "panel-cmd-sitrep": { g: "COMMAND", t: "SITREP", who: "Commander + Command Access", key: "cmd_sitrep", s: "Situation reports from Command. The pinned one shows on every staff Dashboard.",
+    tour: [
+      { sel: "#srT", h: "1 · TITLE", p: "A short headline, e.g. \"Week 46 command intent\"." },
+      { sel: "#cmdSitrepV2 [data-vis]", up: 1, h: "2 · WHO CAN READ IT", p: "All staff, officers only, or Commander only." },
+      { sel: "#srB", h: "3 · THE REPORT", p: "Situation · Mission · Execution · Admin · Command." },
+      { sel: "#cmdSitrepV2 [data-act=send]", h: "4 · TRANSMIT", p: "Pinned = shown on dashboards. Alert = readers get a notification." },
+      { sel: "#cmdSitrepV2 .list", h: "SENT SITREPS", p: "Pin a different one, or delete old ones." },
+    ] },
+  "panel-cmd-staff": { g: "COMMAND", t: "Command Staff", who: "Commander + Command Access", key: "cmd_staff", s: "Who's in Command, Developers, Officers and Senior NCOs, and when they were last online." },
+  "panel-cmd-promote": { g: "COMMAND", t: "Command Promotions", who: "Commander + Command Access", key: "cmd_promote", s: "Give or remove command-tier roles (Officer, Developer). Only the Commander can make a Commander." },
+  "panel-cmd-suspend": { g: "COMMAND", t: "Suspensions", who: "Commander + Command Access", key: "cmd_suspend", s: "Block a member from the Terminal for a while, with a reason they can see.",
+    tour: [
+      { sel: "#suQ", h: "1 · FIND THE MEMBER", p: "Type a name and pick them from the list." },
+      { sel: "#suR", h: "2 · REASON", p: "They see this on the Access Denied screen." },
+      { sel: "#suL", h: "3 · HOW LONG", p: "7, 14, 30 days — it lifts by itself — or until restored." },
+      { sel: "#cmdSuspendV2 [data-act=sus]", h: "4 · SUSPEND", p: "They are signed out everywhere. Restore any time from the list on the right." },
+    ] },
+  "panel-cmd-access": { g: "COMMAND", t: "Command Access", who: "Commander only", key: "__owner", s: "Choose who else can use the Command Centre, which parts, and until when.",
+    tour: [
+      { sel: "#ccAccess .cc-explain", h: "WHAT IT DOES", p: "Lend Command pages to someone — all of them, or just the ones you tick." },
+      { sel: "#ccAccess .cc-t2", h: "WHO HAS ACCESS NOW", p: "Everyone with Command Access, what they have and when it ends. EDIT or REMOVE any time." },
+      { sel: '#ccAccess [data-cca="new"]', h: "GIVE ACCESS", p: "Pick a member, FULL or CUSTOM, an optional end date and a reason. They get a notification; it's logged in the Audit Log." },
+    ] },
+  "panel-bot": { g: "COMMAND", t: "Bot Server", who: "Developer + Command Access", key: "bot", s: "Cortana's process and logs." },
   "panel-cmd-cortana": { g: "COMMAND", t: "Cortana Setup", who: "Dev / Command", key: "set", s: "Channels, roles, pings, welcome and logs for Cortana. Changes apply live.",
     tour: [
       { sel: "#cSetup nav", h: "SECTIONS", p: "✓ set up · ▲ needs setup · ✕ Cortana can't post. Start at Server Check." },
@@ -120,9 +161,6 @@ const H = {
       { sel: '#rsyncV2 [data-x="all"]', h: "CHECK EVERYONE", p: "Makes everyone's Discord roles match their personnel file." },
     ] },
   "panel-cmd-settings": { g: "COMMAND", t: "Settings", who: "Dev / Command", key: "set", s: "Webhooks, terminal role → Discord role map and system settings." },
-  "panel-cmd-promote": { g: "COMMAND", t: "Command Promotions", who: "Dev / Command", key: "set", s: "Promote staff to officer and command roles." },
-  "panel-cmd-staff": { g: "COMMAND", t: "Command Staff", who: "Dev / Command", key: "set", s: "Who's in Command, Developers, Officers and Senior NCOs." },
-  "panel-bot": { g: "COMMAND", t: "Bot Server", who: "Dev / Command", key: "bot", s: "Cortana's process and logs." },
 };
 const GROUPS = ["GETTING STARTED", "MANPOWER", "OPERATIONS", "DISCORD", "WORKSPACE", "SECURITY", "COMMAND"];
 const CMDS = [["Everyone", "/modlist · /coinflip · /ping · /status · /help"], ["Staff NCO+", "/warn · /timeout · /purge"], ["Officer+", "/kick · /ban (confirm first)"],
@@ -191,7 +229,9 @@ function endTour() {
 
 /* ───────── "?" side panel ───────── */
 let acc = {};
-const canSee = (h) => !h.key || acc[h.key] || (h.key === "modw" && acc.modk);
+const CMDK = ["cmd_status", "cmd_sitrep", "cmd_staff", "cmd_promote", "cmd_suspend", "ovr", "bot", "set"];
+let role = "";
+const canSee = (h) => !h.key || acc[h.key] || (h.key === "modw" && acc.modk) || (h.key === "__cmd" && CMDK.some((k) => acc[k])) || (h.key === "__owner" && ["commander", "developer"].includes(role));
 function article(id, h) {
   return `<div class="hl-crumb">${esc(h.g)} › ${esc(h.t.toUpperCase())}<span class="hl-who">${esc(h.who)}</span></div><h3>${esc(h.t.toUpperCase())}</h3><p>${esc(h.s)}</p>
     ${h.how ? `<h4>HOW TO</h4><ol>${h.how.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>` : ""}
@@ -328,7 +368,7 @@ onReady(() => {
   new MutationObserver(() => scan()).observe(document.querySelector(".main-content") || document.body, { childList: true, subtree: true });
   scan();
 
-  onAccess((me) => { acc = me?.access || {}; if (root) page(root); });
+  onAccess((me) => { acc = me?.access || {}; role = me?.role || ""; if (root) page(root); });
   const root = mountPanel("panel-help", "helpV2", () => page(root));
   if (root) {
     root.addEventListener("click", (e) => {

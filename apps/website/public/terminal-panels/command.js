@@ -471,7 +471,7 @@ onReady(() => {
   // Command strip (only shown to people with Command access, under the top bar).
   import("./nav-v2.js").then(({ onAccess }) =>
     onAccess((me) => {
-      if (!me.access.set) return;
+      if (!["cmd_status", "cmd_sitrep", "cmd_staff", "cmd_promote", "cmd_suspend", "ovr", "bot", "set"].some((k) => me.access[k])) return;
       const top = document.querySelector(".top-bar");
       if (top && !document.getElementById("cmdStrip")) {
         top.insertAdjacentHTML("afterend", '<div id="cmdStrip"></div>');

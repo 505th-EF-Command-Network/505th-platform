@@ -7,7 +7,7 @@
  */
 import type { GuildMember } from "discord.js";
 import { Member, TerminalDoc } from "@505th/db";
-import { can, hasTerminal, setRoleDefaults } from "../../website/lib/terminal/access.ts";
+import { can, hasTerminal, setRoleDefaults, withGrants } from "../../website/lib/terminal/access.ts";
 import { env } from "./env.ts";
 
 /** Role access table (Officer Management → Role Access) — refreshed at most every 20 s before a check. */
@@ -25,7 +25,7 @@ export async function websiteAccess(discordId: string): Promise<{ role: string; 
   const uid = m.legacyId || String(m._id);
   const d = (await TerminalDoc.findById(`users/${uid}`, { data: 1 }).lean())?.data as Record<string, any> | undefined;
   if (d?.suspended === true) return null;
-  return { role: String(d?.role ?? m.role ?? ""), access: d?.access ?? {} };
+  return { role: String(d?.role ?? m.role ?? ""), access: withGrants(d?.access, d?.cmdGrant) };
 }
 
 /** key = access item ("send", "modk", …) or null for "any staff with terminal access". */
@@ -45,5 +45,5 @@ export async function uidAllowed(uid: unknown, key: string): Promise<{ ok: boole
   if (!d || d.suspended === true) return { ok: false, name: "" };
   const name = String(d.callsign || d.name || d.displayName || "Staff");
   await loadRoles();
-  return { ok: can(String(d.role ?? ""), d.access ?? {}, key), name };
+  return { ok: can(String(d.role ?? ""), withGrants(d.access, d.cmdGrant), key), name };
 }

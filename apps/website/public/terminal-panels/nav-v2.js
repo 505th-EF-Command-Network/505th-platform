@@ -22,7 +22,7 @@ const PANEL_KEYS = {
   "panel-officers": "om", "panel-network": "net",
   "panel-bot": "bot", "panel-overall": "ovr",
   "panel-auditv2": "audit", "panel-website": "web",
-  "panel-cmd-status": "set", "panel-cmd-sitrep": "set", "panel-cmd-staff": "set", "panel-cmd-promote": "set", "panel-cmd-suspend": "set", "panel-cmd-settings": "set", "panel-cmd-cortana": "set", "panel-modlist": "set", "panel-cmd-rolesync": "set",
+  "panel-cmd-status": "cmd_status", "panel-cmd-sitrep": "cmd_sitrep", "panel-cmd-staff": "cmd_staff", "panel-cmd-promote": "cmd_promote", "panel-cmd-suspend": "cmd_suspend", "panel-cmd-settings": "set", "panel-cmd-cortana": "set", "panel-modlist": "set", "panel-cmd-rolesync": "set",
 };
 
 /** New pages that need Cortana v2 to reach Discord. Shown as "waiting for Cortana v2" for now. */
@@ -37,10 +37,12 @@ const GROUPS = [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"]] },
   { id: "nav-security", icon: "&#9961;", label: "SECURITY", tip: "Who has access to what, network health and the audit log.", links: [
     ["panel-officers", "&#9733; Officer Management"], ["panel-network", "&#9673; Network Status"], ["panel-auditv2", "&#9741; Audit Log"]] },
-  { id: "nav-command", icon: "&#9733;", label: "COMMAND", tip: "Developer / Commander only.", cls: "cmdg", links: [
+  { id: "nav-command", icon: "&#9733;", label: "COMMAND", tip: "Running the unit. Commander / Developer, plus anyone the Commander gives Command Access.", cls: "cmdg", links: [
+    ["panel-cmd-home", "&#9733; Command Centre"],
     ["label", "UNIT"], ["panel-cmd-status", "&#9673; Unit Status"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-cmd-staff", "&#9823; Command Staff"],
     ["panel-cmd-promote", "&#9650; Command Promotions"], ["panel-cmd-suspend", "&#9940; Suspensions"],
-    ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-cortana", "&#9670; Cortana Setup"], ["panel-cmd-rolesync", "&#8644; Discord Role Sync"], ["panel-cmd-settings", "&#9881; Settings"]] },
+    ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-cortana", "&#9670; Cortana Setup"], ["panel-cmd-rolesync", "&#8644; Discord Role Sync"], ["panel-cmd-settings", "&#9881; Settings"],
+    ["label", "COMMANDER"], ["panel-cmd-access", "&#128273; Command Access"]] },
   { id: "nav-help", icon: "&#10067;", label: "HELP", tip: "What every page does, how-to steps and guided tours.", links: [["panel-help", "&#10067; Help &amp; Guided Tours"]] },
 ];
 
@@ -108,7 +110,7 @@ function buildPanels() {
   const main = document.querySelector(".main-content");
   if (!main) return;
   for (const id of ["panel-tickets", "panel-events", "panel-send", "panel-quick", "panel-info", "panel-mod", "panel-projects", "panel-notes", "panel-officers", "panel-network",
-    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help"]) {
+    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-home", "panel-cmd-access", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help"]) {
     if (document.getElementById(id)) continue;
     const p = document.createElement("div");
     p.className = "panel hidden";
@@ -133,6 +135,12 @@ function applyAccess() {
     const k = PANEL_KEYS[l.dataset.panel];
     if (k) l.style.display = a[k] ? "" : "none";
   });
+  // Command Centre home: any Command part. Command Access: Commander / Developer only.
+  const CMD = ["cmd_status", "cmd_sitrep", "cmd_staff", "cmd_promote", "cmd_suspend", "ovr", "bot", "set"];
+  const home = document.querySelector('#sidebar [data-panel="panel-cmd-home"]');
+  if (home) home.style.display = CMD.some((k) => a[k]) ? "" : "none";
+  const ca = document.querySelector('#sidebar [data-panel="panel-cmd-access"]');
+  if (ca) ca.style.display = ["commander", "developer"].includes(me.role) ? "" : "none";
   // Moderation link: either moderation level.
   const mod = document.querySelector('#sidebar [data-panel="panel-mod"]');
   if (mod) mod.style.display = a.modw || a.modk ? "" : "none";
@@ -149,7 +157,7 @@ function applyAccess() {
     }
   });
   const cmdHr = document.getElementById("nv2-cmd-hr");
-  if (cmdHr) cmdHr.style.display = a.bot || a.set || a.ovr ? "" : "none";
+  if (cmdHr) cmdHr.style.display = CMD.some((k) => a[k]) ? "" : "none";
 }
 
 async function loadAccess() {

@@ -52,7 +52,35 @@ export const ACCESS: AccessItem[] = [
   { key: "bot", label: "Bot Server", group: "COMMAND", min: 4.5, locked: true },
   { key: "set", label: "Settings", group: "COMMAND", min: 4.5, locked: true },
   { key: "ovr", label: "Overall Status", group: "COMMAND", min: 4.5, locked: true },
+  // Command Centre pages (approved mock 2026-11-11). Developer / Commander by role; anyone else only via Command Access.
+  { key: "cmd_status", label: "Unit Status", group: "COMMAND", min: 4.5, locked: true },
+  { key: "cmd_sitrep", label: "SITREP", group: "COMMAND", min: 4.5, locked: true },
+  { key: "cmd_staff", label: "Command Staff", group: "COMMAND", min: 4.5, locked: true },
+  { key: "cmd_promote", label: "Command Promotions", group: "COMMAND", min: 4.5, locked: true },
+  { key: "cmd_suspend", label: "Suspensions", group: "COMMAND", min: 4.5, locked: true },
 ];
+
+/**
+ * COMMAND ACCESS — the Commander can lend Command Centre parts to someone, optionally until a date.
+ * Stored on users/{uid}.cmdGrant = { keys: [...], untilISO, by, byUid, reason, atISO } (written only by /api/terminal/cmd-access).
+ * Command Access itself and the Commander role are never grantable.
+ */
+export const GRANTABLE = ["cmd_status", "cmd_sitrep", "cmd_staff", "cmd_promote", "cmd_suspend", "ovr", "bot", "set"] as const;
+const GRANT_SET = new Set<string>(GRANTABLE);
+export type CmdGrant = { keys?: string[]; untilISO?: string | null } | null | undefined;
+/** Active grant keys (empty if expired / none). */
+export function activeGrant(g: CmdGrant, now = Date.now()): string[] {
+  if (!g || !Array.isArray(g.keys)) return [];
+  if (g.untilISO && Date.parse(g.untilISO) <= now) return [];
+  return g.keys.filter((k) => GRANT_SET.has(k));
+}
+/** Attach active grants to an access object (read by can()). */
+export function withGrants(access: unknown, g: CmdGrant): Record<string, unknown> {
+  const a = access && typeof access === "object" ? { ...(access as Record<string, unknown>) } : {};
+  const keys = activeGrant(g);
+  if (keys.length) a.__grants = keys;
+  return a;
+}
 
 export const ACCESS_KEYS = new Set(ACCESS.map((a) => a.key));
 const BY_KEY = new Map(ACCESS.map((a) => [a.key, a]));
@@ -114,6 +142,8 @@ export function can(role: string | null | undefined, overrides: unknown, key: st
   const item = BY_KEY.get(key);
   if (!item || !hasTerminal(role)) return false;
   if (role === "commander") return true;
+  const gr = (overrides as { __grants?: unknown } | null)?.__grants;
+  if (Array.isArray(gr) && GRANT_SET.has(key) && gr.includes(key)) return true;
   const lvl = roleLevel(role);
   if (item.locked) return lvl >= item.min;
   const o = cleanOverrides(overrides);
@@ -179,8 +209,8 @@ export function writeNeeds(top: string, docId: string, fields: Set<string>, valu
     // Jobs for Cortana v2 (queued now, sent to Discord once Cortana v2 runs).
     case "bot_jobs": return ["ev", "send", "qu", "info", "modw", "modk", "tk", "net", "bot", "set"];
     // Command pages (Commander / Developer by default).
-    case "unit_config":
-    case "fragos": return ["set"];
+    case "unit_config": return ["set", "cmd_status"];
+    case "fragos": return ["set", "cmd_sitrep"];
     case "comms_media": return ["web"];
     case "settings":
       if (docId === "unit_cards") return ["oob"];

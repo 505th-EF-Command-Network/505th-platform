@@ -14,6 +14,7 @@ import {
 } from "./fs-core";
 import { checkConvQuery, checkConvRead, checkConvWrite, checkNotif } from "./conv-core";
 import { loadRoleDefaults } from "./role-defaults";
+import { withGrants, type CmdGrant } from "./access";
 
 export { FsError };
 
@@ -38,11 +39,11 @@ export async function getActor(): Promise<Who> {
   const m = await Member.findById(viewer.member.id, { legacyId: 1, role: 1, email: 1 }).lean();
   if (!m) throw new FsError("permission-denied", "Member record not found");
   const uid = m.legacyId || String(m._id);
-  const td = await TerminalDoc.findById(`users/${uid}`, { "data.access": 1 }).lean();
+  const td = await TerminalDoc.findById(`users/${uid}`, { "data.access": 1, "data.cmdGrant": 1 }).lean();
   return {
     uid,
     role: m.role,
-    access: (td?.data as Record<string, unknown> | undefined)?.access ?? {},
+    access: withGrants((td?.data as Record<string, unknown> | undefined)?.access, (td?.data as { cmdGrant?: CmdGrant } | undefined)?.cmdGrant),
     discordId: viewer.discordId,
     displayName: viewer.member.displayName,
     email: m.email ?? null,
