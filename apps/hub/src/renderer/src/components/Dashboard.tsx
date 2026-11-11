@@ -8,7 +8,7 @@ const ALERT_ICON: Record<string, [string, string]> = {
 };
 
 /** App Dashboard (approved mock 2026-11-11): greeting, KPI row, next op countdown, 8-week bars, alerts, My Status. */
-export function Dashboard(p: { data: Summary; onStatus: (s: StateKey) => void }) {
+export function Dashboard(p: { data: Summary; onStatus: (s: StateKey) => void; onPage: (id: string) => void }) {
   const { me, ops, alerts } = p.data;
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
@@ -57,7 +57,7 @@ export function Dashboard(p: { data: Summary; onStatus: (s: StateKey) => void })
 
       <div className="mb-3 grid grid-cols-[1.4fr_1fr] gap-3">
         <section className="card rise" style={{ animationDelay: ".3s" }} aria-label="Next op">
-          <h3>NEXT OP <button type="button" onClick={() => void window.cn.openSite("panel-events")}>EVENTS ↗</button></h3>
+          <h3>NEXT OP <button type="button" onClick={() => p.onPage("panel-events")}>EVENTS ▸</button></h3>
           {op ? (
             <div className="flex items-center gap-4 p-4">
               <div className="font-head text-[34px] font-bold tracking-[2px] text-amber">{countdown(Date.parse(op.startAtISO) - now)}

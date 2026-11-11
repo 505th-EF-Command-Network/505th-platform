@@ -6,7 +6,7 @@
  */
 import { app, BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
-import { PROTOCOL, createAuth, siteOrigin, type AuthState } from "./auth";
+import { PROTOCOL, createAuth, type AuthState } from "./auth";
 import { createRealtime, type RealtimeState } from "./realtime";
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -79,12 +79,7 @@ ipcMain.handle("hub:set-status", (e, s: unknown) => {
   const { state, note, untilISO } = s as Record<string, unknown>;
   return call("/api/hub/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, note, untilISO }) });
 });
-/** Pages not in the app yet open on the website (Terminal) in the normal browser. */
-ipcMain.handle("site:open", (e, panel: unknown) => {
-  if (!fromMain(e)) return;
-  const p = typeof panel === "string" && /^panel-[a-z0-9-]{1,40}$/.test(panel) ? `#${panel}` : "";
-  void shell.openExternal(`${siteOrigin()}/terminal${p}`);
-});
+
 
 app.whenReady().then(() => {
   createWindow();

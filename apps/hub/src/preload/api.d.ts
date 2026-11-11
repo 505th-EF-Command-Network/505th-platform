@@ -38,7 +38,6 @@ declare global {
         summary(): Promise<Summary | { error: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
-      openSite(panel?: string): Promise<void>;
     };
   }
 }

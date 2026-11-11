@@ -1,9 +1,8 @@
 import { useState } from "react";
 
 /**
- * Left side nav (approved mock): same groups as the Terminal. Pages built into the app open here;
- * the rest open on the website in your browser (↗) until they're added to the app.
- * Command and Help stay website-only.
+ * Left side nav (approved mock): same groups as the Terminal. Every page opens INSIDE the app.
+ * Pages not built yet show an in-app "coming soon" screen (never the website). Command and Help stay website-only.
  */
 type Link = { id: string; label: string; icon: string; key?: string; app?: boolean };
 const GROUPS: { label: string; icon: string; links: Link[] }[] = [
@@ -27,13 +26,15 @@ const GROUPS: { label: string; icon: string; links: Link[] }[] = [
     { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit" }] },
 ];
 
+export const PAGES: Record<string, string> = Object.fromEntries(GROUPS.flatMap((g) => g.links.map((l) => [l.id, l.label])));
+
 export function SideNav(p: { access: Record<string, boolean>; page: string; onPage: (id: string) => void; cortanaOk: boolean }) {
   const [open, setOpen] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem("cn.open") || "[]")); } catch { return new Set(); } });
   const [rail, setRail] = useState(() => localStorage.getItem("cn.rail") === "1");
   const [q, setQ] = useState("");
   const toggle = (g: string) => { const n = new Set(open); n.has(g) ? n.delete(g) : n.add(g); setOpen(n); localStorage.setItem("cn.open", JSON.stringify([...n])); };
   const setR = (v: boolean) => { setRail(v); localStorage.setItem("cn.rail", v ? "1" : "0"); };
-  const go = (l: Link) => (l.app ? p.onPage(l.id) : void window.cn.openSite(l.id));
+  const go = (l: Link) => p.onPage(l.id);
   const groups = GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => (!l.key || p.access[l.key]) && (!q || l.label.toLowerCase().includes(q.toLowerCase()))) })).filter((g) => g.links.length);
 
   if (rail)
@@ -60,8 +61,8 @@ export function SideNav(p: { access: Record<string, boolean>; page: string; onPa
                 <span className="text-cyan">{g.icon}</span>{g.label}<span className="ml-auto">{isOpen ? "▾" : "▸"}</span>
               </button>
               {isOpen && g.links.map((l) => (
-                <button key={l.id} type="button" onClick={() => go(l)} className={`navlink ${p.page === l.id ? "act" : ""}`} title={l.app ? "" : "Opens on the website"}>
-                  <span className="ic">{l.icon}</span>{l.label}{!l.app && <span className="ml-auto text-[11px] text-dimmer">↗</span>}
+                <button key={l.id} type="button" onClick={() => go(l)} className={`navlink ${p.page === l.id ? "act" : ""}`} title={l.app ? "" : "Coming to the app soon"}>
+                  <span className="ic">{l.icon}</span>{l.label}{!l.app && <span className="ml-auto text-[9.5px] tracking-[1px] text-dimmer">SOON</span>}
                 </button>
               ))}
             </div>

@@ -13,8 +13,7 @@ export function RightBar(p: { staff: StaffRow[]; myUid: string }) {
     <aside aria-label="Messages and staff status" className="flex w-[330px] shrink-0 flex-col border-l border-cyan/20 bg-gradient-to-b from-[#0a0e14] to-[#080b10]">
       <h2 className="hdr">✉ MESSAGES</h2>
       <div className="flex-1 overflow-auto p-4 text-[12px] leading-relaxed text-dim">
-        Messenger-style chats arrive in the next step (H3). For now use Messages on the website.
-        <button type="button" onClick={() => void window.cn.openSite("panel-msg2")} className="mt-3 block border border-cyan/30 px-3 py-1.5 text-cyan">OPEN MESSAGES ↗</button>
+        Messenger-style chats are coming to the app next (H3).
       </div>
       <section aria-label="Staff status" className="flex max-h-[48%] flex-col border-t border-cyan/20">
         <h2 className="hdr">◉ STAFF STATUS <span className="ml-auto text-[11px] text-dim">{on} / {p.staff.length} ON</span></h2>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { AuthState, NetState } from "../../preload/api";
 import { Dashboard } from "./components/Dashboard";
 import { RightBar } from "./components/RightBar";
-import { SideNav } from "./components/SideNav";
+import { PAGES, SideNav } from "./components/SideNav";
 import { TopBar } from "./components/TopBar";
 import type { StateKey } from "./ui";
 import { useSummary } from "./useSummary";
@@ -60,15 +60,29 @@ function Shell({ net }: { net: NetState }) {
   if (!data) return <Screen icon={error ? "⚠" : "◷"} color={error ? "#f59e0b" : undefined} title={error ? "CAN'T LOAD" : "LOADING…"} text={error ?? undefined}>{error && <Btn onClick={() => void reload()}>⟳ TRY AGAIN</Btn>}</Screen>;
   return (
     <div className="flex h-full flex-col">
-      <TopBar data={data} net={net} page={page === "dashboard" ? "Dashboard" : page} onStatus={(s) => void setStatus(s)} onSignOut={() => void window.cn.auth.logout()} />
+      <TopBar data={data} net={net} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onStatus={(s) => void setStatus(s)} onSignOut={() => void window.cn.auth.logout()} />
       <div className="flex min-h-0 flex-1">
         <SideNav access={data.me.access} page={page} onPage={setPage} cortanaOk={data.system.cortana.online} />
-        <Dashboard data={data} onStatus={(s) => void setStatus(s)} />
+        {page === "dashboard" ? <Dashboard data={data} onStatus={(s) => void setStatus(s)} onPage={setPage} /> : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}
         <RightBar staff={data.staff} myUid={data.me.uid} />
       </div>
       {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}
       {toast && <div role="alert" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-bad bg-panel px-4 py-2 text-[12px] text-bad">{toast}</div>}
     </div>
+  );
+}
+
+/** Page not built into the app yet — stays in the app (never sends you to the website). */
+function ComingSoon(p: { title: string; onBack: () => void }) {
+  return (
+    <main className="grid min-w-0 flex-1 place-items-center p-6">
+      <section className="rise w-[460px] max-w-full border border-cyan/30 bg-panel/90 p-8 text-center" style={{ borderTop: "3px solid #f59e0b" }}>
+        <div className="text-[30px] text-amber" aria-hidden="true">◷</div>
+        <h1 className="mt-1 font-head text-[22px] font-bold tracking-[4px] text-white">{p.title.toUpperCase()}</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-[#aeb9c4]">Coming to the Command Network app soon. It's being built page by page.</p>
+        <button type="button" onClick={p.onBack} className="mt-6 min-h-[44px] w-full border border-cyan/40 font-head text-[14px] font-bold tracking-[3px] text-cyan hover:bg-cyan/10">← BACK TO DASHBOARD</button>
+      </section>
+    </main>
   );
 }
 
