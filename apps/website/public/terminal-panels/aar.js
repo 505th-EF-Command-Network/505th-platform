@@ -46,6 +46,12 @@ async function load() {
   if (!w) render();
 }
 
+function bodyOf(root) {
+  let b = root.querySelector(".body");
+  if (!b) { b = document.createElement("div"); b.className = "body"; root.appendChild(b); }
+  return b;
+}
+
 /* ───────── archive ───────── */
 function visible() {
   return reports.filter((a) => (fDrafts ? isDraft(a) : !isDraft(a)) && (!fType || a.operationType === fType) && (!fUnit || a.unit === fUnit) && String(a.title || "").toLowerCase().includes(q.toLowerCase()));
@@ -57,7 +63,7 @@ function render() {
   if (!list.some((a) => a.id === sel)) sel = list[0]?.id || null;
   const pub = reports.filter((a) => !isDraft(a)), drafts = reports.filter(isDraft);
   const chip = (attr, val, cur, label, n) => `<button type="button" class="chip ${cur === val ? "on" : ""}" data-${attr}="${val}" aria-pressed="${cur === val}">${label}${n != null ? ` <span>${n}</span>` : ""}</button>`;
-  root.querySelector(".body").innerHTML = `
+  bodyOf(root).innerHTML = `
     <div class="bar"><div class="h1">AFTER ACTION REPORTS</div><span class="sp"></span><input class="in" data-q placeholder="Search…" value="${esc(q)}" aria-label="Search reports"><button type="button" class="b gold" data-act="new">＋ NEW AAR</button></div>
     <div class="bar">${chip("t", "", fType, "ALL", pub.length)}${Object.entries(OPS).map(([k, l]) => chip("t", k, fType, l.toUpperCase())).join("")}
       <span class="lab">UNIT</span>${chip("u", "", fUnit, "ALL")}${Object.entries(UNITS).map(([k, [l]]) => chip("u", k, fUnit, l.split(" ")[0].toUpperCase())).join("")}
@@ -126,7 +132,7 @@ function drawWriter(focusId) {
   const root = document.getElementById(ROOT);
   if (!root || !w) return;
   const y = root.querySelector(".wsec")?.scrollTop || 0;
-  root.querySelector(".body").innerHTML = `
+  bodyOf(root).innerHTML = `
     <div class="bar"><div class="h1">${w.id && w.status !== "draft" ? "EDIT AAR" : "NEW AAR"}</div><span class="saved" role="status">${w.saving ? "◷ SAVING…" : w.dirty ? "● UNSAVED" : w.savedAt ? "● " + (w.status === "draft" ? "DRAFT" : "") + " SAVED " + esc(new Date(w.savedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })) : ""}</span>
       <span class="sp"></span><button type="button" class="b" data-act="back">← BACK</button>${w.status === "draft" ? '<button type="button" class="b" data-act="save">SAVE DRAFT</button><button type="button" class="b gold" data-act="publish">PUBLISH</button>' : '<button type="button" class="b gold" data-act="save">SAVE CHANGES</button>'}</div>
     <div class="form"><nav class="nav" aria-label="Sections">${SECTIONS.map(([t], i) => `<button type="button" data-sec="${i}" class="${w.sec === i ? "on" : ""} ${secDone(i) ? "ok" : ""}" aria-current="${w.sec === i ? "step" : "false"}">${t}</button>`).join("")}</nav>
@@ -215,7 +221,7 @@ onReady(() => {
   const root = mountPanel("panel-aar", ROOT, () => load().catch((e) => notify("AAR LOAD FAILED: " + e.message, 1)));
   if (!root) return;
   addCss(ROOT, CSS);
-  root.innerHTML = '<div class="body"><div class="empty">LOADING…</div></div>';
+  if (!root.querySelector(".body")) root.innerHTML = '<div class="body"><div class="empty">LOADING…</div></div>';
   root.addEventListener("click", async (e) => {
     const t = e.target;
     if (!w) {
