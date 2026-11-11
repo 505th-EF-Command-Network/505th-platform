@@ -274,10 +274,9 @@ async function recalcAllStats() {
   }
 }
 
-async function lockEvent() {
-  const e = cur;
+async function lockEvent(e = cur, asked = false) {
   const p = (e.attendees || []).length;
-  if (!(await ask({ kind: "warn", title: "LOCK ATTENDANCE?", body: `${p} present. This finalises the event and recounts every member's stats.`, item: e.title, go: "LOCK" }))) return;
+  if (!asked && !(await ask({ kind: "warn", title: "LOCK ATTENDANCE?", body: `${p} present. This finalises the event and recounts every member's stats.`, item: e.title, go: "LOCK" }))) return;
   busy++;
   try {
     await updateDoc(doc(db, "attendance_events", e.id), { locked: true, lockedBy: me?.callsign || "Staff", lockedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
@@ -290,12 +289,11 @@ async function lockEvent() {
   } finally {
     busy--;
   }
-  await load();
+  if (document.getElementById(ROOT)) await load().catch(() => {});
 }
 
-async function unlockEvent() {
-  const e = cur;
-  if (!(await ask({ kind: "warn", title: "UNLOCK THIS EVENT?", body: "You can then correct it. Lock it again afterwards so stats are recounted.", item: e.title, go: "UNLOCK" }))) return;
+async function unlockEvent(e = cur, asked = false) {
+  if (!asked && !(await ask({ kind: "warn", title: "UNLOCK THIS EVENT?", body: "You can then correct it. Lock it again afterwards so stats are recounted.", item: e.title, go: "UNLOCK" }))) return;
   try {
     await updateDoc(doc(db, "attendance_events", e.id), { locked: false, unlockedBy: me?.callsign || "Staff", unlockedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     await audit("battalion_ops", "EVENT UNLOCKED", `${e.title || "—"} (${e.date || "—"}) unlocked for corrections`);
@@ -303,7 +301,7 @@ async function unlockEvent() {
   } catch (x) {
     notify("UNLOCK FAILED: " + x.message, 1);
   }
-  await load();
+  if (document.getElementById(ROOT)) await load().catch(() => {});
 }
 
 async function deleteEvent() {
@@ -348,6 +346,12 @@ async function createEvent() {
     notify("CREATE FAILED: " + x.message, 1);
   }
 }
+
+/** Used by the Events page check-in (lock / unlock with the same rules). It asks first itself. */
+window.attV3 = {
+  async lock(id) { me = me || (await getMe()); const s = (await getDocs(collection(db, "attendance_events"))).docs.find((d) => d.id === id); if (s) await lockEvent({ id, ...s.data() }, true); },
+  async unlock(id) { me = me || (await getMe()); const s = (await getDocs(collection(db, "attendance_events"))).docs.find((d) => d.id === id); if (s) await unlockEvent({ id, ...s.data() }, true); },
+};
 
 // ───────── styles ─────────
 const CSS = `

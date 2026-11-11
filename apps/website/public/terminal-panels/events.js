@@ -9,7 +9,7 @@
  * Attendance link: creating an event can also create its `attendance_events` record
  * (linkedEventId). Sign-ups are only a guide: NCO+ ticks who really turned up in the
  * Attendance Check (attendees = present, noShow = no-show). Locking uses the ORIGINAL
- * lock (saveAttendance(true)) so stats recalculate exactly as before.
+ * lock (window.attV3, from attendance-tracker.js) so stats recalculate exactly as before.
  */
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, updateDoc } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
@@ -618,13 +618,12 @@ async function onCheckClick(ev) {
   }
   if (c === "lock" || c === "unlock") {
     // Original lock / unlock: recalculates every member's stats exactly like the Attendance Tracker.
-    if (typeof window.loadAttEvent !== "function") return notify("ATTENDANCE TRACKER NOT READY", 1);
-    await window.loadAttEvent(chk.a.id);
+    if (!window.attV3) return notify("ATTENDANCE TRACKER NOT READY", 1);
     if (c === "lock") {
       const nc = signedUpUids(chk.e).filter((u) => !(chk.a.attendees || []).includes(u) && !(chk.a.noShow || []).includes(u)).length;
       if (!(await ask({ kind: "warn", title: "LOCK & FINALISE?", body: `${(chk.a.attendees || []).length} present${nc ? ` · ${nc} not checked (count as absent)` : ""}.\nStats are recalculated for everyone.`, item: chk.e.title, go: "LOCK" }))) return;
-      await window.saveAttendance(true);
-    } else await window.unlockEvent();
+      await window.attV3.lock(chk.a.id);
+    } else if (await ask({ kind: "warn", title: "UNLOCK THIS EVENT?", body: "You can then correct it. Lock it again afterwards so stats are recounted.", item: chk.e.title, go: "UNLOCK" })) await window.attV3.unlock(chk.a.id);
     const s = await getDoc(doc(db, "attendance_events", chk.a.id));
     if (s.exists()) chk.a = { id: s.id, ...s.data() };
     drawCheck();
