@@ -80,6 +80,11 @@ ipcMain.handle("hub:member-action", (e, id: unknown, body: unknown) => {
   if (!fromMain(e) || typeof id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(id) || !body || typeof body !== "object") return { error: "Not allowed." };
   return call(`/api/hub/members/${id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 });
+ipcMain.handle("hub:roster", (e) => (fromMain(e) ? call("/api/hub/roster") : null));
+ipcMain.handle("hub:roster-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/roster", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 ipcMain.handle("hub:set-status", (e, s: unknown) => {
   if (!fromMain(e) || !s || typeof s !== "object") return { error: "Not allowed." };
   const { state, note, untilISO } = s as Record<string, unknown>;

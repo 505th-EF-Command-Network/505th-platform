@@ -48,5 +48,7 @@ body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 7
 .tile::after { content: ""; position: absolute; top: 0; bottom: 0; width: 30%; left: -40%; background: linear-gradient(90deg, transparent, rgb(0 217 255 / .14), transparent); transform: skewX(-20deg); pointer-events: none; }
 .tile:hover::after { animation: sweep .7s; }
 .tile:hover > div:first-child > span:first-child { filter: drop-shadow(0 0 8px #00d9ff); }
+/* roster rows: soft glow on hover (app only) */
+.rrow:hover td { background: rgb(0 217 255 / .05); box-shadow: inset 0 1px 0 rgb(0 217 255 / .25), inset 0 -1px 0 rgb(0 217 255 / .25); }
 @keyframes sweep { from { left: -40%; } to { left: 140%; } }
 @media (prefers-reduced-motion: reduce) { .rise { opacity: 1; transform: none; } .ring { stroke-dashoffset: var(--o); } .tile, .tile:hover { transition: none; transform: none; } .tile:hover::after { animation: none; } }

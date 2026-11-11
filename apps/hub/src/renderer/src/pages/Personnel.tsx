@@ -22,7 +22,7 @@ const STATUS: Record<string, [string, string]> = {
   active: ["ACTIVE", "#22e07a"], reserve: ["RESERVE", "#f59e0b"], inactive: ["INACTIVE", "#ff4d4d"], retired: ["RETIRED", "#c084fc"], bct: ["AWAITING BCT", "#38bdf8"],
 };
 const abbr = (r: string) => (r ? r.split("/").pop()!.trim() : "");
-const short = (r: string) => {
+export const short = (r: string) => {
   const m: Record<string, string> = { "Lieutenant General": "LtGen", "Major General": "MajGen", "Brigadier General": "BGen", Colonel: "Col", "Lieutenant Colonel": "LtCol", Major: "Maj", Captain: "Capt", "First Lieutenant": "1stLt", "Second Lieutenant": "2ndLt", "Sergeant Major": "SgtMaj", "Master Gunnery Sergeant": "MGySgt", "First Sergeant": "1stSgt", "Master Sergeant": "MSgt", "Gunnery Sergeant": "GySgt", "Staff Sergeant": "SSgt", Sergeant: "Sgt", Corporal: "Cpl", "Lance Corporal": "LCpl", "Private First Class": "PFC", Private: "Pvt", Reservist: "Res" };
   const a = abbr(r);
   return m[a] ?? a;
@@ -35,7 +35,7 @@ export function memberName(u: { firstName: string; lastName: string; callsign: s
 const statusOf = (u: { retired: boolean; platoon: string; inactive: boolean }) => (u.retired ? "retired" : u.platoon === "Reserves" ? "reserve" : u.platoon === "Awaiting BCT" ? "bct" : u.inactive ? "inactive" : "active");
 const pctOf = (u: { opsAttended: number; opsEligible: number }) => (u.opsEligible ? Math.round((u.opsAttended / u.opsEligible) * 100) : null);
 const pctC = (a: number | null) => (a == null ? "#4b5765" : a >= 75 ? "#22e07a" : a >= 50 ? "#f59e0b" : "#ff4d4d");
-const rankOrder = (r: string) => { const m = /^([OE])(\d+)/.exec(r); return !m ? (r === "Reservist" ? 900 : 999) : (m[1] === "O" ? 0 : 100) + (99 - Number(m[2])); };
+export const rankOrder = (r: string) => { const m = /^([OE])(\d+)/.exec(r); return !m ? (r === "Reservist" ? 900 : 999) : (m[1] === "O" ? 0 : 100) + (99 - Number(m[2])); };
 const inTab = (u: MemberTile, t: string) => (t === "ALL" ? true : t === "Inactive" ? u.inactive : t === "Retired" ? u.retired : u.platoon === t);
 
 function Hex(p: { photo: string | null; label: string; size: number }) {
@@ -184,7 +184,7 @@ export function Personnel(p: { me: string }) {
 // ───────── file window ─────────
 const KIND: Record<string, [string, string]> = { promo: ["PROMOTED", "#22e07a"], platoon: ["TRANSFER", "#00D9FF"], warn: ["WARNING", "#f59e0b"], commend: ["MEDAL", "#a78bfa"], ribbon: ["RIBBON", "#2dd4bf"] };
 
-function FileWindow(p: { id: string; me: string; onClose: () => void }) {
+export function FileWindow(p: { id: string; me: string; onClose: () => void }) {
   const meRole = p.me;
   const [f, setF] = useState<MemberFile | null>(null);
   const [error, setError] = useState<string | null>(null);

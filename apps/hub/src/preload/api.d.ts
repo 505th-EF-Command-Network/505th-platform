@@ -25,6 +25,8 @@ export type MemberFile = Omit<MemberTile, "opsAttended" | "opsEligible"> & {
   canEdit: boolean;
   lists: { ranks: string[]; platoons: string[]; medals: [string, string][] };
 };
+export type RosterRow = { id: string; firstName: string; lastName: string; callsign: string; rank: string; role: string; platoon: string; squad: string; billet: string; attendance: number; promotionTracker: number; opsAttended: number; opsEligible: number; ribbons: string[]; medals: number };
+export type Roster = { rows: RosterRow[]; canEdit: boolean; meta: { month: string; lastAttendanceReset: string; lastResetAt: string; lastResetBy: string; lastResetPromoted: number | null; running: { by?: string; done?: number; total?: number; startedAt?: string } | null }; medals: [string, string][]; ribbons: string[] };
 export type NetState = { state: "off" | "connecting" | "live"; reason: string | null };
 
 declare global {
@@ -49,6 +51,8 @@ declare global {
         members(): Promise<{ members: MemberTile[]; canEdit: boolean } | { error: string }>;
         member(id: string): Promise<MemberFile | { error: string }>;
         memberAction(id: string, body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
+        roster(): Promise<Roster | { error: string }>;
+        rosterAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
     };

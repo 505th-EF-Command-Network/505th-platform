@@ -8,7 +8,7 @@ type Link = { id: string; label: string; icon: string; key?: string; app?: boole
 const GROUPS: { label: string; icon: string; links: Link[] }[] = [
   { label: "MANPOWER", icon: "♟", links: [
     { id: "panel-active", label: "Personnel Files", icon: "✎", key: "pers", app: true }, { id: "panel-register", label: "BCT Approvals", icon: "✉", key: "bct" },
-    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster" }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob" },
+    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob" },
     { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat" }] },
   { label: "OPERATIONS", icon: "⚙", links: [
     { id: "panel-attendance", label: "Attendance Tracker", icon: "▣", key: "att" }, { id: "panel-att-history", label: "Attendance History", icon: "☰", key: "att" },

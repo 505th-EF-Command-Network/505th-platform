@@ -29,6 +29,8 @@ contextBridge.exposeInMainWorld("cn", {
     members: () => ipcRenderer.invoke("hub:members"),
     member: (id: string) => ipcRenderer.invoke("hub:member", id),
     memberAction: (id: string, body: Record<string, unknown>) => ipcRenderer.invoke("hub:member-action", id, body),
+    roster: () => ipcRenderer.invoke("hub:roster"),
+    rosterAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:roster-action", body),
     setStatus: (s: { state: string; note?: string; untilISO?: string | null }) => ipcRenderer.invoke("hub:set-status", s),
   },
 });

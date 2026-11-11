@@ -1,3 +1,4 @@
+import { Roster } from "./pages/Roster";
 import { useEffect, useState } from "react";
 import type { AuthState, NetState } from "../../preload/api";
 import { Dashboard } from "./components/Dashboard";
@@ -66,6 +67,7 @@ function Shell({ net }: { net: NetState }) {
         <SideNav access={data.me.access} page={page} onPage={setPage} cortanaOk={data.system.cortana.online} />
         {page === "dashboard" ? <Dashboard data={data} onStatus={(s) => void setStatus(s)} onPage={setPage} />
           : page === "panel-active" ? <Personnel me={data.me.role} />
+          : page === "panel-roster" ? <Roster me={data.me.role} />
           : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}
         <RightBar staff={data.staff} myUid={data.me.uid} />
       </div>
