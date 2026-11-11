@@ -789,60 +789,8 @@
         }
 
         // Auto-delete entries older than 7 days (runs on audit panel load)
-        async function purgeOldAuditLogs() {
-            const cutoff = new Date();
-            cutoff.setDate(cutoff.getDate() - 7);
-            const cutoffISO = cutoff.toISOString();
-            try {
-                const old = await getDocs(query(
-                    collection(db, 'audit_logs'),
-                    where('createdAtISO', '<', cutoffISO)
-                ));
-                old.forEach(async d => { try { await deleteDoc(d.ref); } catch(e) {} });
-                console.log(`Purged ${old.size} old audit log entries`);
-            } catch(e) { console.warn('auditLog purge failed:', e); }
-        }
 
         // Load & render audit log panel
-        window.loadAuditLog = async function(section) {
-            const canView = ['commander','officer','developer'].includes(currentUserData?.role);
-            if (!canView) return;
-            await purgeOldAuditLogs();
-            const panelId = 'auditLog-' + section;
-            const c = document.getElementById(panelId);
-            if (!c) return;
-            c.innerHTML = '<div class="empty-state">LOADING...</div>';
-            try {
-                // No orderBy — avoids composite index requirement. Sort client-side instead.
-                const snap = await getDocs(query(
-                    collection(db, 'audit_logs'),
-                    where('section', '==', section)
-                ));
-                if (snap.empty) { c.innerHTML = '<div class="empty-state">NO LOG ENTRIES</div>'; return; }
-                const entries = [];
-                snap.forEach(d => entries.push({id:d.id,...d.data()}));
-                // Sort newest first client-side
-                entries.sort((a,b) => (b.createdAtISO||'').localeCompare(a.createdAtISO||''));
-                const top200 = entries.slice(0, 200);
-                const sectionColors = {manpower:'#a78bfa',battalion_ops:'var(--accent)',public_comms:'#34d399',discord_network:'#fb923c'};
-                const col = sectionColors[section] || 'var(--accent)';
-                c.innerHTML = top200.map(e => {
-                    const dt = e.createdAtISO ? new Date(e.createdAtISO).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
-                    const roleColor = _ROLE_COLORS[e.role] || '#94a3b8';
-                    return `<div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07);align-items:start;transition:background .15s" onmouseover="this.style.background='rgba(0,217,255,.03)'" onmouseout="this.style.background='transparent'">
-                        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#aaa;letter-spacing:1px;padding-top:2px">${dt}</div>
-                        <div>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:15px;font-weight:700;color:#fff">${esc(e.by||'—')}</div>
-                            <div style="font-size:10px;letter-spacing:2px;color:${roleColor};margin-top:2px;font-weight:700">${(e.role||'').replace(/_/g,' ').toUpperCase()}</div>
-                        </div>
-                        <div>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;color:${col};letter-spacing:2px;margin-bottom:4px">${esc(e.action||'—')}</div>
-                            <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#ccc;line-height:1.5">${esc(e.details||'—')}</div>
-                        </div>
-                    </div>`;
-                }).join('');
-            } catch(e) { c.innerHTML = `<div class="empty-state">ERROR: ${esc(e.message)}</div>`; }
-        };
 
         async function logAction(a, d) { /* disabled for performance */ }
 
@@ -1678,26 +1626,11 @@
             if (link) link.classList.add('active');
             // Lazy loaders
             if (id==='panel-active' || id==='panel-register') loadAllUsers();
-            if (id==='panel-dashboard')   { loadDashboard(); dashPresJoin(); }
             if (id==='panel-gallery')     loadMedia('image');
             if (id==='panel-videos')      loadMedia('video');
             if (id==='panel-aar')         loadAARPanel();
             if (id==='panel-roster')      loadRosterPanel();
             if (id==='panel-attendance')  loadAttendancePanel();
-            if (id==='panel-webhooks')    loadWebhooksPanel();
-            if (id==='panel-discord-tracking') loadDiscordTracking();
-            if (id.startsWith('panel-page-')) {
-                // Resolve actual pageId from the container's data-page attribute
-                const panelEl = document.getElementById(id);
-                const containerEl = panelEl ? panelEl.querySelector('.page-editor-container') : null;
-                const resolvedPageId = containerEl ? containerEl.dataset.page : id.replace('panel-page-','');
-                loadPageContent(resolvedPageId);
-            }
-            if (id==='panel-promote') loadPromotePanel();
-            if (id==='panel-audit-manpower')  loadAuditLog('manpower');
-            if (id==='panel-audit-battalion') loadAuditLog('battalion_ops');
-            if (id==='panel-audit-comms')     loadAuditLog('public_comms');
-            if (id==='panel-audit-discord')   loadAuditLog('discord_network');
         }
 
         window.toggleDropdown = function(navId) {
@@ -1708,236 +1641,8 @@
             if (!isOpen) item.classList.add('open');
         }
 
-        window.loadDashboard = async function() {
-            try {
-                const snap = await getDocs(collection(db,'users'));
-                let pending=0, active=0;
-                const allActive=[];
-                snap.forEach(d => {
-                    const u={id:d.id,...d.data()};
-                    if(u.status==='pending') pending++;
-                    else { active++; allActive.push(u); }
-                });
-                const roster = allActive.filter(u=>u.status!=='denied'&&u.role!=='retired_veteran');
-
-                // Stats row
-                const pEl=document.getElementById('dashPending');
-                const aEl=document.getElementById('dashActive');
-                const tEl=document.getElementById('dashTotal');
-                const rEl=document.getElementById('dashRosterCount');
-                if(pEl) pEl.textContent=pending;
-                if(aEl) aEl.textContent=active;
-                if(tEl) tEl.textContent=pending+active;
-                if(rEl) rEl.textContent=roster.length;
-
-                // Pending list
-                const pl = document.getElementById('dashPendingList');
-                if(pl) {
-                    const pUsers=[];
-                    snap.forEach(d=>{ if(d.data().status==='pending') pUsers.push({id:d.id,...d.data()}); });
-                    pl.innerHTML = pUsers.length ? `
-                        ${pUsers.map(u=>`
-                        <div class="user-card status-pending" style="cursor:default">
-                            <div class="user-info">
-                                <div class="user-callsign">${esc([u.firstName,u.middleName?u.middleName+'.':'',u.lastName].filter(Boolean).join(' ')||'Unknown')}</div>
-                                
-                            </div>
-                        </div>`).join('')}
-                        <div style="margin-top:10px">
-                            <button class="action-btn approve-btn" onclick="showPanel('panel-register')" style="font-size:10px;padding:5px 14px;letter-spacing:2px">&#9654; OPEN BCT APPROVALS</button>
-                        </div>` : '<div class="empty-state">NO PENDING REGISTRATIONS</div>';
-                }
-
-                // Roster Strength by Platoon (reads users)
-                const rsWidget=document.getElementById('dashRosterStrength');
-                if(rsWidget){
-                    const platoonOrder=['Command','1st Platoon','2nd Platoon','3rd Platoon','Force Recon','Corpsmen','Pilot','Reserves','Awaiting BCT'];
-                    const counts={};
-                    roster.forEach(u=>{ const p=u.platoon||'Unknown'; counts[p]=(counts[p]||0)+1; });
-                    const rosterTotal=roster.length;
-                    if(!rosterTotal){ rsWidget.innerHTML='<div class="empty-state">NO ROSTER ENTRIES</div>'; }
-                    else {
-                        const maxCount=Math.max(...Object.values(counts),1);
-                        const renderBar=(p,c)=>{
-                            const pct=Math.round((c/maxCount)*100);
-                            const bc=p==='Awaiting BCT'?'#FFD700':p==='Reserves'?'#888':p==='Command'?'#a78bfa':'var(--accent)';
-                            return `<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><span style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;color:#ccc">${esc(p)}</span><span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:${bc};font-weight:700">${c}</span></div><div style="height:6px;background:rgba(255,255,255,.07);width:100%"><div style="height:100%;width:${pct}%;background:${bc};transition:width .4s;opacity:.85"></div></div></div>`;
-                        };
-                        rsWidget.innerHTML=`<div style="margin-bottom:10px;font-family:Rajdhani,sans-serif;font-size:13px;color:rgba(0,217,255,.6);letter-spacing:2px">TOTAL STRENGTH: <span style="color:var(--accent);font-weight:700">${rosterTotal}</span></div>${platoonOrder.filter(p=>counts[p]).map(p=>renderBar(p,counts[p])).join('')}${Object.keys(counts).filter(p=>!platoonOrder.includes(p)).map(p=>renderBar(p,counts[p])).join('')}`;
-                    }
-                }
-
-                // Inactive Members (reads users)
-                const inWidget=document.getElementById('dashInactiveMembers');
-                if(inWidget && P().dash_inactive){
-                    const _threeMonthsAgo=new Date(); _threeMonthsAgo.setMonth(_threeMonthsAgo.getMonth()-3); const _threeMAgoStr=_threeMonthsAgo.toISOString().slice(0,10);
-                    const inactive=roster.filter(u=>{
-                        if(u.platoon==='Reserves'||u.platoon==='Awaiting BCT') return false;
-                        const last=u.lastAttendedDate||null;
-                        if(!last) return (u.opsAttended||0)===0 && (u.opsEligible||0)>0;
-                        return last<_threeMAgoStr;
-                    });
-                    const awaitingBCT=roster.filter(u=>u.platoon==='Awaiting BCT');
-                    const now=new Date();
-                    function bctDur(u){ const ref=u.joinedAt||null; if(!ref) return null; const d=Math.floor((now-new Date(ref))/(864e5)); if(d<7) return d+' day'+(d!==1?'s':''); const w=Math.floor(d/7),r=d%7; if(w<4) return w+' wk'+(w!==1?'s':'')+(r>0?' '+r+'d':''); return Math.floor(d/30)+' month'+(Math.floor(d/30)!==1?'s':''); }
-                    let html='';
-                    if(!inactive.length&&!awaitingBCT.length){ html='<div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#7FFF7F;letter-spacing:1px;padding:8px 0">✓ ALL MEMBERS ACTIVE THIS CYCLE</div>'; }
-                    else {
-                        if(inactive.length) html+=`<div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#FF4444;letter-spacing:2px;margin-bottom:8px">⚠ INACTIVE — ${inactive.length} MEMBER${inactive.length!==1?'S':''}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-bottom:14px">${inactive.map(u=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)"><div style="width:6px;height:6px;background:#FF4444;flex-shrink:0;border-radius:50%"></div><div><div style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:600;color:#ccc">${esc(formatMemberName(u)||u.callsign)}</div><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#666;letter-spacing:1px">${esc(u.platoon||'—')}</div></div></div>`).join('')}</div>`;
-                        if(awaitingBCT.length) html+=`<div style="font-family:Rajdhani,sans-serif;font-size:12px;color:#FFD700;letter-spacing:2px;margin-bottom:8px">⏳ AWAITING BCT — ${awaitingBCT.length} RECRUIT${awaitingBCT.length!==1?'S':''}</div><div style="display:flex;flex-direction:column;gap:4px">${awaitingBCT.map(u=>{ const dur=bctDur(u); const dc=!dur?'#666':dur.includes('month')?'#FF6B6B':dur.includes('wk')?'#FFD700':'#7FFF7F'; return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(255,215,0,.04);border:1px solid rgba(255,215,0,.12)"><div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;background:#FFD700;flex-shrink:0;border-radius:50%"></div><span style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:600;color:#ddd">${esc(formatMemberName(u)||u.callsign)}</span></div><span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:${dc}">${dur?'WAITING '+dur.toUpperCase():'—'}</span></div>`; }).join('')}</div>`;
-                    }
-                    inWidget.innerHTML=`<div style="max-height:260px;overflow-y:auto">${html}</div>`;
-                }
-
-                // Reserves (reads users)
-                const resWidget=document.getElementById('dashReserves');
-                if(resWidget && P().dash_reserve){
-                    const reserves=roster.filter(u=>u.platoon==='Reserves').sort((a,b)=>(a.joinedPlatoon||'9999').localeCompare(b.joinedPlatoon||'9999'));
-                    const now2=new Date();
-                    function rsvTime(ds){ if(!ds) return null; const d=Math.floor((now2-new Date(ds))/(864e5)); if(d<1) return 'Today'; if(d<7) return d+' day'+(d!==1?'s':''); const w=Math.floor(d/7),r=d%7; if(w<4) return w+' wk'+(w!==1?'s':'')+(r>0?' '+r+'d':''); const m=Math.floor(d/30),rd=d%30; return m+' mo'+(m!==1?'s':'')+(rd>0?' '+rd+'d':''); }
-                    function rsvColor(ds){ if(!ds) return '#aaa'; const d=Math.floor((now2-new Date(ds))/(864e5)); return d>=90?'#FF6B6B':d>=30?'#FFD700':'#7FFF7F'; }
-                    if(!reserves.length){ resWidget.innerHTML='<div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#7FFF7F;letter-spacing:1px;padding:8px 0">✓ NO PERSONNEL IN RESERVES</div>'; }
-                    else { resWidget.innerHTML=`<div style="margin-bottom:8px;font-family:Rajdhani,sans-serif;font-size:12px;color:#aaa;letter-spacing:2px">${reserves.length} PERSONNEL IN RESERVES</div><div style="display:flex;flex-direction:column;gap:4px;max-height:240px;overflow-y:auto">${reserves.map(u=>{ const dur=rsvTime(u.joinedPlatoon),color=rsvColor(u.joinedPlatoon); return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-left:2px solid ${color}"><div style="display:flex;align-items:center;gap:8px"><div style="width:6px;height:6px;background:${color};flex-shrink:0;border-radius:50%"></div><div><div style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:600;color:#ddd">${esc(formatMemberName(u)||u.callsign)}</div><div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#555;letter-spacing:1px">${esc(u.rank||'—')}</div></div></div><div style="text-align:right"><div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:${color}">${dur?'IN RESERVES '+dur.toUpperCase():'—'}</div><div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#555;margin-top:1px">${u.joinedPlatoon?new Date(u.joinedPlatoon).toLocaleDateString('en-US'):'—'}</div></div></div>`; }).join('')}</div><div style="margin-top:8px;display:flex;gap:12px;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px"><span style="color:#7FFF7F">● &lt;1 MONTH</span><span style="color:#FFD700">● 1-3 MONTHS</span><span style="color:#FF6B6B">● 3+ MONTHS</span></div>`; }
-                }
-
-                // Attendance Health widget
-                const attWidget=document.getElementById('dashAttendanceHealth');
-                if(attWidget && P().dash_stats){
-                    try {
-                        // Use local date (not UTC) to avoid timezone mismatch
-                        const _now=new Date();
-                        const _y=_now.getFullYear();
-                        const _m=String(_now.getMonth()+1).padStart(2,'0');
-                        const thisMonth=_y+'-'+_m;
-                        const monthStart=thisMonth+'-01';
-                        const _nextM=new Date(_y,_now.getMonth()+1,1);
-                        const monthEnd=_nextM.getFullYear()+'-'+String(_nextM.getMonth()+1).padStart(2,'0')+'-01';
-                        // Query this month's events directly — no limit, uses local month boundaries
-                        const evSnap=await getDocs(query(collection(db,'attendance_events'),where('date','>=',monthStart),where('date','<',monthEnd)));
-                        const monthEvents=[]; evSnap.forEach(d=>monthEvents.push({id:d.id,...d.data()}));
-                        // All-time locked count
-                        const lockedSnap=await getDocs(query(collection(db,'attendance_events'),where('locked','==',true)));
-                        const allLockedOps=lockedSnap.size;
-                        const fullAtt=roster.filter(u=>u.platoon!=='Reserves'&&u.platoon!=='Awaiting BCT'&&(u.attendance||0)>=3);
-                        const threeMonthsAgo=new Date(); threeMonthsAgo.setMonth(threeMonthsAgo.getMonth()-3); const threeMonthsAgoStr=threeMonthsAgo.toISOString().slice(0,10);
-                        const atRisk=roster.filter(u=>{
-                            if(u.platoon==='Reserves'||u.platoon==='Awaiting BCT') return false;
-                            const last=u.lastAttendedDate||null;
-                            if(!last) return (u.opsAttended||0)===0 && (u.opsEligible||0)>0;
-                            return last<threeMonthsAgoStr;
-                        });
-                        const activeRoster=roster.filter(u=>u.platoon!=='Reserves'&&u.platoon!=='Awaiting BCT');
-                        let totalAtt2=0,totalElig2=0;
-                        activeRoster.forEach(u=>{totalAtt2+=(u.opsAttended||0);totalElig2+=(u.opsEligible||0);});
-                        const overallRate2=totalElig2>0?Math.round((totalAtt2/totalElig2)*100):0;
-                        const overallColor2=overallRate2>=75?'#7FFF7F':overallRate2>=50?'#FFD700':'#FF4444';
-                        const below50=activeRoster.filter(u=>(u.opsEligible||0)>0&&Math.round(((u.opsAttended||0)/(u.opsEligible||1))*100)<50).length;
-                        const perfect=activeRoster.filter(u=>(u.opsEligible||0)>0&&(u.opsAttended||0)===(u.opsEligible||0)).length;
-                        attWidget.innerHTML=`<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-                            <div title="Operations logged this calendar month." style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:var(--accent)">${monthEvents.length}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">OPS THIS MONTH</div></div>
-                            <div title="Members who haven't attended any op in 3+ months. May require command review." style="background:rgba(0,0,0,.4);border:1px solid rgba(${atRisk.length>0?'255,68,68':'0,217,255'},.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:${atRisk.length>0?'#FF4444':'#7FFF7F'}">${atRisk.length}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">AT RISK (3M+)</div></div>
-                            <div title="Members at max attendance (3/3) this cycle — eligible for PT award." style="background:rgba(0,0,0,.4);border:1px solid rgba(127,255,127,.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:#7FFF7F">${fullAtt.length}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">FULL ATT (3/3)</div></div>
-                            <div title="Unit-wide all-time rate — total ops attended ÷ total ops eligible, excused and reserves excluded." style="background:rgba(0,0,0,.4);border:1px solid rgba(${overallRate2>=75?'127,255,127':overallRate2>=50?'255,215,0':'255,68,68'},.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:${overallColor2}">${totalElig2>0?overallRate2+'%':'—'}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">OVERALL ATT %</div></div>
-                            <div title="Members whose all-time attendance rate is under 50%. May require command attention." style="background:rgba(0,0,0,.4);border:1px solid rgba(${below50>0?'255,68,68':'0,217,255'},.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:${below50>0?'#FF4444':'#7FFF7F'}">${below50}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">BELOW 50%</div></div>
-                            <div title="Members with 100% all-time attendance — never missed an eligible op." style="background:rgba(0,0,0,.4);border:1px solid rgba(127,255,127,.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:#7FFF7F">${perfect}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">PERFECT ATT</div></div>
-                            <div title="Total number of locked operations ever recorded in the system." style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:10px 14px;flex:1;min-width:70px;text-align:center;cursor:help"><div style="font-family:Rajdhani,sans-serif;font-size:24px;font-weight:700;color:var(--accent)">${allLockedOps}</div><div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">TOTAL OPS</div></div>
-                        </div>
-                        ${atRisk.length?`<div style="font-family:Rajdhani,sans-serif;font-size:10px;letter-spacing:2px;color:#FF4444;margin-bottom:6px">⚠ AT-RISK MEMBERS (${atRisk.length})</div><div style="max-height:200px;overflow-y:auto;margin-bottom:10px;border:1px solid rgba(255,68,68,.15);">${atRisk.map(u=>{
-                            const lastD=u.lastAttendedDate?new Date(u.lastAttendedDate):null;
-                            const daysSince=lastD?Math.floor((Date.now()-lastD.getTime())/864e5):null;
-                            const dur=daysSince===null?'Never attended':(daysSince<30?daysSince+' days ago':daysSince<365?Math.floor(daysSince/30)+' month'+(Math.floor(daysSince/30)!==1?'s':'')+' ago':Math.floor(daysSince/365)+' year'+(Math.floor(daysSince/365)!==1?'s':'')+' ago');
-                            const durColor=daysSince===null?'#FF4444':daysSince>180?'#FF4444':daysSince>90?'#FFD700':'#FF6B6B';
-                            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-bottom:1px solid rgba(255,68,68,.08)"><span style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;color:#FF6B6B">${esc(formatMemberName(u)||u.callsign)}</span><span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${durColor};letter-spacing:1px">${dur}</span></div>`;
-                        }).join('')}</div>`:''}
-                        <button class="action-btn approve-btn" onclick="showPanel('panel-attendance')" style="font-size:10px;padding:5px 12px">&#9654; OPEN ATTENDANCE TRACKER</button>`;
-                    } catch(e){ attWidget.innerHTML='<div class="empty-state">NO ATTENDANCE DATA YET — START BY LOGGING AN EVENT</div>'; }
-                }
-
-                // Discord link status
-                const discordWidget=document.getElementById('dashDiscordStatus');
-                if(discordWidget && P().discordLink){
-                    try {
-                        const ss=await getDoc(doc(db,'settings','site'));
-                        const inviteUrl=ss.exists()&&ss.data().discord_invite?ss.data().discord_invite:null;
-                        if(inviteUrl){
-                            discordWidget.innerHTML=`<div style="color:#aaa;font-family:Rajdhani,sans-serif;font-size:12px;letter-spacing:2px">CHECKING INVITE STATUS...</div>`;
-                            const code=inviteUrl.replace(/https?:\/\/(www\.)?(discord\.(gg|com\/invite))\//i,'').replace(/\//g,'').trim();
-                            const res=await fetch(`https://discord.com/api/v10/invites/${code}`);
-                            const data=await res.json();
-                            if(res.ok&&data.guild){ discordWidget.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#7FFF7F;border:1px solid #7FFF7F;padding:4px 12px">✓ ACTIVE</span><span style="font-family:Rajdhani,sans-serif;font-size:13px;color:#ccc;letter-spacing:1px">${esc(data.guild.name||'Unknown Server')}</span><a href="${inviteUrl}" target="_blank" style="font-family:Rajdhani,sans-serif;font-size:12px;color:var(--accent);letter-spacing:1px;text-decoration:none">↗ OPEN LINK</a></div>`; }
-                            else { discordWidget.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;color:#FF4444;border:1px solid #FF4444;padding:4px 12px">✗ EXPIRED / INVALID</span><span style="font-family:Rajdhani,sans-serif;font-size:13px;color:#aaa;letter-spacing:1px">Update in Network Config → Discord Invite Link</span></div>`; }
-                        } else { discordWidget.innerHTML=`<div style="font-family:Rajdhani,sans-serif;font-size:13px;color:#aaa;letter-spacing:1px">No invite link set. Go to Network Config → Discord Invite Link.</div>`; }
-                    } catch(e){ discordWidget.innerHTML=`<span style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;color:#FFD700;border:1px solid #FFD700;padding:4px 12px">⚠ UNABLE TO CHECK</span>`; }
-                }
-
-                // ── Recruitment Source widget (all roles) ──
-                const rsrcWidget = document.getElementById('dashRecruitSource');
-                if(rsrcWidget) {
-                    try {
-                        const SOURCES = ['Reddit','Steam Community','Disboard','Discord','Word of Mouth','Other'];
-                        const SOURCE_COLORS = {
-                            'Reddit':        '#FF4500',
-                            'Steam Community':'#4CAF94',
-                            'Disboard':      '#5865F2',
-                            'Discord':       '#7289DA',
-                            'Word of Mouth': '#7FFF7F',
-                            'Other':         '#aaa'
-                        };
-                        const counts = {};
-                        let srcTotal = 0;
-                        snap.forEach(d => {
-                            const u = d.data();
-                            if(u.status==='pending'||u.status==='denied') return;
-                            const src = u.recruitSource||'Unknown';
-                            counts[src] = (counts[src]||0) + 1;
-                            srcTotal++;
-                        });
-
-                        if(!srcTotal || Object.keys(counts).every(k=>k==='Unknown')) {
-                            rsrcWidget.innerHTML = '<div class="empty-state">NO SOURCE DATA YET — TAG SOURCES WHEN APPROVING RECRUITS</div>';
-                        } else {
-                            // Filter out Unknown, sort by count desc
-                            const entries = Object.entries(counts)
-                                .filter(([k])=>k!=='Unknown')
-                                .sort((a,b)=>b[1]-a[1]);
-                            const unknownCount = counts['Unknown']||0;
-                            const taggedTotal = srcTotal - unknownCount;
-                            const maxCount = Math.max(...entries.map(([,v])=>v), 1);
-
-                            // Vertical bar chart
-                            const barWidth = Math.floor(100 / Math.max(entries.length, 1));
-                            rsrcWidget.innerHTML = `
-                                <div style="display:flex;align-items:flex-end;gap:8px;height:120px;padding:0 4px;margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.06)">
-                                    ${entries.map(([src, cnt])=>{
-                                        const pct = Math.round((cnt/maxCount)*100);
-                                        const color = SOURCE_COLORS[src]||'var(--accent)';
-                                        const labelPct = taggedTotal>0?Math.round((cnt/taggedTotal)*100):0;
-                                        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0">
-                                            <div style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;color:${color}">${labelPct}%</div>
-                                            <div style="width:100%;max-width:48px;background:rgba(255,255,255,.05);position:relative;height:${Math.max(pct,4)}px;transition:height .4s;border-top:2px solid ${color}">
-                                                <div style="position:absolute;inset:0;background:${color};opacity:.25"></div>
-                                            </div>
-                                        </div>`;
-                                    }).join('')}
-                                </div>
-                                <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                    ${entries.map(([src, cnt])=>{
-                                        const color = SOURCE_COLORS[src]||'var(--accent)';
-                                        return `<div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid ${color}22;background:${color}0D">
-                                            <div style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></div>
-                                            <span style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:600;color:#ccc">${esc(src)}</span>
-                                            <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${color};font-weight:700">${cnt}</span>
-                                        </div>`;
-                                    }).join('')}
-                                    ${unknownCount?`<div style="display:flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid #33333355"><div style="width:7px;height:7px;border-radius:50%;background:#555;flex-shrink:0"></div><span style="font-family:Rajdhani,sans-serif;font-size:11px;color:#555">Not Tagged</span><span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#555">${unknownCount}</span></div>`:''}
-                                </div>
-                                <div style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:9px;color:#555;letter-spacing:1px">${taggedTotal} OF ${srcTotal} MEMBERS TAGGED · <a onclick="showPanel('panel-recruit-source')" href="#" style="color:rgba(0,217,255,.5);text-decoration:none">VIEW FULL REPORT ↗</a></div>`;
-                        }
-                    } catch(e){ rsrcWidget.innerHTML='<div class="empty-state">UNABLE TO LOAD SOURCE DATA</div>'; }
-                }
-
-            } catch(e) { console.error('Dashboard error:',e); }
-        }
+        // Replaced by /terminal-panels/dashboard-v2.js. Kept as a no-op: old code still calls it after approvals.
+        window.loadDashboard = async function() {};
 
                 window.loadAllUsers = async function() {
             if (allUsers.length) { renderUsers(); return; }
@@ -3047,49 +2752,8 @@
             } catch(e){ console.warn('Webhook fire failed ['+key+']:', e.message); }
         }
 
-        window.loadWebhooksPanel = async function() {
-            const cfg = await getWebhooks();
-            WEBHOOK_KEYS.forEach(k=>{
-                const el = document.getElementById('webhook-'+k);
-                if(el) el.value = cfg[k]||'';
-            });
-        };
 
-        window.saveWebhooks = async function() {
-            const data = {};
-            WEBHOOK_KEYS.forEach(k=>{
-                const el = document.getElementById('webhook-'+k);
-                if(el && el.value.trim()) data[k] = el.value.trim();
-            });
-            try {
-                await setDoc(doc(db,'settings','webhooks'), data, {merge:true});
-                webhookConfig = data;
-                notify('WEBHOOKS SAVED');
-            writeAuditLog('discord_network','WEBHOOKS SAVED','Discord webhook URLs updated');
-            } catch(e){ notify('SAVE FAILED: '+e.message,1); }
-        };
 
-        window.testWebhook = async function(key) {
-            const el = document.getElementById('webhook-'+key);
-            if(!el||!el.value.trim()){notify('ENTER A URL FIRST',1);return;}
-            try {
-                const LOGO='https://i.ibb.co/d0Gn5M5R/505-TH-Logo.png';
-                await fetch(el.value.trim(),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-                    username:'505th Command Terminal',
-                    avatar_url:LOGO,
-                    embeds:[{
-                        author:{name:'505th Expeditionary Force',icon_url:LOGO},
-                        title:'🔔 Webhook Test — '+WEBHOOK_LABELS[key],
-                        description:`This is a test notification from the 505th Command Terminal.\n\n• **Webhook:** ${WEBHOOK_LABELS[key]}\n• **Status:** ✅ Connected\n• **Tested by:** ${currentUserData?.callsign||'Staff'}`,
-                        color:0x00D9FF,
-                        thumbnail:{url:LOGO},
-                        footer:{text:'505th Expeditionary Force • Command Terminal'},
-                        timestamp:new Date().toISOString()
-                    }]
-                })});
-                notify('TEST SENT — CHECK DISCORD');
-            } catch(e){ notify('TEST FAILED: '+e.message,1); }
-        };
 
         // ── RECRUITMENT SOURCE ──────────────────────────────────────────────
         const RECRUIT_SOURCES = ['Reddit','Steam Community','Disboard','Discord','Word of Mouth','Other'];
@@ -4228,21 +3892,6 @@
             } catch(e) { notify('ERROR: '+e.message, 1); }
         };
 
-        window.loadPromotePanel = async function() {
-            const c=document.getElementById('promoteList'); if(!c) return;
-            c.innerHTML='<div class="empty-state">LOADING...</div>';
-            if(!allUsers.length) await loadAllUsers();
-            const active=allUsers.filter(u=>u.status!=='pending'&&u.status!=='denied');
-            c.innerHTML=active.map(u=>`
-                <div class="user-card">
-                    <div class="user-info"><div class="user-callsign">${esc(u.callsign)}</div><div class="user-role">${(u.role||'').toUpperCase()}</div></div>
-                    <div class="user-actions">
-                        <select onchange="changeRole('${u.id}',this.value)" style="background:rgba(0,0,0,.7);border:1px solid rgba(0,217,255,.35);color:#ccc;font-size:9px;padding:4px;font-family:'Share Tech Mono',monospace">
-                            ${renderRoleOptions(u.role||'enlistee')}
-                        </select>
-                    </div>
-                </div>`).join('') || '<div class="empty-state">NO PERSONNEL</div>';
-        }
 
         const PAGE_URLS={'home':'home.html','about-505th':'about-505th.html','about-alpha':'about-alpha-company.html','about-stalker':'about-stalker.html','about-corpsman':'about-corpsman.html','about-54th':'about-54th-air-wing.html'};
 
@@ -4572,19 +4221,6 @@
             try { await deleteDoc(doc(db,'media',id)); notify('DELETED'); loadMedia(type); } catch(e){notify('ERROR',1);}
         };
 
-        window.loadDiscordTracking = async function() {
-            const c=document.getElementById('discordTrackingList'); if(!c) return;
-            c.innerHTML='<div class="empty-state">LOADING...</div>';
-            try {
-                const snap=await getDocs(query(collection(db,'discord_tracking'),orderBy('joinedAt','desc'),limit(30)));
-                const items=[]; snap.forEach(d=>items.push({id:d.id,...d.data()}));
-                c.innerHTML=items.map(a=>`
-                    <div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(0,217,255,.05);font-family:'Share Tech Mono',monospace;font-size:9px">
-                        <span style="color:#ccc">${esc(a.username||a.id)}</span>
-                        <span style="color:#555">${(a.joinedAt||'').substring(0,10)}</span>
-                    </div>`).join('')||'<div class="empty-state">NO TRACKING DATA</div>';
-            } catch(e){ c.innerHTML='<div class="empty-state">ERROR</div>'; }
-        }
 
         window.loadDiscordLink = async function() {
             try {
@@ -4628,18 +4264,6 @@
             }
         }
 
-        window.saveDiscordLink = async function() {
-            const val=document.getElementById('discordLinkInput')?.value?.trim();
-            if(!val){notify('ENTER A LINK FIRST',1);return;}
-            try {
-                await setDoc(doc(db,'settings','site'),{discord_invite:val},{merge:true});
-                const lnk=document.getElementById('currentDiscordLink');
-                if(lnk){lnk.href=val;lnk.textContent='SET';lnk.style.color='#7FFF7F';}
-                checkDiscordInvite(val);
-                notify('SAVED');
-                logAction('DISCORD_LINK','updated');
-            } catch(e){notify('ERROR',1);}
-        };
 
         window.setVidMode = function(mode) {
             const ytForm   = document.getElementById('vidYoutubeForm');
@@ -5798,79 +5422,7 @@
                 <a href="home.html" class="quick-link"><span class="nav-icon">&#8962;</span> VIEW SITE</a>
             </div>
             <div class="main-content">
-                <div class="panel hidden" id="panel-dashboard">
-                    <div class="panel-title">DASHBOARD</div>
-
-                    <!-- SITREP BANNER -->
-                    <div id="dashSitrepBanner" style="display:none;margin-bottom:16px;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.06);padding:14px 18px">
-                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-                            <span style="color:#f59e0b;font-size:13px">&#9993;</span>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:3px;color:#f59e0b">COMMAND SITREP</div>
-                            <span id="dashSitrepTime" style="font-family:'Share Tech Mono',monospace;font-size:8px;color:rgba(245,158,11,.4);margin-left:auto"></span>
-                        </div>
-                        <div id="dashSitrepTitle" style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;color:#e0e0e0;margin-bottom:4px"></div>
-                        <div id="dashSitrepBody" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#bbb;white-space:pre-wrap"></div>
-                    </div>
-
-                    <!-- Row 1: Stats -->
-                    <div class="stats-row" id="dashStatsRow" style="grid-template-columns:repeat(4,1fr)">
-                        <div class="stat-card"><div class="stat-number warning" id="dashPending">0</div><div class="stat-label">PENDING</div></div>
-                        <div class="stat-card"><div class="stat-number" id="dashActive">0</div><div class="stat-label">ACTIVE</div></div>
-                        <div class="stat-card"><div class="stat-number" id="dashRosterCount">0</div><div class="stat-label">ROSTER</div></div>
-                        <div class="stat-card"><div class="stat-number" id="dashTotal">0</div><div class="stat-label">TOTAL</div></div>
-                    </div>
-
-                    <!-- Row 2: Discord -->
-                    <div class="dash-section" style="margin-bottom:16px" id="dashOnlineSection">
-                        <div class="dash-section-title" style="display:flex;align-items:center;gap:10px">
-                            WHO'S ONLINE
-                            <span id="dashOnlineCount" style="background:rgba(100,100,100,.12);border:1px solid #555;color:#555;font-family:Rajdhani,sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;padding:2px 8px">0 ONLINE</span>
-                        </div>
-                        <div id="dashOnlineList"><div class="empty-state">LOADING...</div></div>
-                    </div>
-                    <div class="dash-section" style="margin-bottom:16px" id="dashDiscordSection">
-                        <div class="dash-section-title">DISCORD INVITE LINK STATUS</div>
-                        <div id="dashDiscordStatus"><div class="empty-state">LOADING...</div></div>
-                    </div>
-
-                    <!-- Row 3: Roster Strength | Inactive + Reserves -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start" id="dashRosterGrid">
-                        <div class="dash-section" style="height:100%">
-                            <div class="dash-section-title">ROSTER STRENGTH BY PLATOON</div>
-                            <div id="dashRosterStrength"><div class="empty-state">LOADING...</div></div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:16px">
-                            <div class="dash-section" id="dashInactiveSection">
-                                <div class="dash-section-title">INACTIVE MEMBERS <span style="font-size:9px;color:#aaa;letter-spacing:1px">(0 ATT. THIS CYCLE)</span></div>
-                                <div id="dashInactiveMembers"><div class="empty-state">LOADING...</div></div>
-                            </div>
-                            <div class="dash-section" id="dashReserveSection">
-                                <div class="dash-section-title">RESERVES <span style="font-size:9px;color:#aaa;letter-spacing:1px;font-family:'Share Tech Mono',monospace">— TIME IN RESERVE</span></div>
-                                <div id="dashReserves"><div class="empty-state">LOADING...</div></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 4: Attendance Health | Pending + Recent -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px" id="dashAttRow">
-                        <div class="dash-section" id="dashAttSection">
-                            <div class="dash-section-title">&#9635; ATTENDANCE HEALTH</div>
-                            <div id="dashAttendanceHealth"><div class="empty-state">LOADING...</div></div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:16px">
-                            <div class="dash-section">
-                                <div class="dash-section-title">PENDING REGISTRATIONS</div>
-                                <div id="dashPendingList"><div class="empty-state">LOADING...</div></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 5: Recruitment Source Bar Chart -->
-                    <div class="dash-section" style="margin-bottom:16px">
-                        <div class="dash-section-title">&#9650; RECRUITMENT SOURCE</div>
-                        <div id="dashRecruitSource"><div class="empty-state">LOADING...</div></div>
-                    </div>
-                </div>
+                <div class="panel hidden" id="panel-dashboard"><div class="panel-title">DASHBOARD</div><!-- replaced by /terminal-panels/dashboard-v2.js --></div>
 
                 <!-- ATTENDANCE TRACKER PANEL -->
                 <div class="panel hidden" id="panel-attendance">
@@ -5992,25 +5544,7 @@
                     <div id="activeList"><div class="empty-state">LOADING...</div></div>
                 </div>
                 <div class="panel hidden" id="panel-register"><div class="panel-title">ENLISTMENT QUEUE</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">PENDING APPLICANTS AWAITING APPROVAL — APPROVE TO GRANT ENLISTEE ACCESS, DENY TO REJECT</p><div id="registerList"><div class="empty-state">LOADING...</div></div></div>
-                <div class="panel hidden" id="panel-promote">
-                    <div class="panel-title">PROMOTE RANKS</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">CHANGE ROLES AND SET RANKS</p>
-                    <div style="margin-bottom:20px;background:rgba(0,0,0,.3);border:1px solid rgba(0,217,255,.08);padding:14px 16px">
-                        <div style="color:rgba(0,217,255,.85);font-size:12px;letter-spacing:3px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(0,217,255,.15)">ROLE REFERENCE // ACCESS LEVELS</div>
-                        <div style="display:grid;grid-template-columns:120px 1fr;gap:6px 14px;font-size:13px;font-family:Rajdhani,sans-serif;font-weight:500;line-height:1.8">
-                            <span class="role-badge role-enlistee" style="align-self:center">ENLISTEE</span><span style="color:#b0b0b0">Profile edit only. No admin access.</span>
-                            <span class="role-badge role-marine" style="align-self:center">MARINE</span><span style="color:#b0b0b0">Profile edit only. No admin access.</span>
-                            <span class="role-badge role-recruiter" style="align-self:center">RECRUITER</span><span style="color:#b0b0b0">Register Panel only — approve &amp; deny registrations.</span>
-                            <span class="role-badge role-nco" style="align-self:center">NCO</span><span style="color:#b0b0b0">Register Panel + Media Gallery + After Action Reports + Battalion Roster.</span>
-                            <span class="role-badge role-staff_nco" style="align-self:center">STAFF NCO</span><span style="color:#b0b0b0">Personnel (Active + Register) + Media + Unit Management + Page Content + Discord Invite Link.</span>
-                            <span class="role-badge role-officer" style="align-self:center">OFFICER</span><span style="color:#b0b0b0">Full access to all panels including Settings. Cannot assign/remove Commander role.</span>
-                            <span class="role-badge role-developer" style="align-self:center">DEVELOPER</span><span style="color:#b0b0b0">Full access to all panels including Settings. Cannot assign/remove Commander role.</span>
-                            <span class="role-badge role-commander" style="align-self:center">COMMANDER</span><span style="color:#b0b0b0">Full access including all role assignments. Highest authority.</span>
-                            <span class="role-badge role-retired_veteran" style="align-self:center">RETIRED VETERAN</span><span style="color:#b0b0b0">No admin access. Hidden from Battalion Roster, Attendance Tracker, and awards. Displayed as rank + "(Ret.)" instead of a role tag (e.g. "O6 / Colonel (Ret.)"). Personnel file frozen. Assignable by Staff NCO and above — reassign role to reactivate.</span>
-                        </div>
-                    </div>
-                    <div id="promoteList"><div class="empty-state">LOADING...</div></div>
-                </div>
+                <div class="panel hidden" id="panel-promote"><!-- replaced by /terminal-panels (v2) --></div>
                 <div class="panel hidden" id="panel-gallery">
                     <div class="panel-title">GALLERY</div>
                     <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">MANAGE IMAGES — TOGGLE VISIBILITY ON THE PUBLIC GALLERY PAGE</p>
@@ -6078,16 +5612,16 @@
                     </div>
                     <div class="media-grid-v2" id="videoGrid"><div class="empty-state">LOADING...</div></div>
                 </div>
-                <div class="panel hidden" id="panel-page-home"><div class="panel-title">HOME PAGE</div><div class="page-editor-container" data-page="home"></div></div>
-                <div class="panel hidden" id="panel-page-505th"><div class="panel-title">505TH EXPEDITIONARY FORCE</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 MARINE PHOTO CARDS</p><div class="page-editor-container" data-page="about-505th"></div></div>
-                <div class="panel hidden" id="panel-page-alpha"><div class="panel-title">ALPHA COMPANY</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 OPERATION CARDS</p><div class="page-editor-container" data-page="about-alpha"></div></div>
-                <div class="panel hidden" id="panel-page-stalker"><div class="panel-title">JTF FORCE RECON</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 EQUIPMENT CARDS</p><div class="page-editor-container" data-page="about-stalker"></div></div>
-                <div class="panel hidden" id="panel-page-corpsman"><div class="panel-title">HOSPITAL CORPSMAN</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 EQUIPMENT CARDS</p><div class="page-editor-container" data-page="about-corpsman"></div></div>
-                <div class="panel hidden" id="panel-page-54th"><div class="panel-title">54TH AIR WING</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 AIR ASSET CARDS</p><div class="page-editor-container" data-page="about-54th"></div></div>
+                <div class="panel hidden" id="panel-page-home"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-page-505th"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-page-alpha"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-page-stalker"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-page-corpsman"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-page-54th"><!-- replaced by /terminal-panels (v2) --></div>
 
                 <div class="panel hidden" id="panel-comms-library"><!-- replaced by /terminal-panels (v2) --></div>
                 
-                <div class="panel hidden" id="panel-discord"><div class="panel-title">DISCORD INVITE LINK</div><div class="upload-area"><p style="color:#ccc;font-family:Rajdhani,sans-serif;font-size:14px;font-weight:500;letter-spacing:1px;margin-bottom:12px">CHANGE ONCE — ALL PAGES UPDATE AUTOMATICALLY</p><div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap"><div style="color:#bbb;font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;letter-spacing:2px">CURRENT: <a id="currentDiscordLink" href="#" target="_blank" style="color:#FF6B6B;text-decoration:none;letter-spacing:2px">NOT SET</a></div><span id="discordStatusBadge" style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:3px 10px;border:1px solid #555;color:#555;display:none"></span><button onclick="checkDiscordInvite(document.getElementById('discordLinkInput').value)" style="background:none;border:1px solid rgba(0,217,255,.35);color:rgba(0,217,255,.7);font-family:Rajdhani,sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;padding:3px 10px;cursor:pointer" id="discordCheckBtn">↺ RE-CHECK</button></div><div class="upload-row"><div class="upload-field"><input type="url" id="discordLinkInput" placeholder="https://discord.gg/XXXXXXXX"></div><button class="upload-btn" onclick="saveDiscordLink()">SAVE LINK</button></div></div></div>
+                <div class="panel hidden" id="panel-discord"><!-- replaced by /terminal-panels (v2) --></div>
                 <div class="panel hidden" id="panel-aar">
                     <div class="panel-title">AFTER ACTION REPORT</div>
                     <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:20px">NCO+ ACCESS // CLASSIFICATION: CL-3 // PUBLISHED TO AAR PAGE ON SUBMIT</p>
@@ -6259,141 +5793,22 @@
                 </div>
                 <div class="panel hidden" id="panel-unitcards"><!-- replaced by /terminal-panels (v2) --></div>
                 <!-- DISCORD WEBHOOKS PANEL -->
-                <div class="panel hidden" id="panel-webhooks">
-                    <div class="panel-title">DISCORD WEBHOOKS</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:20px">PASTE DISCORD WEBHOOK URLS — FIRES AUTOMATICALLY WHEN EACH ACTION OCCURS IN THE COMMAND TERMINAL</p>
-                    <div style="display:flex;flex-direction:column;gap:12px;max-width:800px">
-                        <div class="dash-section" style="padding:16px 20px">
-                            <div class="dash-section-title">&#128276; WEBHOOK URLS</div>
-                            <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px" id="webhookFieldsContainer">
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">NEW REGISTRATION</div>
-                                    <input type="url" id="webhook-registration" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('registration')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">APPROVED / DENIED</div>
-                                    <input type="url" id="webhook-approved" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('approved')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">PROMOTION HISTORY</div>
-                                    <input type="url" id="webhook-promote" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('promote')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">WARNING HISTORY</div>
-                                    <input type="url" id="webhook-warning" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('warning')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">PLATOON TRANSFER</div>
-                                    <input type="url" id="webhook-platoon" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('platoon')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">AAR SUBMITTED</div>
-                                    <input type="url" id="webhook-aar" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('aar')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                                <div style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
-                                    <div style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;letter-spacing:1px;color:#ccc">ATTENDANCE LOCKED</div>
-                                    <input type="url" id="webhook-attendance" placeholder="https://discord.com/api/webhooks/..." style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.2);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:8px 10px;outline:none;width:100%">
-                                    <button class="action-btn approve-btn small" onclick="testWebhook('attendance')" style="font-size:9px;white-space:nowrap">TEST</button>
-                                </div>
-                            </div>
-                            <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(0,217,255,.1)">
-                                <button class="upload-btn" onclick="saveWebhooks()" style="font-size:12px;padding:10px 24px;letter-spacing:2px">&#10003; SAVE ALL WEBHOOKS</button>
-                                <span style="color:#555;font-size:9px;letter-spacing:1px;margin-left:12px">&#9432; LEAVE BLANK TO DISABLE THAT NOTIFICATION</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="panel hidden" id="panel-webhooks"><!-- replaced by /terminal-panels (v2) --></div>
 
                 <!-- RECRUITMENT SOURCE TRACKER PANEL -->
                 <div class="panel hidden" id="panel-recruit-source"><!-- replaced by /terminal-panels (v2) --></div>
 
-                <div class="panel hidden" id="panel-discord-tracking">
-                    <div class="panel-title">DISCORD TRACKING</div>
-                    <div style="text-align:center;padding:60px 20px;">
-                        <div style="font-size:80px;margin-bottom:20px;opacity:0.3;">&#128679;</div>
-                        <div style="font-family:Rajdhani,sans-serif;color:var(--accent);font-size:24px;font-weight:700;letter-spacing:4px;margin-bottom:16px;text-shadow:0 0 15px var(--accent-glow);">UNDER CONSTRUCTION</div>
-                        <div style="color:#aaa;font-size:12px;letter-spacing:2px;max-width:500px;margin:0 auto;line-height:2;">
-                            <p style="margin-bottom:12px;">Cortana Bot / Discord Integration is currently in development.</p>
-                            <p style="margin-bottom:12px;">Planned features:</p>
-                            <div style="text-align:left;display:inline-block;color:#bbb;">
-                                <div style="margin-bottom:6px;">&#9679; Arma 3 Server Join / Leave tracking</div>
-                                <div style="margin-bottom:6px;">&#9679; Cortana Dashboard — audit log viewer &amp; bot restart</div>
-                                <div style="margin-bottom:6px;">&#9679; Event participation metrics from Cortana signup system</div>
-                                <div style="margin-bottom:6px;">&#9679; Bot command usage analytics</div>
-                                <div>&#9679; Attendance auto-sync from Cortana event signups</div>
-                            </div>
-                            <p style="margin-top:20px;color:var(--accent);font-size:10px;letter-spacing:3px;">REQUIRES CORTANA BOT INTEGRATION</p>
-                        </div>
-                        <div style="margin-top:30px;padding:16px;background:rgba(0,217,255,0.05);border:1px dashed rgba(0,217,255,0.2);max-width:400px;margin-left:auto;margin-right:auto;">
-                            <div style="color:#bbb;font-size:9px;letter-spacing:2px;">ESTIMATED COMPLETION</div>
-                            <div style="color:var(--accent);font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;margin-top:4px;">TO BE CONFIRMED</div>
-                        </div>
-                    </div>
-                </div>
+                <div class="panel hidden" id="panel-discord-tracking"><!-- replaced by /terminal-panels (v2) --></div>
             
 
                 <!-- BATTALION ATTENDANCE HISTORY PANEL -->
                 <div class="panel hidden" id="panel-att-history"><!-- replaced by /terminal-panels (v2) --></div>
 
                 <!-- AUDIT LOG PANELS -->
-                <div class="panel hidden" id="panel-audit-manpower">
-                    <div class="panel-title">AUDIT LOG — MANPOWER</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">PERSONNEL CHANGES — RANK, ROLE, TRANSFERS, WARNINGS, ENLISTMENTS · AUTO-PURGE AFTER 7 DAYS</p>
-                    <div style="display:flex;gap:10px;margin-bottom:14px"><button class="action-btn approve-btn" onclick="loadAuditLog('manpower')" style="padding:6px 16px;font-size:10px;letter-spacing:2px">&#8635; REFRESH</button></div>
-                    <div style="background:rgba(0,0,0,.3);border:1px solid rgba(167,139,250,.15)">
-                        <div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(167,139,250,.06)">
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(167,139,250,.9);font-weight:700">TIMESTAMP</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(167,139,250,.9);font-weight:700">OPERATOR</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(167,139,250,.9);font-weight:700">ACTION / DETAILS</div>
-                        </div>
-                        <div id="auditLog-manpower"><div class="empty-state">LOADING...</div></div>
-                    </div>
-                </div>
-                <div class="panel hidden" id="panel-audit-battalion">
-                    <div class="panel-title">AUDIT LOG — BATTALION OPS</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">ATTENDANCE EVENTS, LOCKS, UNLOCKS, ROSTER CHANGES · AUTO-PURGE AFTER 7 DAYS</p>
-                    <div style="display:flex;gap:10px;margin-bottom:14px"><button class="action-btn approve-btn" onclick="loadAuditLog('battalion_ops')" style="padding:6px 16px;font-size:10px;letter-spacing:2px">&#8635; REFRESH</button></div>
-                    <div style="background:rgba(0,0,0,.3);border:1px solid rgba(0,217,255,.15)">
-                        <div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(0,217,255,.06)">
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,217,255,.9);font-weight:700">TIMESTAMP</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,217,255,.9);font-weight:700">OPERATOR</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(0,217,255,.9);font-weight:700">ACTION / DETAILS</div>
-                        </div>
-                        <div id="auditLog-battalion_ops"><div class="empty-state">LOADING...</div></div>
-                    </div>
-                </div>
-                <div class="panel hidden" id="panel-audit-comms">
-                    <div class="panel-title">AUDIT LOG — PUBLIC COMMS</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">CMS CONTENT, UNIT CARDS, PAGE EDITS · AUTO-PURGE AFTER 7 DAYS</p>
-                    <div style="display:flex;gap:10px;margin-bottom:14px"><button class="action-btn approve-btn" onclick="loadAuditLog('public_comms')" style="padding:6px 16px;font-size:10px;letter-spacing:2px">&#8635; REFRESH</button></div>
-                    <div style="background:rgba(0,0,0,.3);border:1px solid rgba(52,211,153,.15)">
-                        <div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(52,211,153,.06)">
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(52,211,153,.9);font-weight:700">TIMESTAMP</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(52,211,153,.9);font-weight:700">OPERATOR</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(52,211,153,.9);font-weight:700">ACTION / DETAILS</div>
-                        </div>
-                        <div id="auditLog-public_comms"><div class="empty-state">LOADING...</div></div>
-                    </div>
-                </div>
-                <div class="panel hidden" id="panel-audit-discord">
-                    <div class="panel-title">AUDIT LOG — DISCORD &amp; NETWORK</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">WEBHOOK CHANGES, DISCORD LINKS, BOT CONFIG · AUTO-PURGE AFTER 7 DAYS</p>
-                    <div style="display:flex;gap:10px;margin-bottom:14px"><button class="action-btn approve-btn" onclick="loadAuditLog('discord_network')" style="padding:6px 16px;font-size:10px;letter-spacing:2px">&#8635; REFRESH</button></div>
-                    <div style="background:rgba(0,0,0,.3);border:1px solid rgba(251,146,60,.15)">
-                        <div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(251,146,60,.06)">
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(251,146,60,.9);font-weight:700">TIMESTAMP</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(251,146,60,.9);font-weight:700">OPERATOR</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(251,146,60,.9);font-weight:700">ACTION / DETAILS</div>
-                        </div>
-                        <div id="auditLog-discord_network"><div class="empty-state">LOADING...</div></div>
-                    </div>
-                </div>
+                <div class="panel hidden" id="panel-audit-manpower"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-audit-battalion"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-audit-comms"><!-- replaced by /terminal-panels (v2) --></div>
+                <div class="panel hidden" id="panel-audit-discord"><!-- replaced by /terminal-panels (v2) --></div>
 
             </div>
         </div>
