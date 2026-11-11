@@ -10,8 +10,8 @@
  */
 import { doc, updateDoc } from "/terminal-shim/firestore.js";
 import {
-  addCss, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, notifyMember, onReady, openModal,
-  platoonOrder, rankOrder, since, today, ukDate, webhook,
+  addCss, ask, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, notifyMember, onReady, openModal,
+  platoonOrder, rankAbbr, rankOrder, since, today, ukDate, webhook,
 } from "./_common.js";
 
 const ROOT = "rosV2";
@@ -27,7 +27,7 @@ const RESET_ROLES = new Set(["commander", "developer", "staff_nco", "officer"]);
 
 let rows = [];
 let me = null;
-let sortK = "name";
+let sortK = "rank";
 let sortDir = 1;
 let q = "";
 let pl = "";
@@ -41,75 +41,113 @@ async function load() {
 
 const ribbonBar = (c) => `background:linear-gradient(90deg,${c} 0 30%,rgba(0,0,0,.55) 30% 38%,#fff 38% 46%,rgba(0,0,0,.55) 46% 54%,#fff 54% 62%,rgba(0,0,0,.55) 62% 70%,${c} 70%)`;
 
+const pgOf = (r) => (String(r.rank || "").match(/^([OE]\d+)/) || [])[1] || (r.rank === "Reservist" ? "RES" : "—");
+const pgNum = (r) => { const m = pgOf(r).match(/^([OE])(\d+)/); return m ? (m[1] === "O" ? 100 : 0) + +m[2] : -1; };
+const rateOf = (r) => (r.opsEligible ? Math.round(((r.opsAttended || 0) / r.opsEligible) * 100) : null);
+const rc = (p) => (p == null ? "#4b5765" : p >= 75 ? "#22e07a" : p >= 50 ? "#f59e0b" : "#ff4d4d");
+// [label, key, default direction] — direction 1 = as listed
+const SORTS = {
+  rank: ["Rank (high → low)", (r) => rankOrder(r.rank), 1], rankup: ["Rank (low → high)", (r) => rankOrder(r.rank), -1],
+  pg: ["Paygrade (high → low)", (r) => -pgNum(r), 1], pgup: ["Paygrade (low → high)", (r) => -pgNum(r), -1],
+  name: ["Name A–Z", (r) => `${r.lastName || ""} ${r.firstName || ""}`.toLowerCase(), 1],
+  rate: ["Attendance % (high → low)", (r) => -(rateOf(r) ?? -1), 1], att: ["ATT this month", (r) => -(r.attendance || 0), 1],
+  pt: ["PT (most first)", (r) => -(r.promotionTracker || 0), 1], rib: ["Ribbons (most first)", (r) => -(r.ribbonHistory || []).length, 1],
+  med: ["Medals (most first)", (r) => -(r.commendationHistory || []).length, 1], joined: ["Joined (oldest first)", (r) => r.graduation || r.joinedPlatoon || "9999", 1],
+  squad: ["Squad", (r) => String(r.squad || "~").toLowerCase(), 1],
+};
+const open = new Set(); // platoons folded open (empty = all open on first load)
+let opened = false;
+
 function render() {
   const root = document.getElementById(ROOT);
   if (!root) return;
   const canEdit = EDIT_ROLES.has(me?.role);
+  const act = rows.filter((r) => r.platoon !== "Reserves");
+  const tA = act.reduce((s, r) => s + (r.opsAttended || 0), 0), tE = act.reduce((s, r) => s + (r.opsEligible || 0), 0);
+  const rate = tE ? Math.round((tA / tE) * 100) : 0;
   root.querySelector(".kp").innerHTML = `
-    <div class="k"><b style="color:var(--a)">${rows.length}</b><span>TOTAL</span></div>
-    <div class="k"><b style="color:var(--g)">${rows.filter((r) => r.platoon !== "Reserves").length}</b><span>ACTIVE</span></div>
+    <div class="k"><b style="color:var(--g)">${act.filter((r) => r.platoon !== "Awaiting BCT").length}</b><span>ACTIVE</span></div>
+    <div class="k"><b style="color:var(--a)">${rows.reduce((s, r) => s + (r.promotionTracker || 0), 0)}</b><span>PT (TOTAL)</span></div>
+    <div class="k"><b style="color:#2dd4bf">${rows.reduce((s, r) => s + (r.ribbonHistory || []).length, 0)}</b><span>RIBBONS</span></div>
     <div class="k"><b style="color:var(--am)">${rows.filter((r) => r.platoon === "Reserves").length}</b><span>RESERVES</span></div>
-    <div class="k"><b style="color:var(--g)">${rows.filter((r) => (r.attendance || 0) >= 3).length}</b><span>READY FOR PROMOTION</span></div>`;
+    <div class="k"><b>${rows.filter((r) => r.platoon === "Awaiting BCT").length}</b><span>AWAITING BCT</span></div>
+    <div class="k"><b style="color:${rc(rate)}">${rate}%</b><span>ATTENDANCE</span></div>
+    <div class="k"><b style="color:var(--g)">${act.filter((r) => (r.attendance || 0) >= 3).length}</b><span>3/3 THIS MONTH</span></div>`;
+  const nx = new Date(); nx.setMonth(nx.getMonth() + 1, 1);
+  const days = Math.ceil((nx.setHours(0, 0, 0, 0) - Date.now()) / 864e5);
+  root.querySelector(".reset").innerHTML = `<span>↻ MONTHLY RESET — ${ukDate(nx, { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()} (in ${days} day${days === 1 ? "" : "s"}). Everyone at 3/3 gets +1 PT, then ATT goes back to 0. Snapshot saved to Attendance History.</span>${RESET_ROLES.has(me?.role) ? '<button class="b sm" data-act="reset">RUN NOW…</button>' : ""}`;
   const plSel = root.querySelector(".rpl");
   const plats = [...new Set(rows.map((r) => r.platoon || ""))].sort((a, b) => platoonOrder(a) - platoonOrder(b));
   plSel.innerHTML = `<option value="">ALL PLATOONS</option>` + plats.map((p) => `<option ${pl && p === pl ? "selected" : ""} value="${esc(p)}">${esc(p || "No platoon")}</option>`).join("");
+  if (!opened) { plats.forEach((p) => open.add(p)); opened = true; }
 
-  const key = {
-    name: (r) => `${r.lastName || ""} ${r.firstName || ""}`.toLowerCase(),
-    pl: (r) => platoonOrder(r.platoon),
-    rank: (r) => rankOrder(r.rank),
-    joined: (r) => r.joinedPlatoon || "",
-    grad: (r) => r.graduation || "",
-    att: (r) => r.attendance || 0,
-    pt: (r) => r.promotionTracker || 0,
-    rib: (r) => (r.ribbonHistory || []).length,
-  }[sortK];
-  let list = rows.filter((r) => (!pl || (r.platoon || "") === pl) && memberName(r).toLowerCase().includes(q.toLowerCase()));
-  list.sort((a, b) => {
-    const A = key(a), B = key(b);
-    if (A !== B) return (A > B ? 1 : -1) * sortDir;
-    return sortK === "rank" ? memberName(a).localeCompare(memberName(b)) : rankOrder(a.rank) - rankOrder(b.rank);
-  });
+  const [, key, dir0] = SORTS[sortK] || SORTS.rank;
+  const dir = dir0 * sortDir;
+  const list = rows.filter((r) => (!pl || (r.platoon || "") === pl) && memberName(r).toLowerCase().includes(q.toLowerCase()));
+  list.sort((a, b) => { const A = key(a), B = key(b); return A !== B ? (A > B ? 1 : -1) * dir : rankOrder(a.rank) - rankOrder(b.rank) || memberName(a).localeCompare(memberName(b)); });
 
+  const head = `<thead><tr><th>RANK</th><th>NAME</th><th>PAYGRADE</th><th>SQUAD</th>${group ? "" : "<th>PLATOON</th>"}<th>ATT (MONTH)</th><th>PT</th><th>ATTENDANCE</th><th>RIBBONS</th><th>MEDALS</th><th></th></tr></thead>`;
   const row = (r) => {
     const att = r.attendance || 0;
-    const ready = att >= 3;
-    const pg = (String(r.rank || "").match(/^([OE]\d+)/) || [])[1] || (r.rank === "Reservist" ? "RES" : "—");
-    const pgc = pg[0] === "O" ? "o" : pg[0] === "E" ? "e" : "r";
-    return `<tr>
+    const pg = pgOf(r), pgc = pg[0] === "O" ? "o" : pg[0] === "E" ? "e" : "r";
+    const p = rateOf(r), rib = (r.ribbonHistory || []).length, med = (r.commendationHistory || []).length;
+    return `<tr class="${sel === r.id ? "on" : ""}">
+      <td class="s2">${esc(rankAbbr(r.rank) || "—")}</td>
+      <td><button class="nm" data-act="card" data-id="${esc(r.id)}">${esc(memberName(r).replace(/^\S+\s/, ""))}</button></td>
       <td><span class="pgb ${pgc}" title="${esc(r.rank || "")}">${esc(pg)}</span></td>
-      <td><span class="nm" data-act="edit" data-id="${esc(r.id)}">${esc(memberName(r))}</span><span class="s2">${esc(r.rank || "—")}</span></td>
-      <td><span class="pchip">${esc(r.platoon || "—")}</span></td>
-      <td>${ukDate(r.joinedPlatoon, { day: "2-digit", month: "short", year: "2-digit" })}<span class="s2">${since(r.joinedPlatoon)} IN PLATOON</span></td>
-      <td>${ukDate(r.graduation, { day: "2-digit", month: "short", year: "2-digit" })}<span class="s2">${since(r.graduation)} IN UNIT</span></td>
-      <td><div class="pips">${[1, 2, 3]
-        .map((k) =>
-          k === att + 1 && canEdit
-            ? `<button class="pip next" title="Add attendance (+1)" aria-label="Add attendance for ${esc(memberName(r))}" data-act="att" data-id="${esc(r.id)}"></button>`
-            : `<span class="pip ${att >= k ? "f" + att : ""}" title="${att >= k ? "Counted" : "Not yet"}"></span>`,
-        )
-        .join("")}<span class="pn">${att}/3</span>${ready ? (canEdit ? `<button class="ready" data-act="pt" data-id="${esc(r.id)}" title="Award +1 PT and reset attendance">+1 PT READY</button>` : '<span class="ready">3/3</span>') : ""}</div></td>
-      <td><span class="ptv">${r.promotionTracker || 0}</span></td>
-      <td><span class="rib" style="color:${(r.ribbonHistory || []).length ? "#2dd4bf" : "#3b4a5a"}">${(r.ribbonHistory || []).length}</span></td>
+      <td class="s2">${esc(r.squad || "—")}</td>${group ? "" : `<td><span class="pchip">${esc(r.platoon || "—")}</span></td>`}
+      <td><div class="pips">${[1, 2, 3].map((k) => (k === att + 1 && canEdit ? `<button class="pip next" title="Add attendance (+1)" aria-label="Add attendance for ${esc(memberName(r))}" data-act="att" data-id="${esc(r.id)}"></button>` : `<span class="pip ${att >= k ? "f" + att : ""}"></span>`)).join("")}<span class="pn">${att}/3</span></div></td>
+      <td><span class="ptb"><span class="ptv">${r.promotionTracker || 0}</span>${canEdit ? `<button class="pl ${att >= 3 ? "rd" : ""}" data-act="pt" data-id="${esc(r.id)}" title="${att >= 3 ? "Award +1 PT and reset ATT (3/3)" : "Give +1 PT"}" aria-label="Give PT to ${esc(memberName(r))}">＋</button>` : ""}</span></td>
+      <td style="color:${rc(p)}">${p == null ? "—" : p + "%"} <small class="s2">(${r.opsAttended || 0}/${r.opsEligible || 0})</small></td>
+      <td><span style="color:${rib ? "#2dd4bf" : "#3b4a5a"}">▬ ${rib}</span></td>
+      <td><span style="color:${med ? "#a78bfa" : "#3b4a5a"}">★ ${med}</span></td>
       <td>${canEdit ? `<button class="rowbtn" aria-label="Actions for ${esc(memberName(r))}" data-act="menu" data-id="${esc(r.id)}">⋯</button>` : ""}</td></tr>`;
   };
+  const tbl = (g) => `<div class="wrapx"><table class="t">${head}<tbody>${g.map(row).join("")}</tbody></table></div>`;
   let html = "";
-  if (group && (sortK === "name" || sortK === "rank")) {
+  if (group) {
     const plats2 = [...new Set(list.map((r) => r.platoon || ""))].sort((a, b) => platoonOrder(a) - platoonOrder(b));
-    plats2.forEach((p) => {
+    html = plats2.map((p) => {
       const g = list.filter((r) => (r.platoon || "") === p);
-      html += `<tr class="grp"><td colspan="9">${esc((p || "NO PLATOON").toUpperCase())} · ${g.length}</td></tr>` + g.map(row).join("");
-    });
-  } else html = list.map(row).join("");
-  root.querySelector("tbody").innerHTML = html || '<tr><td colspan="9"><div class="empty">NOBODY MATCHES</div></td></tr>';
-  const rs = root.querySelector(".rsort");
-  if (rs) rs.value = sortK === "rank" ? (sortDir < 0 ? "rankup" : "rank") : sortK === "name" ? "name" : rs.value;
-  root.querySelectorAll("th[data-k]").forEach((th) => {
-    th.classList.toggle("s", th.dataset.k === sortK);
-    th.classList.toggle("up", th.dataset.k === sortK && sortDir < 0);
-  });
+      const gE = g.reduce((s, r) => s + (r.opsEligible || 0), 0), gr = gE ? Math.round((g.reduce((s, r) => s + (r.opsAttended || 0), 0) / gE) * 100) : null;
+      return `<details class="grp2" data-pl="${esc(p)}" ${open.has(p) || q ? "open" : ""}><summary>${esc((p || "NO PLATOON").toUpperCase())}<small>${g.length} MEMBER${g.length === 1 ? "" : "S"}${gr == null ? "" : ` · <span style="color:${rc(gr)}">${gr}%</span>`}</small></summary>${tbl(g)}</details>`;
+    }).join("");
+  } else html = list.length ? tbl(list) : "";
+  root.querySelector(".tables").innerHTML = html || '<div class="empty">NOBODY MATCHES</div>';
+  root.querySelector(".rsort").value = sortK;
+  root.querySelector(".gbtn").textContent = group ? "GROUP: PLATOON ✓" : "GROUP: OFF";
+  root.querySelector(".gbtn").setAttribute("aria-pressed", group);
   root.querySelectorAll(".needs-edit").forEach((b) => (b.style.display = canEdit ? "" : "none"));
   root.querySelector(".reset-btn").style.display = RESET_ROLES.has(me?.role) ? "" : "none";
+  drawCard();
+}
+
+// ───────── side card ─────────
+let sel = null;
+function drawCard() {
+  const root = document.getElementById(ROOT);
+  const box = root?.querySelector(".card2");
+  if (!box) return;
+  const r = rows.find((x) => x.id === sel);
+  if (!r) { box.hidden = true; return; }
+  const canEdit = EDIT_ROLES.has(me?.role);
+  const p = rateOf(r);
+  box.hidden = false;
+  box.innerHTML = `<button class="xx" data-act="cardclose" aria-label="Close">✕</button><span class="s2">MEMBER</span><h3>${esc(memberName(r))}</h3>
+    <div class="s2">${esc(pgOf(r))} · ${esc(r.platoon || "—")}${r.squad ? " · " + esc(r.squad) : ""}${r.billet ? " · " + esc(r.billet) : ""}</div>
+    <div class="cst"><div><b>${r.attendance || 0}/3</b><span>ATT</span></div><div><b style="color:var(--a)">${r.promotionTracker || 0}</b><span>PT</span></div><div><b style="color:${rc(p)}">${p == null ? "—" : p + "%"}</b><span>ATTENDANCE</span></div><div><b>${(r.ribbonHistory || []).length}/${(r.commendationHistory || []).length}</b><span>RIB / MED</span></div></div>
+    ${canEdit ? `<div class="acts"><button class="b sm" data-ca="edit">✎ PERSONNEL FILE</button><button class="b sm" data-ca="promote">▲ PROMOTE</button><button class="b sm" data-ca="transfer">⇄ TRANSFER</button><button class="b sm" data-ca="warn" style="color:var(--am);border-color:var(--am)">⚠ WARN</button><button class="b sm" data-ca="medal" style="color:#C9A227;border-color:#C9A227">★ AWARD MEDAL</button><button class="b sm" data-ca="ribbon" style="color:#2dd4bf;border-color:#2dd4bf">▬ AWARD RIBBON</button><button class="b sm" data-ca="medals" style="color:#a78bfa;border-color:#a78bfa">☆ MEDAL HISTORY</button><button class="b sm" data-ca="stats">▤ EDIT STATS</button></div>` : '<p class="s2">VIEW ONLY</p>'}`;
+}
+
+async function givePT(id) {
+  const r = rows.find((x) => x.id === id);
+  if (!r) return;
+  if ((r.attendance || 0) >= 3) return window.promotePT(id);
+  if (!(await ask({ kind: "warn", title: "GIVE +1 PT?", body: `${r.attendance || 0}/3 this month — this is a manual award (ATT is not reset).`, item: memberName(r), go: "+1 PT" }))) return;
+  const n = (r.promotionTracker || 0) + 1;
+  await updateDoc(doc(db, "users", id), { promotionTracker: n, updatedAt: new Date().toISOString() });
+  await audit("manpower", "PT AWARDED (MANUAL)", `${memberName(r)} → ${n} PT (ATT ${r.attendance || 0}/3)`);
+  notify(`+1 PT — ${memberName(r)}`.toUpperCase());
 }
 
 // ───────── row menu → original quick actions ─────────
@@ -395,6 +433,18 @@ const CSS = `
 #${ROOT} .rib{font-family:Rajdhani,sans-serif;font-weight:700}
 #${ROOT} .rowbtn{background:none;border:1px solid transparent;color:var(--d);cursor:pointer;padding:2px 8px;font-size:14px}
 #${ROOT} .rowbtn:hover{border-color:var(--l2);color:var(--a)}
+#${ROOT} .kp{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+#${ROOT} .reset{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid rgba(0,217,255,.35);background:rgba(0,217,255,.05);margin:0 0 12px;font-size:11.5px;color:#c6d0da}#${ROOT} .reset span{flex:1}
+#${ROOT} .grp2{margin-bottom:10px}#${ROOT} .grp2 summary{cursor:pointer;list-style:none;display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--l);background:var(--p);font:700 14px Rajdhani,sans-serif;letter-spacing:2px;color:#fff}
+#${ROOT} .grp2 summary::before{content:"▸";color:var(--a);transition:transform .15s}#${ROOT} .grp2[open] summary::before{transform:rotate(90deg)}#${ROOT} .grp2 summary small{margin-left:auto;font:10.5px 'Share Tech Mono',monospace;letter-spacing:1px;color:var(--d)}
+#${ROOT} .grp2 summary:focus-visible,#${ROOT} .nm:focus-visible,#${ROOT} .pl:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+#${ROOT} .grp2 .wrapx{border-top:0}
+#${ROOT} .nm{all:unset;cursor:pointer;color:#fff;font:700 14px Rajdhani,sans-serif;letter-spacing:.5px}#${ROOT} .nm:hover{color:var(--a)}#${ROOT} tr.on td{background:rgba(0,217,255,.07)}
+#${ROOT} .ptb{display:inline-flex;align-items:center;gap:6px}#${ROOT} .pl{all:unset;cursor:pointer;width:20px;height:20px;display:grid;place-items:center;border:1px solid var(--l2);color:var(--a);font-size:12px}#${ROOT} .pl:hover{border-color:var(--a)}#${ROOT} .pl.rd{background:var(--g);border-color:var(--g);color:#000}
+#${ROOT} .card2{position:fixed;right:18px;bottom:18px;z-index:900;width:360px;max-width:calc(100vw - 36px);border:1px solid var(--a);background:#0b0f15;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+#${ROOT} .card2 h3{margin:2px 0;color:#fff;font:700 18px Rajdhani,sans-serif;letter-spacing:1px}#${ROOT} .card2 .xx{all:unset;cursor:pointer;position:absolute;right:10px;top:8px;color:var(--d)}
+#${ROOT} .cst{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}#${ROOT} .cst div{border:1px solid var(--l);text-align:center;padding:6px}#${ROOT} .cst b{display:block;font:700 15px Rajdhani,sans-serif;color:#fff}#${ROOT} .cst span{font-size:8.5px;letter-spacing:1px;color:var(--d)}
+#${ROOT} .card2 .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 #${ROOT} .legend{font-size:9.5px;letter-spacing:1.5px;color:var(--d);margin:8px 0 0}
 .rosmenu{position:fixed;z-index:9990;background:#0b0f15;border:1px solid rgba(0,217,255,.35);min-width:240px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
 .rosmenu .ch{padding:10px 12px;border-bottom:1px solid rgba(0,217,255,.18);font-size:12px;color:#00D9FF;letter-spacing:1px}
@@ -446,8 +496,8 @@ onReady(() => {
     <div class="bar">
       <input class="srch rq" placeholder="FIND MARINE..." aria-label="Find member" style="width:200px">
       <select class="srch rpl" aria-label="Platoon"></select>
-      <select class="srch rsort" aria-label="Sort by"><option value="name">SORT: NAME A–Z</option><option value="rank">SORT: PAYGRADE (HIGHEST FIRST)</option><option value="rankup">SORT: PAYGRADE (LOWEST FIRST)</option></select>
-      <label style="font-size:10px;letter-spacing:1.5px;color:var(--d);display:flex;gap:6px;align-items:center"><input type="checkbox" class="rg" checked style="accent-color:#00D9FF"> GROUP BY PLATOON</label>
+      <select class="srch rsort" aria-label="Sort by">${Object.entries(SORTS).map(([k, [l]]) => `<option value="${k}">SORT: ${l.toUpperCase()}</option>`).join("")}</select>
+      <button class="b gbtn" data-act="group" aria-pressed="true">GROUP: PLATOON ✓</button>
       <span class="sp"></span>
       <button class="b gold needs-edit" data-act="medal">★ AWARD MEDAL</button>
       <button class="b teal needs-edit" data-act="ribbon">▬ AWARD RIBBON</button>
@@ -456,17 +506,17 @@ onReady(() => {
           <button data-act="backfill" class="needs-edit">▶ Backfill platoon dates<small>Fill missing 'joined platoon' dates</small></button>
           <button data-act="reset" class="reset-btn" style="color:#ff4d4d">⚠ Month-end reset<small>Saves history, +1 PT at 3/3, resets ATT</small></button></div></div>
     </div>
-    <div class="wrapx"><table class="t"><thead><tr>
-      <th data-k="rank">PAYGRADE</th><th data-k="name">NAME</th><th data-k="pl">PLATOON</th><th data-k="joined">JOINED · SERVICE</th><th data-k="grad">GRADUATED · IN UNIT</th>
-      <th data-k="att">ATT THIS MONTH</th><th data-k="pt">PT</th><th data-k="rib">RIBBONS</th><th></th></tr></thead><tbody></tbody></table></div>
-    <div class="legend">CLICK THE DASHED PIP TO ADD ATTENDANCE · 3/3 = +1 PT READY · ⋯ = PROMOTE · TRANSFER · AWARD · WARN · CLICK A HEADER TO SORT</div>`;
+    <div class="reset"></div>
+    <div class="tables"></div>
+    <aside class="card2" hidden aria-label="Member card"></aside>
+    <div class="legend">CLICK THE DASHED PIP TO ADD ATTENDANCE · ＋ = GIVE PT (AT 3/3 IT ALSO RESETS ATT) · CLICK A NAME FOR THE MEMBER CARD · ⋯ = ALL ACTIONS</div>`;
 
   root.addEventListener("click", async (e) => {
-    const th = e.target.closest("th[data-k]");
-    if (th) {
-      sortDir = sortK === th.dataset.k ? -sortDir : 1;
-      sortK = th.dataset.k;
-      return render();
+    const ca = e.target.closest("[data-ca]")?.dataset.ca;
+    if (ca && sel) {
+      if (ca === "medal") return openMedal([sel]);
+      if (ca === "ribbon") return openRibbon([sel]);
+      return runOriginal(ca, sel);
     }
     const el = e.target.closest("[data-act]");
     if (!el) {
@@ -484,15 +534,22 @@ onReady(() => {
       return load();
     }
     if (act === "pt") {
-      await window.promotePT(id);
+      await givePT(id);
       return load();
     }
+    if (act === "card") { sel = sel === id ? null : id; return render(); }
+    if (act === "cardclose") { sel = null; return drawCard(); }
+    if (act === "group") { group = !group; return render(); }
     if (act === "medal") return openMedal();
     if (act === "ribbon") return openRibbon();
     if (act === "public") return window.open("/resources-roster", "_blank", "noopener");
     if (act === "backfill") return window.openBackfillPlatoonModal?.();
     if (act === "reset") return openReset();
   });
+  root.addEventListener("toggle", (e) => {
+    const d = e.target.closest?.("details.grp2");
+    if (d) d.open ? open.add(d.dataset.pl) : open.delete(d.dataset.pl);
+  }, true);
   root.addEventListener("input", (e) => {
     if (e.target.classList.contains("rq")) {
       q = e.target.value;
@@ -506,12 +563,8 @@ onReady(() => {
     }
     if (e.target.classList.contains("rsort")) {
       // Paygrade: rankOrder puts O9 first, so "highest first" is ascending; ties by name.
-      sortK = e.target.value === "name" ? "name" : "rank";
-      sortDir = e.target.value === "rankup" ? -1 : 1;
-      render();
-    }
-    if (e.target.classList.contains("rg")) {
-      group = e.target.checked;
+      sortK = e.target.value;
+      sortDir = 1;
       render();
     }
   });
