@@ -66,11 +66,12 @@ ipcMain.handle("app:info", (e) => (fromMain(e) ? { version: app.getVersion(), pa
 /** Website API calls the screens may make. Fixed list — the window can't call any other path. */
 async function call(path: string, init?: RequestInit): Promise<unknown> {
   try {
-    const r = await auth.api(path, init);
+    // Never hang: give up after 25 s so pages show an error instead of LOADING forever.
+    const r = await auth.api(path, { ...init, signal: init?.signal ?? AbortSignal.timeout(25_000) });
     const b = await r.json().catch(() => ({}));
     return r.ok ? b : { error: (b as { error?: string }).error ?? `Website error ${r.status}` };
   } catch (err) {
-    return { error: (err as Error).message };
+    return { error: (err as Error).name === "TimeoutError" ? "The website took too long to answer — try again" : (err as Error).message };
   }
 }
 ipcMain.handle("hub:summary", (e) => (fromMain(e) ? call("/api/hub/summary") : null));

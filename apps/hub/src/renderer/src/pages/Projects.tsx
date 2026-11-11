@@ -28,7 +28,10 @@ export function Projects() {
   const [invite, setInvite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<[string, boolean] | null>(null);
-  const load = useCallback(async () => { const r = await window.cn.hub.projects(); if ("error" in r) setError(r.error); else { setD(r); setError(null); } }, []);
+  const load = useCallback(async () => {
+    try { const r = await window.cn.hub.projects(); if (!r || "error" in r) setError(r?.error ?? "No answer from the app — restart it"); else { setD(r); setError(null); } }
+    catch { setError("This page needs an app restart (close and run npm run hub again)"); }
+  }, []);
   useEffect(() => {
     void load();
     let t: ReturnType<typeof setTimeout> | undefined;

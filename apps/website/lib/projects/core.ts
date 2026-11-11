@@ -54,8 +54,10 @@ export function roleIn(p: Project, uid: string): "owner" | "editor" | "viewer" |
 const canEdit = (r: string | null) => r === "owner" || r === "editor";
 
 async function people() {
-  const us = await TerminalDoc.find({ parent: "users" }, { docId: 1, data: 1 }).lean();
-  return us.map((d) => ({ id: String(d.docId), ...((d.data ?? {}) as U) }) as U)
+  // Only the fields we need — full member records (all their history) made this slow.
+  const F = ["firstName", "lastName", "callsign", "rank", "role", "access", "cmdGrant", "status", "suspended", "platoon", "photoUrl", "photoURL", "discordAvatarUrl"];
+  const us = await TerminalDoc.find({ parent: "users" }, { docId: 1, ...Object.fromEntries(F.map((f) => [`data.${f}`, 1])) }).lean();
+  return us.map((d) => ({ id: String(d.docId), ...(((d as U).data ?? {}) as U) }) as U)
     .filter((u) => u.status !== "pending" && u.status !== "denied" && u.suspended !== true && can(String(u.role ?? ""), u.access, "proj"));
 }
 
