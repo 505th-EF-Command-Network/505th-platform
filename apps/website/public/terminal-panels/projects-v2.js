@@ -131,8 +131,8 @@ function draw() {
 /* ───────── pop-ups (project form + invite) ───────── */
 function modal(title, body, foot, onBind) {
   const ov = document.createElement("div");
-  ov.className = "pj-ov";
-  ov.innerHTML = `<div class="pj-md v2m" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="pj-mh"><img src="https://i.ibb.co/d0Gn5M5R/505-TH-Logo.png" alt="">505TH COMMAND NETWORK<button data-m="close" aria-label="Close">✕</button></div>
+  ov.className = "v2m pj-ov"; // .v2m = the Terminal's modal overlay (fonts, buttons, fields)
+  ov.innerHTML = `<div class="pj-md" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="pj-mh"><img src="https://i.ibb.co/d0Gn5M5R/505-TH-Logo.png" alt="">505TH COMMAND NETWORK<button data-m="close" aria-label="Close">✕</button></div>
     <div class="pj-mt">${esc(title)}</div><div class="pj-mb">${body}</div><div class="pj-mf">${foot}</div></div>`;
   document.body.appendChild(ov);
   const close = () => { ov.remove(); document.removeEventListener("keydown", key, true); };
@@ -313,7 +313,7 @@ const CSS = `
 #${ROOT} .fd{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#aeb9c4}#${ROOT} .fd i{font-style:normal;width:20px;text-align:center}#${ROOT} .fd span{flex:1}#${ROOT} .fd small{color:#4b5765;white-space:nowrap}
 #${ROOT} .b.ok,.pj-ov .b.ok{border-color:#22e07a;color:#22e07a}#${ROOT} .b.cy,.pj-ov .b.cy{border-color:#00D9FF;color:#00D9FF;background:rgba(0,217,255,.1)}
 .pj-ov{position:fixed;inset:0;z-index:9000;display:grid;place-items:center;background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
-.pj-md{width:560px;max-width:94vw;max-height:90vh;overflow:auto;background:#0b0f15;border:1px solid #00D9FF;box-shadow:0 18px 50px rgba(0,0,0,.7),0 0 30px rgba(0,217,255,.2);animation:pjPop .18s ease-out}
+.pj-md{display:block;flex:0 0 auto;width:560px;max-width:94vw;max-height:90vh;overflow:auto;background:#0b0f15;border:1px solid #00D9FF;box-shadow:0 18px 50px rgba(0,0,0,.7),0 0 30px rgba(0,217,255,.2);animation:pjPop .18s ease-out}
 @keyframes pjPop{from{transform:scale(.96);opacity:0}}@media(prefers-reduced-motion:reduce){.pj-md{animation:none}}
 .pj-mh{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(0,217,255,.1);font:600 10px Rajdhani,sans-serif;letter-spacing:3px;color:#7d8a99;background:linear-gradient(90deg,rgba(0,217,255,.06),transparent)}.pj-mh img{width:22px;height:22px;object-fit:contain}.pj-mh button{margin-left:auto;background:none;border:none;color:#4b5765;cursor:pointer;font-size:12px}
 .pj-mt{padding:14px 16px 0;font:700 17px Rajdhani,sans-serif;letter-spacing:2.5px;color:#fff}.pj-mb{padding:6px 16px 14px}.pj-mf{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(0,217,255,.1);background:#080b10}
