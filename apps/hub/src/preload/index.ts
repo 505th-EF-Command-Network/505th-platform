@@ -24,4 +24,9 @@ contextBridge.exposeInMainWorld("cn", {
     onTopic: on("net:topic"),
   },
   info: () => ipcRenderer.invoke("app:info"),
+  hub: {
+    summary: () => ipcRenderer.invoke("hub:summary"),
+    setStatus: (s: { state: string; note?: string; untilISO?: string | null }) => ipcRenderer.invoke("hub:set-status", s),
+  },
+  openSite: (panel?: string) => ipcRenderer.invoke("site:open", panel ?? ""),
 });

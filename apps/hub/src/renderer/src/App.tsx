@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import type { AuthState, NetState } from "../../preload/api";
+import { Dashboard } from "./components/Dashboard";
+import { RightBar } from "./components/RightBar";
+import { SideNav } from "./components/SideNav";
+import { TopBar } from "./components/TopBar";
+import type { StateKey } from "./ui";
+import { useSummary } from "./useSummary";
 import logo from "../../../assets/logo.png";
 
-/** H1: sign-in screens + signed-in check (who you are, your access, 505th Net status). */
+/** Sign-in screens, then the app (H2: Dashboard + My Status + Staff Status). */
 export function App() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [net, setNet] = useState<NetState>({ state: "off", reason: null });
-  const [last, setLast] = useState<string>("");
 
   useEffect(() => {
     void window.cn.auth.get().then((s) => s && setAuth(s));
@@ -14,8 +19,7 @@ export function App() {
     const a = window.cn.auth.onChange(setAuth);
     const b = window.cn.net.onState(setNet);
     const c = window.cn.net.onTopic((t) => {
-      setLast(`${t} · ${new Date().toLocaleTimeString("en-GB")}`);
-      if (t === "users") void window.cn.auth.retry(); // rank / role changed (e.g. by Cortana) → reload me
+      if (t === "users") void window.cn.auth.retry(); // role / access changed (e.g. by Cortana) → re-check sign-in
     });
     return () => { a(); b(); c(); };
   }, []);
@@ -40,21 +44,31 @@ export function App() {
       </Screen>
     );
 
-  const u = auth.user;
-  const on = Object.entries(u.access).filter(([, v]) => v).length;
-  const netC = net.state === "live" ? "#22e07a" : net.state === "connecting" ? "#f59e0b" : "#ff4d4d";
+  return <Shell net={net} />;
+}
+
+/** Signed in: top bar · left nav · page · right sidebar (approved app layout). */
+function Shell({ net }: { net: NetState }) {
+  const { data, error, reload } = useSummary();
+  const [page, setPage] = useState("dashboard");
+  const [toast, setToast] = useState<string | null>(null);
+  const setStatus = async (s: StateKey) => {
+    const r = await window.cn.hub.setStatus({ state: s });
+    if (r.error) setToast(r.error); else void reload();
+  };
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
+  if (!data) return <Screen icon={error ? "⚠" : "◷"} color={error ? "#f59e0b" : undefined} title={error ? "CAN'T LOAD" : "LOADING…"} text={error ?? undefined}>{error && <Btn onClick={() => void reload()}>⟳ TRY AGAIN</Btn>}</Screen>;
   return (
-    <Screen icon="✓" color="#22e07a" title="ACCESS GRANTED" text={`Welcome, ${u.name}.`}>
-      <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-left text-[13px]">
-        <dt className="text-dim">ROLE</dt><dd className="text-white uppercase">{u.role}</dd>
-        <dt className="text-dim">DEVICE</dt><dd className="text-white">{u.deviceName}</dd>
-        <dt className="text-dim">ACCESS</dt><dd className="text-white">{on} TERMINAL ITEMS</dd>
-        <dt className="text-dim">505TH NET</dt><dd style={{ color: netC }}>● {net.state.toUpperCase()}{net.reason ? ` — ${net.reason}` : ""}</dd>
-        <dt className="text-dim">LAST SIGNAL</dt><dd className="text-white">{last || "—"}</dd>
-      </dl>
-      <p className="mt-4 text-[12px] text-dim">Dashboard, messages and alerts arrive in the next step (H2).</p>
-      <Btn onClick={() => void window.cn.auth.logout()}>⏻ SIGN OUT</Btn>
-    </Screen>
+    <div className="flex h-full flex-col">
+      <TopBar data={data} net={net} page={page === "dashboard" ? "Dashboard" : page} onStatus={(s) => void setStatus(s)} onSignOut={() => void window.cn.auth.logout()} />
+      <div className="flex min-h-0 flex-1">
+        <SideNav access={data.me.access} page={page} onPage={setPage} cortanaOk={data.system.cortana.online} />
+        <Dashboard data={data} onStatus={(s) => void setStatus(s)} />
+        <RightBar staff={data.staff} myUid={data.me.uid} />
+      </div>
+      {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}
+      {toast && <div role="alert" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-bad bg-panel px-4 py-2 text-[12px] text-bad">{toast}</div>}
+    </div>
   );
 }
 

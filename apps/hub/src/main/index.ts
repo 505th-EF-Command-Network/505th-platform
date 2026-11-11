@@ -6,7 +6,7 @@
  */
 import { app, BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
-import { PROTOCOL, createAuth, type AuthState } from "./auth";
+import { PROTOCOL, createAuth, siteOrigin, type AuthState } from "./auth";
 import { createRealtime, type RealtimeState } from "./realtime";
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -62,6 +62,29 @@ ipcMain.handle("auth:logout", (e) => (fromMain(e) ? auth.logout() : undefined));
 ipcMain.handle("auth:retry", (e) => (fromMain(e) ? auth.refresh() : undefined));
 ipcMain.handle("net:get", (e) => (fromMain(e) ? realtime.getState() : null));
 ipcMain.handle("app:info", (e) => (fromMain(e) ? { version: app.getVersion(), packaged: app.isPackaged } : null));
+
+/** Website API calls the screens may make. Fixed list — the window can't call any other path. */
+async function call(path: string, init?: RequestInit): Promise<unknown> {
+  try {
+    const r = await auth.api(path, init);
+    const b = await r.json().catch(() => ({}));
+    return r.ok ? b : { error: (b as { error?: string }).error ?? `Website error ${r.status}` };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+}
+ipcMain.handle("hub:summary", (e) => (fromMain(e) ? call("/api/hub/summary") : null));
+ipcMain.handle("hub:set-status", (e, s: unknown) => {
+  if (!fromMain(e) || !s || typeof s !== "object") return { error: "Not allowed." };
+  const { state, note, untilISO } = s as Record<string, unknown>;
+  return call("/api/hub/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, note, untilISO }) });
+});
+/** Pages not in the app yet open on the website (Terminal) in the normal browser. */
+ipcMain.handle("site:open", (e, panel: unknown) => {
+  if (!fromMain(e)) return;
+  const p = typeof panel === "string" && /^panel-[a-z0-9-]{1,40}$/.test(panel) ? `#${panel}` : "";
+  void shell.openExternal(`${siteOrigin()}/terminal${p}`);
+});
 
 app.whenReady().then(() => {
   createWindow();
