@@ -137,6 +137,32 @@ export async function getServiceRecord(id: string): Promise<ServiceRecord | null
   };
 }
 
+/**
+ * Promotion Tracker for the member's own profile (approved mock 2026-11-11). Same numbers as the Battalion Roster:
+ * users/<uid>.attendance = ATT this month (0–3), .promotionTracker = PT. Last 5 months from attendance_history (pip ≥ 3 = reached).
+ */
+export type PromotionTracker = { att: number; pt: number; months: { month: string; reached: boolean; current?: boolean }[] };
+export async function getPromotionTracker(memberId: string): Promise<PromotionTracker | null> {
+  if (!/^[a-f0-9]{24}$/i.test(memberId)) return null;
+  await connectDb();
+  const base = await Member.findById(memberId, { legacyId: 1 }).lean();
+  const uid = base?.legacyId ? String(base.legacyId) : "";
+  if (!uid) return null;
+  const u = (await TerminalDoc.findById(`users/${uid}`, { "data.attendance": 1, "data.promotionTracker": 1 }).lean())?.data as Record<string, unknown> | undefined;
+  if (!u) return null;
+  const now = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }).slice(0, 7);
+  // A mid-month manual snapshot can be named after the current month — skip it, "this month" is shown live.
+  const hist = await TerminalDoc.find({ parent: "attendance_history", docId: { $ne: now } }, { docId: 1, data: 1 }).sort({ docId: -1 }).limit(4).lean();
+  const months: PromotionTracker["months"] = hist.reverse().map((h) => {
+    const d = (h.data ?? {}) as { month?: string; members?: { uid?: string; pip?: number }[] };
+    const me = (d.members ?? []).find((x) => x.uid === uid);
+    return { month: String(d.month ?? h.docId), reached: (me?.pip ?? 0) >= 3 };
+  });
+  const att = Math.max(0, Math.min(3, Number(u.attendance) || 0));
+  months.push({ month: now, reached: att >= 3, current: true });
+  return { att, pt: Math.max(0, Number(u.promotionTracker) || 0), months };
+}
+
 export type OpRow = { id: string; title: string; type: string; date: string; attendees: number; excused: number; locked: boolean };
 
 export async function getOps(limit = 200): Promise<OpRow[]> {

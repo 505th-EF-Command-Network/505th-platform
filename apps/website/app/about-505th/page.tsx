@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AboutEnhance from "@/components/AboutEnhance";
 import SiteShell from "@/components/SiteShell";
 import { shellA } from "@/components/shell-styles";
 import "@/styles/tw/about-505th.css";
@@ -275,6 +276,7 @@ export default async function About505thPage() {
           </div>
         </div>
       </div>
+      <AboutEnhance />
     </SiteShell>
   );
 }

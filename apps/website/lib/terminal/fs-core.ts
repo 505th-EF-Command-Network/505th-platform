@@ -30,9 +30,9 @@ export const TOP_COLLECTIONS = new Set([
   "projects", "notes", "community_events", "bot_jobs",
   // written by Cortana v2 only (read-only here)
   "bot_status", "bot_state", "discord_channels", "discord_roles", "discord_messages",
-  "info_posts", "ticket_types", "tickets", "mod_cases", "net_incidents", "sync_log",
+  "info_posts", "ticket_types", "tickets", "mod_cases", "mod_purges", "net_incidents", "sync_log",
 ]);
-const BOT_ONLY = new Set(["bot_status", "bot_state", "discord_channels", "discord_roles", "discord_messages", "tickets", "mod_cases", "net_incidents", "sync_log"]);
+const BOT_ONLY = new Set(["bot_status", "bot_state", "discord_channels", "discord_roles", "discord_messages", "tickets", "mod_cases", "mod_purges", "net_incidents", "sync_log"]);
 const SUB_COLLECTIONS: Record<string, string> = { conversations: "messages", notifications: "items" };
 const SEGMENT = /^[A-Za-z0-9_\-]{1,200}$/;
 

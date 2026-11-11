@@ -4,7 +4,8 @@
  * SiteShell v2 — shared navigation for every public page.
  *
  * Desktop (≥1024px): original 505th logo header, 72px icon rail with labels and
- * section numbers, slide-out section panel, account pop-up (Discord login).
+ * Desktop: expanded sidebar (approved option A, 2026-11-11) with in-place sections, « collapse to icons (remembered),
+ * account + JOIN pinned at the bottom. Mobile: top bar + drawer, plus bottom tabs with a section sheet. Account pop-up (Discord login).
  * Mobile (<1024px): compact 56px top bar + "you are here" strip, and a slide-in
  * menu with an account card, numbered sections and a JOIN THE 505TH button.
  *
@@ -41,22 +42,6 @@ function SignOut({ className }: { className: string }) {
   );
 }
 
-function Crosshair({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 26 26"
-      aria-hidden="true"
-      className={`h-[26px] w-[26px] fill-none stroke-[#00D9FF] stroke-[1.4] transition-[transform,opacity] duration-300 ${
-        open ? "rotate-45 opacity-100 drop-shadow-[0_0_5px_rgba(0,217,255,0.8)]" : "opacity-70"
-      }`}
-    >
-      <circle cx="13" cy="13" r="9" />
-      <circle cx="13" cy="13" r="1.5" className="fill-[#00D9FF] stroke-none" />
-      <path d="M13 2v7M13 17v7M2 13h7M17 13h7" />
-    </svg>
-  );
-}
-
 function DiscordIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 71 55" aria-hidden="true" className={`fill-white ${className}`}>
@@ -81,8 +66,11 @@ function Hex({ size, children, lit = false }: { size: number; children: ReactNod
 const acctBtn =
   "flex min-h-10 w-full items-center justify-center border border-[rgba(0,217,255,0.45)] text-[0.75rem] font-bold tracking-[2px] text-[#00D9FF] no-underline transition hover:bg-[rgba(0,217,255,0.08)] focus-visible:outline-2 focus-visible:outline-[#00D9FF]";
 
-const railBtn =
-  "relative flex h-16 flex-col items-center justify-center gap-1 border-l-[3px] border-transparent bg-transparent text-[0.55rem] font-bold tracking-[1.5px] text-[#6B7B87] no-underline transition-colors hover:bg-[rgba(0,217,255,0.06)] hover:text-[#A8B5BF] focus-visible:bg-[rgba(0,217,255,0.06)] focus-visible:text-[#A8B5BF] focus-visible:outline-none cursor-pointer";
+const sideRow =
+  "relative flex min-h-11 items-center gap-3 border-l-[3px] border-transparent px-4 text-[0.82rem] font-bold tracking-[2px] text-[#A8B5BF] no-underline transition-colors hover:bg-[rgba(0,217,255,0.05)] hover:text-[#E8EEF2] focus-visible:bg-[rgba(0,217,255,0.06)] focus-visible:text-[#E8EEF2] focus-visible:outline-none cursor-pointer";
+const tabBtn =
+  "flex flex-col items-center justify-center gap-1 font-mono text-[0.55rem] font-bold tracking-[1px] text-[#6B7B87] no-underline active:bg-[rgba(0,217,255,0.08)] focus-visible:outline-2 focus-visible:outline-[#00D9FF]";
+const sideOn = "!border-l-[#00D9FF] bg-[rgba(0,217,255,0.06)] !text-[#00D9FF]";
 
 export default function SiteShell({ children, styles }: { children: ReactNode; styles: ShellStyles }) {
   const tw = (c: string) => c.split(" ").map((k) => (styles[k] ? `${k} ${styles[k]}` : k)).join(" ");
@@ -91,11 +79,13 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
   const isHome = pathname === "/home" || pathname === "/";
 
   // desktop
-  const [panel, setPanel] = useState<PanelKey | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [groups, setGroups] = useState<PanelKey[]>(here.section ? [here.section.key] : []);
+  const [sheet, setSheet] = useState<PanelKey | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
   const [tip, setTip] = useState<{ top: number; title: string; sub: string } | null>(null);
   const railRef = useRef<HTMLElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const acctRef = useRef<HTMLDivElement>(null);
   // mobile
   const [menuOpen, setMenuOpen] = useState(false);
@@ -117,20 +107,24 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
     return () => cancelAnimationFrame(id);
   }, []);
   useEffect(() => {
-    document.body.classList.toggle("nav-panel-open", panel !== null);
-    return () => document.body.classList.remove("nav-panel-open");
-  }, [panel]);
+    try { if (localStorage.getItem("nav-collapsed") === "1") setCollapsed(true); } catch { /* storage blocked */ }
+  }, []);
+  useEffect(() => {
+    document.body.classList.toggle("nav-collapsed", collapsed);
+    try { localStorage.setItem("nav-collapsed", collapsed ? "1" : "0"); } catch { /* storage blocked */ }
+    return () => document.body.classList.remove("nav-collapsed");
+  }, [collapsed]);
 
   // outside click / Escape
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (acctOpen && !acctRef.current?.contains(t) && !(t as Element).closest?.("[data-acct-btn]")) setAcctOpen(false);
-      if (panel && !panelRef.current?.contains(t) && !railRef.current?.contains(t)) setPanel(null);
+      if (sheet && !sheetRef.current?.contains(t) && !(t as Element).closest?.("[data-tabbar]")) setSheet(null);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      setPanel(null);
+      setSheet(null);
       setAcctOpen(false);
       setMenuOpen(false);
     };
@@ -140,7 +134,7 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [acctOpen, panel]);
+  }, [acctOpen, sheet]);
 
   // mobile: lock scroll + focus close button while menu is open
   useEffect(() => {
@@ -175,7 +169,11 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
     onBlur: () => setTip(null),
   });
 
-  const openSection = panel ? NAV_SECTIONS.find((s) => s.key === panel)! : null;
+  const toggleGroup = (k: PanelKey) => {
+    if (collapsed) { setCollapsed(false); setGroups([k]); setTip(null); return; }
+    setGroups((g) => (g.includes(k) ? g.filter((x) => x !== k) : [...g, k]));
+  };
+  const sheetSection = sheet ? NAV_SECTIONS.find((x) => x.key === sheet)! : null;
 
   return (
     <>
@@ -188,96 +186,121 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
       <nav
         ref={railRef}
         aria-label="Site navigation"
-        className="fixed bottom-0 left-0 top-[72px] z-[300] hidden w-[72px] flex-col border-r border-[rgba(0,217,255,0.18)] bg-linear-to-b from-[#0d1317] to-[#080b0e] min-[1024px]:flex"
+        className={`fixed bottom-0 left-0 top-[72px] z-[300] hidden flex-col border-r border-[rgba(0,217,255,0.18)] bg-linear-to-b from-[#0d1317] to-[#080b0e] transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none min-[1024px]:flex ${
+          collapsed ? "w-[72px]" : "w-[248px]"
+        }`}
       >
+        <div className="nav-scanlines pointer-events-none absolute inset-0" />
         <button
           type="button"
-          aria-label="Toggle navigation"
-          aria-expanded={panel !== null}
-          className={`${railBtn} h-14 border-b border-b-[rgba(0,217,255,0.12)]`}
-          onClick={() => {
-            setAcctOpen(false);
-            setPanel(panel ? null : here.section?.key ?? "career");
-          }}
-          {...tipProps("NAVIGATION", "Open / close menu")}
+          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+          aria-expanded={!collapsed}
+          onClick={() => { setCollapsed((c) => !c); setTip(null); }}
+          className={`relative flex h-11 shrink-0 items-center border-b border-b-[rgba(0,217,255,0.12)] bg-transparent font-mono text-[0.6rem] tracking-[2px] text-[#6B7B87] hover:text-[#00D9FF] focus-visible:text-[#00D9FF] focus-visible:outline-none ${collapsed ? "justify-center" : "justify-between px-4"}`}
+          {...(collapsed ? tipProps("EXPAND", "Show page names") : {})}
         >
-          <Crosshair open={panel !== null} />
+          {!collapsed && <span>NAVIGATION</span>}
+          <span aria-hidden="true" className="text-[0.95rem] text-[#00D9FF]">{collapsed ? "»" : "«"}</span>
         </button>
 
-        <a href="/home" className={`${railBtn} ${isHome ? "text-[#00D9FF]" : ""}`} {...tipProps("HOME", "00 // Main page")}>
-          <span className={`absolute left-[7px] top-1.5 font-mono text-[0.5rem] ${isHome ? "text-[rgba(0,217,255,0.7)]" : "text-[#3c4a54]"}`}>00</span>
-          {isHome && <span className="absolute right-2.5 top-2.5 h-[5px] w-[5px] bg-[#00D9FF] shadow-[0_0_6px_#00D9FF]" />}
-          <img src="/images/icons/Home.png" alt="" className={`h-6 w-6 ${isHome ? "opacity-100" : "opacity-50"}`} />
-          HOME
-        </a>
+        <div className="relative flex-1 overflow-y-auto overflow-x-hidden py-2">
+          <a
+            href="/home"
+            aria-current={isHome ? "page" : undefined}
+            className={`${sideRow} ${collapsed ? "justify-center px-0" : ""} ${isHome ? sideOn : ""}`}
+            {...(collapsed ? tipProps("HOME", "00 // Main page") : {})}
+          >
+            <img src="/images/icons/Home.png" alt="" className={`h-6 w-6 shrink-0 ${isHome ? "opacity-100" : "opacity-60"}`} />
+            {!collapsed && <span className="truncate">HOME</span>}
+          </a>
 
-        {NAV_SECTIONS.map((s) => {
-          const on = panel === s.key;
-          const cur = here.section?.key === s.key;
-          return (
-            <button
-              key={s.key}
-              type="button"
-              aria-expanded={on}
-              aria-controls="navPanel"
-              className={`${railBtn} ${on ? "border-l-[#00D9FF] bg-linear-to-r from-[rgba(0,217,255,0.14)] to-transparent text-[#00D9FF]" : cur ? "text-[#00D9FF]" : ""}`}
-              onClick={() => {
-                setAcctOpen(false);
-                setPanel(on ? null : s.key);
-                setTip(null);
-              }}
-              {...tipProps(s.label, `${s.code} // ${s.items.length} pages`)}
-            >
-              <span className={`absolute left-[7px] top-1.5 font-mono text-[0.5rem] ${on || cur ? "text-[rgba(0,217,255,0.7)]" : "text-[#3c4a54]"}`}>{s.code}</span>
-              {cur && <span className="absolute right-2.5 top-2.5 h-[5px] w-[5px] bg-[#00D9FF] shadow-[0_0_6px_#00D9FF]" />}
-              <img
-                src={s.icon}
-                alt=""
-                className={`h-6 w-6 transition ${on ? "opacity-100 drop-shadow-[0_0_6px_rgba(0,217,255,0.7)]" : cur ? "opacity-100" : "opacity-50"}`}
-              />
-              {s.short}
-            </button>
-          );
-        })}
+          {NAV_SECTIONS.map((sec) => {
+            const open = !collapsed && groups.includes(sec.key);
+            const cur = here.section?.key === sec.key;
+            return (
+              <div key={sec.key}>
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={`sg-${sec.key}`}
+                  onClick={() => toggleGroup(sec.key)}
+                  className={`${sideRow} w-full bg-transparent text-left ${collapsed ? "justify-center px-0" : ""} ${cur ? sideOn : ""}`}
+                  {...(collapsed ? tipProps(sec.label, `${sec.code} // ${sec.items.length} pages`) : {})}
+                >
+                  <img src={sec.icon} alt="" className={`h-6 w-6 shrink-0 ${cur ? "opacity-100" : "opacity-60"}`} />
+                  {!collapsed && (
+                    <>
+                      <span className="truncate">{sec.label}</span>
+                      <span aria-hidden="true" className="ml-auto font-mono text-[0.85rem] text-[#3d5560]">{open ? "−" : "+"}</span>
+                    </>
+                  )}
+                </button>
+                {!collapsed && (
+                  <div id={`sg-${sec.key}`} className={`grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                    <ul className="m-0 list-none overflow-hidden p-0" inert={!open}>
+                      {sec.items.map((i) => {
+                        const on = i.href === pathname;
+                        return (
+                          <li key={i.href}>
+                            <a
+                              href={i.href}
+                              aria-current={on ? "page" : undefined}
+                              className={`flex min-h-9 items-center gap-2.5 py-1.5 pl-[50px] pr-3 text-[0.88rem] font-semibold tracking-[0.6px] no-underline transition before:h-1.5 before:w-1.5 before:shrink-0 before:border hover:text-[#E8EEF2] focus-visible:text-[#E8EEF2] focus-visible:outline-none ${
+                                on ? "text-[#E8EEF2] before:border-[#00D9FF] before:bg-[#00D9FF]" : "text-[#A8B5BF] before:border-[#3d5560]"
+                              }`}
+                            >
+                              <span className="truncate">{i.label}</span>
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-        <div className="mx-3.5 my-1.5 h-px bg-[rgba(0,217,255,0.12)]" />
-        <a
-          href={DISCORD_INVITE}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${railBtn} text-[#9fb36a] hover:bg-[rgba(107,130,53,0.18)] hover:text-[#c9dd8f]`}
-          {...tipProps("JOIN THE 505TH", "Opens Discord")}
-        >
-          <img src="/images/icons/Join Us.png" alt="" className="h-6 w-6 opacity-80" />
-          JOIN
-        </a>
-
-        <div className="flex-1" />
-        <button
-          type="button"
-          data-acct-btn
-          aria-label="Account"
-          aria-expanded={acctOpen}
-          className={`${railBtn} h-[72px] border-t border-t-[rgba(0,217,255,0.12)]`}
-          onClick={() => {
-            setPanel(null);
-            setAcctOpen((o) => !o);
-            setTip(null);
-          }}
-          {...tipProps("ACCOUNT", me ? `${me.name} // signed in` : "Guest // not signed in")}
-        >
-          <Hex size={34} lit={acctOpen || !!me}>
-            {me ? <Avatar me={me} size={34} /> : <img src="/images/icons/Account.png" alt="" className="h-4 w-4 opacity-75" />}
-          </Hex>
-          {me ? "ME" : "GUEST"}
-        </button>
+        <div className={`relative flex shrink-0 gap-2 border-t border-t-[rgba(0,217,255,0.12)] p-3 ${collapsed ? "flex-col items-center" : "items-center"}`}>
+          <button
+            type="button"
+            data-acct-btn
+            aria-label="Account"
+            aria-expanded={acctOpen}
+            onClick={() => { setAcctOpen((o) => !o); setTip(null); }}
+            className={`flex min-w-0 items-center gap-2 bg-transparent text-left ${collapsed ? "" : "flex-1"} focus-visible:outline-2 focus-visible:outline-[#00D9FF]`}
+            {...(collapsed ? tipProps("ACCOUNT", me ? `${me.name} // signed in` : "Guest // not signed in") : {})}
+          >
+            <Hex size={34} lit={acctOpen || !!me}>
+              {me ? <Avatar me={me} size={34} /> : <img src="/images/icons/Account.png" alt="" className="h-4 w-4 opacity-75" />}
+            </Hex>
+            {!collapsed && (
+              <span className="min-w-0">
+                <b className="block truncate text-[0.78rem] tracking-[1px] text-[#E8EEF2]">{me ? me.name : "SIGN IN"}</b>
+                <small className={`block font-mono text-[0.55rem] tracking-[1.5px] ${me ? "text-[#4ee68a]" : "text-[#FFD700]"}`}>{me ? "● SIGNED IN" : "● GUEST"}</small>
+              </span>
+            )}
+          </button>
+          <a
+            href={DISCORD_INVITE}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex shrink-0 items-center justify-center gap-1.5 border border-[#6B8235] bg-[#4A5D23] font-bold tracking-[2px] text-[#E8EEF2] no-underline hover:brightness-125 focus-visible:outline-2 focus-visible:outline-[#00D9FF] ${collapsed ? "h-10 w-10" : "h-9 px-3 text-[0.72rem]"}`}
+            {...(collapsed ? tipProps("JOIN THE 505TH", "Opens Discord") : {})}
+            aria-label={collapsed ? "Join the 505th on Discord" : undefined}
+          >
+            <img src="/images/icons/Join Us.png" alt="" className="h-[18px] w-[18px]" />
+            {!collapsed && "JOIN"}
+          </a>
+        </div>
       </nav>
 
-      {/* rail tooltip */}
+      {/* collapsed-rail tooltip */}
       <div
         aria-hidden="true"
         className={`pointer-events-none fixed left-20 z-[400] hidden whitespace-nowrap border border-[rgba(0,217,255,0.35)] bg-[rgba(8,10,14,0.96)] px-2.5 py-[5px] text-[0.68rem] font-bold tracking-[2px] text-[#00D9FF] transition-[opacity,transform] duration-100 min-[1024px]:block ${
-          tip ? "translate-x-0 opacity-100" : "-translate-x-1 opacity-0"
+          tip && collapsed ? "translate-x-0 opacity-100" : "-translate-x-1 opacity-0"
         }`}
         style={{ top: tip?.top ?? 0 }}
       >
@@ -285,63 +308,12 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
         <small className="block font-mono text-[0.55rem] font-normal tracking-[1px] text-[#6B7B87]">{tip?.sub}</small>
       </div>
 
-      {/* section panel */}
-      <aside
-        ref={panelRef}
-        id="navPanel"
-        aria-label={openSection ? openSection.label : "Section"}
-        className={`fixed bottom-0 left-[72px] top-[72px] z-[290] hidden w-[260px] flex-col overflow-hidden border-r border-[rgba(0,217,255,0.3)] bg-linear-to-b from-[#141B1F] to-[#0A0E12] shadow-[10px_0_30px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] min-[1024px]:flex motion-reduce:transition-none ${
-          openSection ? "translate-x-0" : "-translate-x-[101%]"
-        }`}
-      >
-        <div className="nav-scanlines pointer-events-none absolute inset-0" />
-        {openSection && (
-          <>
-            <div className="relative border-b border-[rgba(0,217,255,0.18)] px-[18px] pb-3.5 pt-[18px]">
-              <small className="block font-mono text-[0.58rem] tracking-[2px] text-[#6B7B87]">{openSection.code} // SECTION</small>
-              <h3 className="mt-1 text-[1.05rem] font-bold tracking-[3px] text-[#00D9FF] [text-shadow:0_0_10px_rgba(0,217,255,0.45)]">{openSection.label}</h3>
-              <span className="absolute right-4 top-5 bg-[rgba(0,217,255,0.8)] px-1.5 font-mono text-[0.6rem] text-[#0A0E12]">{openSection.items.length}</span>
-            </div>
-            <ul
-              key={openSection.key}
-              className="relative m-0 flex-1 list-none overflow-y-auto py-2.5 pl-[18px] before:absolute before:bottom-[30px] before:left-6 before:top-3 before:w-px before:bg-[rgba(0,217,255,0.22)]"
-            >
-              {openSection.items.map((i, n) => {
-                const cur = i.href === pathname;
-                return (
-                  <li key={i.href} className="motion-safe:animate-[nav-item-in_0.25s_ease_both]" style={{ animationDelay: `${40 + n * 30}ms` }}>
-                    <a
-                      href={i.href}
-                      aria-current={cur ? "page" : undefined}
-                      className={`relative mr-2.5 flex min-h-[42px] items-center border px-2.5 py-1.5 pl-6 text-[0.9rem] font-semibold tracking-[1.2px] no-underline transition before:absolute before:left-1.5 before:top-1/2 before:h-px before:w-[11px] before:bg-[rgba(0,217,255,0.35)] hover:border-[rgba(0,217,255,0.18)] hover:bg-[rgba(0,217,255,0.05)] hover:text-[#00D9FF] hover:shadow-[inset_0_0_16px_rgba(0,217,255,0.07)] focus-visible:text-[#00D9FF] focus-visible:outline-none ${
-                        cur
-                          ? "border-[rgba(0,217,255,0.3)] bg-[rgba(0,217,255,0.07)] text-[#00D9FF] [text-shadow:0_0_8px_rgba(0,217,255,0.45)]"
-                          : "border-transparent text-[#A8B5BF]"
-                      }`}
-                    >
-                      {i.label}
-                      {cur && <span className="ml-auto bg-[#00D9FF] px-[5px] py-px font-mono text-[0.52rem] tracking-[1.5px] text-[#0A0E12] [text-shadow:none]">HERE</span>}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="relative flex justify-between border-t border-[rgba(0,217,255,0.15)] px-[18px] py-2.5 font-mono text-[0.55rem] tracking-[1.5px] text-[#4b5a65]">
-              <span>{openSection.key === here.section?.key ? "◈ CURRENT SECTION" : "◇ SECTION"}</span>
-              <span>
-                <b className="border border-[#3c4a54] px-1 font-normal text-[#6B7B87]">ESC</b> CLOSE
-              </span>
-            </div>
-          </>
-        )}
-      </aside>
-
       {/* account pop-up */}
       <div
         ref={acctRef}
         role="dialog"
         aria-label="Account"
-        className={`fixed bottom-3 left-20 z-[400] hidden w-[280px] border border-[rgba(0,217,255,0.4)] bg-linear-to-b from-[#141B1F] to-[#0A0E12] p-4 shadow-[0_0_30px_rgba(0,217,255,0.12),0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-200 min-[1024px]:block ${
+        className={`fixed bottom-3 ${collapsed ? "left-20" : "left-[256px]"} z-[400] hidden w-[280px] border border-[rgba(0,217,255,0.4)] bg-linear-to-b from-[#141B1F] to-[#0A0E12] p-4 shadow-[0_0_30px_rgba(0,217,255,0.12),0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-200 min-[1024px]:block ${
           acctOpen ? "visible translate-y-0 opacity-100" : "invisible translate-y-1.5 opacity-0"
         }`}
       >
@@ -590,6 +562,69 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
           </div>
         </nav>
       </div>
+
+      {/* mobile bottom tabs + section sheet */}
+      <div
+        ref={sheetRef}
+        role="dialog"
+        aria-label={sheetSection ? sheetSection.label : "Section"}
+        className={`fixed inset-x-0 bottom-[58px] z-[1001] border-t-2 border-[#00D9FF] bg-linear-to-b from-[#141B1F] to-[#0A0E12] px-3 pb-2 pt-3 shadow-[0_-10px_30px_rgba(0,0,0,0.55)] transition-transform duration-200 motion-reduce:transition-none min-[1024px]:hidden ${
+          sheetSection ? "translate-y-0" : "pointer-events-none translate-y-[calc(100%+60px)]"
+        }`}
+      >
+        {sheetSection && (
+          <>
+            <div className="mb-1 flex items-center justify-between font-mono text-[0.6rem] tracking-[2px] text-[#6B7B87]">
+              <span>{sheetSection.code} // {sheetSection.label}</span>
+              <button type="button" aria-label="Close" onClick={() => setSheet(null)} className="h-9 w-9 bg-transparent text-[1rem] text-[#00D9FF]">✕</button>
+            </div>
+            <ul className="m-0 max-h-[55vh] list-none overflow-y-auto p-0">
+              {sheetSection.items.map((i) => {
+                const on = i.href === pathname;
+                return (
+                  <li key={i.href}>
+                    <a
+                      href={i.href}
+                      aria-current={on ? "page" : undefined}
+                      className={`flex min-h-12 items-center border-b border-[rgba(0,217,255,0.1)] px-2 text-[0.95rem] font-semibold tracking-[0.8px] no-underline active:bg-[rgba(0,217,255,0.08)] ${on ? "text-[#00D9FF]" : "text-[#E8EEF2]"}`}
+                    >
+                      {i.label}
+                      {on && <span className="ml-auto bg-[#00D9FF] px-1.5 py-0.5 font-mono text-[0.55rem] tracking-[1.5px] text-[#0A0E12]">HERE</span>}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </div>
+      <nav
+        data-tabbar
+        aria-label="Site sections"
+        className="fixed inset-x-0 bottom-0 z-[1002] grid h-[58px] grid-cols-5 border-t border-[rgba(0,217,255,0.25)] bg-[rgba(8,11,14,0.97)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md min-[1024px]:hidden"
+      >
+        <a href="/home" aria-current={isHome ? "page" : undefined} className={`${tabBtn} ${isHome ? "text-[#00D9FF]" : ""}`}>
+          <img src="/images/icons/Home.png" alt="" className={`h-[22px] w-[22px] ${isHome ? "" : "opacity-60"}`} />HOME
+        </a>
+        {NAV_SECTIONS.map((sec) => {
+          const on = sheet === sec.key || (!sheet && here.section?.key === sec.key);
+          return (
+            <button
+              key={sec.key}
+              type="button"
+              aria-expanded={sheet === sec.key}
+              onClick={() => setSheet(sheet === sec.key ? null : sec.key)}
+              className={`${tabBtn} bg-transparent ${on ? "text-[#00D9FF]" : ""}`}
+            >
+              <img src={sec.icon} alt="" className={`h-[22px] w-[22px] ${on ? "" : "opacity-60"}`} />
+              {sec.key === "resources" ? "INFO" : sec.short}
+            </button>
+          );
+        })}
+        <a href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer" className={`${tabBtn} text-[#9fb36a]`}>
+          <img src="/images/icons/Join Us.png" alt="" className="h-[22px] w-[22px] opacity-85" />JOIN
+        </a>
+      </nav>
 
       {children}
       <CmsApply />

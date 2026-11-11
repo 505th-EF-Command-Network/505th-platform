@@ -40,6 +40,10 @@ addCss("dash2", `
 .d2-ub{display:flex;gap:2px;height:16px}.d2-ub i{flex:1;background:#22e07a;opacity:.8}.d2-ub i.uw{background:#f59e0b}.d2-ub i.ur{background:#ff4d4d}.d2-ub i.uo{background:#26303b;opacity:1}
 .d2-sys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.d2-sy{border:1px solid rgba(0,217,255,.18);border-left:3px solid var(--sc);padding:10px}.d2-sy.ok{--sc:#22e07a}.d2-sy.warn{--sc:#f59e0b}.d2-sy.bad{--sc:#ff4d4d}.d2-sy.off{--sc:#4b5765}.d2-sy b{display:block;font-family:Rajdhani,sans-serif;letter-spacing:2px;color:#fff;font-size:14px}.d2-sy span{font-size:9.5px;letter-spacing:1.5px;color:var(--sc)}.d2-sy.off span{color:#7d8a99}.d2-sy small{display:block;font-size:9.5px;color:#7d8a99;margin-top:4px}
 .d2-ch{display:flex;align-items:flex-end;gap:3px;height:60px;margin-top:6px}.d2-ch i{flex:1;background:linear-gradient(#00D9FF,rgba(0,217,255,.3));min-height:2px}.d2-ch i.off{background:#26303b}
+.d2-stf.off{opacity:.5}.d2-sav{position:relative;display:inline-block}.d2-sd{position:absolute;right:-2px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid #0b0f15;background:#5b6570}.d2-leg .d2-sd{position:static;display:inline-block;width:8px;height:8px;border:0;margin-right:4px}.d2-sd.online{background:#22e07a}.d2-sd.idle{background:#f0b232}.d2-sd.dnd{background:#f23f43}.d2-sd.offline{background:#5b6570}
+.d2-chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.d2-chip{font-size:9.5px;letter-spacing:1px;padding:2px 6px;border:1px solid rgba(0,217,255,.35);color:#00D9FF;white-space:nowrap}.d2-chip.v{border-color:rgba(167,139,250,.5);color:#a78bfa}
+.d2-leg{display:flex;gap:12px;font-size:9.5px;letter-spacing:1px;color:#7d8a99;margin-top:6px}.d2-leg span{display:flex;align-items:center}
+#d2Toasts{position:fixed;right:16px;bottom:16px;z-index:9000;display:flex;flex-direction:column;gap:8px}.d2-toast{display:flex;gap:10px;align-items:center;min-width:260px;max-width:340px;border:1px solid #00D9FF;background:#071016;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:12px}.d2-toast b{color:#fff;font-family:Rajdhani,sans-serif;font-size:14px}.d2-toast small{display:block;color:#7d8a99}.d2-toast button{all:unset;cursor:pointer;margin-left:auto;color:#7d8a99;padding:2px 6px}.d2-toast button:focus-visible{outline:2px solid #00D9FF}
 .d2-stf{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}.d2-stf b{font-family:Rajdhani,sans-serif;font-size:14px;color:#fff;font-weight:700}.d2-stf small{display:block;font-size:9.5px;color:#7d8a99;letter-spacing:1px}.d2-stf .wh2{font-size:10px;color:#7d8a99;text-align:right}.d2-stf .wh2 i{font-style:normal;color:#00D9FF}
 .d2-cort{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.d2-cort div{border:1px solid rgba(0,217,255,.18);padding:10px;text-align:center}.d2-cort b{display:block;font-family:Rajdhani,sans-serif;font-size:20px;color:#4b5765}.d2-cort span{font-size:9px;letter-spacing:1.5px;color:#7d8a99}
 .d2-sr{font-family:Rajdhani,sans-serif;color:#fff;font-size:15px;letter-spacing:1px}.d2-w p.d2-p{margin:6px 0;font-size:12.5px;white-space:pre-wrap}
@@ -60,6 +64,7 @@ addCss("dash2", `
 `);
 
 const OPS = { Active: ["ACTIVE", "#22e07a"], "Stand Down": ["STAND DOWN", "#7d8a99"], "On Op": ["ON OP", "#f59e0b"], "Training Cycle": ["TRAINING", "#00D9FF"], Maintenance: ["MAINTENANCE", "#a78bfa"] };
+const agoTxt = (iso, short = false) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); if (!(m >= 0)) return "—"; const t = m < 1 ? "just now" : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : m < 2880 ? "yesterday" : `${Math.round(m / 1440)} days`; return short || m < 1 || m >= 1440 ? t : t + " ago"; };
 const STAFF = new Set(["recruiter", "nco", "staff_nco", "officer", "developer", "commander"]);
 const ROLE_L = { recruiter: "RECRUITER", nco: "NCO", staff_nco: "STAFF NCO", officer: "OFFICER", developer: "DEVELOPER", commander: "COMMANDER" };
 
@@ -118,6 +123,18 @@ function monthAtt(offset) {
 const go = (panel) => window.showPanel?.(panel);
 
 /* ───────── widgets ───────── */
+function staffToast(u) {
+  let box = document.getElementById("d2Toasts");
+  if (!box) { box = document.createElement("div"); box.id = "d2Toasts"; box.setAttribute("role", "status"); box.setAttribute("aria-live", "polite"); document.body.appendChild(box); }
+  const t = document.createElement("div");
+  t.className = "d2-toast";
+  t.innerHTML = `${hexAvatar(u, "xs")}<span><b>${esc(memberName(u))}</b><small>signed in to the Command Terminal</small></span><button type="button" aria-label="Close">✕</button>`;
+  t.querySelector("button").onclick = () => t.remove();
+  box.appendChild(t);
+  while (box.children.length > 4) box.firstChild.remove();
+  setTimeout(() => t.remove(), 10000);
+}
+
 const WID = {
   sitrep: { t: "📌 SITREP", d: "Latest report from Command", ico: "📌", g: "UNIT", b: () => {
     const f = D.fragos;
@@ -166,18 +183,27 @@ const WID = {
       <div class="d2-lb">DISCORD PING — LAST 24H</div><div class="d2-ch">${vals.map((v) => `<i class="${v == null ? "off" : ""}" style="height:${v == null ? 3 : Math.max(4, Math.round((v / max) * 100))}%;${v > 300 ? "background:#f59e0b" : ""}" title="${v ?? "—"} ms"></i>`).join("")}</div>
       <small class="dim">${c.errors24h ?? 0} ERRORS (24H)${c.version ? ` · v${esc(c.version)}` : ""}${c.supervised ? " · PM2" : ""}</small>`;
   } },
-  staff: { t: "♟ STAFF ONLINE", d: "Staff online now — in the terminal, and where", ico: "♟", g: "STATUS", b: () => {
+  staff: { t: "♟ STAFF ONLINE", d: "Staff Discord status, terminal page and voice", ico: "♟", g: "STATUS", b: () => {
+    // Approved mock 2026-11-11: real Discord status (bot_status/staff_presence, from Cortana — staff only), plus Terminal page + voice.
     const on = onlineNow().filter((p) => STAFF.has(userOf(p.uid).role || p.role));
-    // Staff in Discord voice (from Cortana, every minute) — matched to website members by Discord ID.
     const fresh = D.dl?.atISO && Date.now() - Date.parse(D.dl.atISO) < 5 * 60000;
-    const inVoice = new Map();
-    if (fresh) for (const ch of D.dl.voice || []) for (const m of ch.members) { const u = D.users.find((x) => x.discordId === m.id); if (u && STAFF.has(u.role)) inVoice.set(u.id, { u, ch: ch.name }); }
+    const sp = D.sp?.enabled ? D.sp.staff || [] : null;
     const rows = new Map();
-    on.forEach((p) => rows.set(p.uid, { u: { ...p, ...userOf(p.uid) }, uidKey: p.uid, term: panelName(p.panel) }));
-    inVoice.forEach((v, id) => { const r = rows.get(id) || { u: { ...v.u, uid: id }, uidKey: id }; r.voice = v.ch; rows.set(id, r); });
-    if (!rows.size) return empty("NO STAFF ONLINE RIGHT NOW.") + (fresh ? "" : '<small class="dim">DISCORD VOICE: WAITING FOR CORTANA</small>');
-    return [...rows.values()].map((r) => `<div class="d2-stf">${hexAvatar(r.u, "sm")}<span><b>${esc(memberName(r.u))}${r.uidKey === uid ? ' <small style="display:inline">(YOU)</small>' : ""}</b><small>${ROLE_L[r.u.role] || ""}</small></span><span class="wh2">${r.term ? `TERMINAL<br><i>${esc(r.term)}</i>` : ""}${r.term && r.voice ? "<br>" : ""}${r.voice ? `🔊 VOICE<br><i>${esc(r.voice)}</i>` : ""}</span></div>`).join("")
-      + `<small class="dim">${on.length} IN THE TERMINAL · ${inVoice.size} IN DISCORD VOICE${fresh ? "" : " (WAITING FOR CORTANA)"}</small>`;
+    const row = (id, u) => rows.get(id) || { u: { ...u, uid: id }, uidKey: id, status: null };
+    if (sp) for (const x of sp) { const u = userOf(x.uid); const r = row(x.uid, u.id ? u : { callsign: x.name }); r.status = x.status; r.since = x.sinceISO; r.last = x.lastOnlineISO; rows.set(x.uid, r); }
+    on.forEach((p) => { const r = row(p.uid, { ...p, ...userOf(p.uid) }); r.term = panelName(p.panel); rows.set(p.uid, r); });
+    if (fresh) for (const ch of D.dl.voice || []) for (const m of ch.members) { const u = D.users.find((x) => x.discordId === m.id); if (u && STAFF.has(u.role)) { const r = row(u.id, u); r.voice = ch.name; rows.set(u.id, r); } }
+    const live = (r) => (r.status && r.status !== "offline") || r.term || r.voice;
+    const order = { online: 0, idle: 1, dnd: 2 };
+    const list = [...rows.values()].sort((a, b) => (live(b) - live(a)) || ((order[a.status] ?? 3) - (order[b.status] ?? 3)) || memberName(a.u).localeCompare(memberName(b.u)));
+    if (!list.length) return empty("NO STAFF ONLINE RIGHT NOW.") + (sp ? "" : '<small class="dim">DISCORD STATUS: OFF (PRESENCE INTENT)</small>');
+    const SL = { online: "Online", idle: "Idle", dnd: "Do not disturb", offline: "Offline" };
+    const sub = (r) => !r.status ? (ROLE_L[r.u.role] || "") : r.status === "offline" ? `Offline${r.last ? " · last seen " + agoTxt(r.last) : ""}` : `Discord: ${SL[r.status]}${r.status === "idle" && r.since ? " · " + agoTxt(r.since, true) : ""}`;
+    const nLive = list.filter(live).length;
+    const offShown = list.filter((r) => !live(r)).slice(0, 4);
+    return [...list.filter(live), ...offShown].map((r) => `<div class="d2-stf${live(r) ? "" : " off"}"><span class="d2-sav">${hexAvatar(r.u, "sm")}${r.status ? `<i class="d2-sd ${r.status}" title="Discord: ${SL[r.status]}"></i>` : ""}</span><span><b>${esc(memberName(r.u))}${r.uidKey === uid ? ' <small style="display:inline">(YOU)</small>' : ""}</b><small>${esc(sub(r))}</small></span><span class="d2-chips">${r.term ? `<span class="d2-chip">TERMINAL · ${esc(String(r.term).toUpperCase())}</span>` : ""}${r.voice ? `<span class="d2-chip v">🔊 ${esc(String(r.voice).toUpperCase())}</span>` : ""}</span></div>`).join("")
+      + `<small class="dim">${nLive} OF ${list.length} ONLINE${sp ? "" : " · DISCORD STATUS OFF"}${fresh ? "" : " · VOICE: WAITING FOR CORTANA"}</small>`
+      + (sp ? '<div class="d2-leg"><span><i class="d2-sd online"></i>ONLINE</span><span><i class="d2-sd idle"></i>IDLE</span><span><i class="d2-sd dnd"></i>DND</span><span><i class="d2-sd offline"></i>OFFLINE</span></div>' : "");
   } },
   online: { t: "● ONLINE NOW", d: "Everyone online now, with hex pictures", ico: "●", g: "UNIT", b: () => {
     const on = onlineNow();
@@ -332,6 +358,7 @@ async function load() {
     safe(cortanaStatus(), (c) => (D.cortana = c)),
     safe(getDoc(doc(db, "bot_status", "monitors")), (s) => (D.mon = s.data() || null)),
     safe(getDoc(doc(db, "bot_status", "discord_live")), (s) => (D.dl = s.data() || null)),
+    safe(getDoc(doc(db, "bot_status", "staff_presence")), (s) => (D.sp = s.data() || null)),
     acc.tk ? safe(getDocs(collection(db, "tickets")), (s) => (D.tickets = s.docs.map((d) => { const x = d.data(); return { number: x.number, status: x.status, typeEmoji: x.typeEmoji, openerName: x.openerName, waiting: x.waiting, openedAtISO: x.openedAtISO, lastActivityISO: x.lastActivityISO }; }))) : null,
   ]);
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
@@ -433,7 +460,16 @@ onReady(() => {
       await refresh();
       setInterval(() => (document.getElementById("panel-dashboard")?.classList.contains("hidden") ? hello() : refresh()), 60000);
       // Online Now / Staff Online update live (instant updates), not once a minute.
-      onSnapshot(collection(db, "presence_sessions"), (s) => { D.pres = s.docs.map((d) => d.data()); if (!editing) drawW(); }, () => {});
+      let seen = null;
+      onSnapshot(collection(db, "presence_sessions"), (s) => {
+        D.pres = s.docs.map((d) => d.data());
+        // Sign-in pop-up when ANOTHER staff member opens the terminal (like RCD). Not on the first load.
+        const now = new Set(D.pres.map((p) => p.uid));
+        if (seen) for (const id of now) if (!seen.has(id) && id !== uid && STAFF.has(userOf(id).role)) staffToast(userOf(id));
+        seen = now;
+        if (!editing) drawW();
+      }, () => {});
+      onSnapshot(doc(db, "bot_status", "staff_presence"), (s) => { D.sp = s.data() || null; if (!editing) drawW(); }, () => {});
       onSnapshot(doc(db, "bot_status", "discord_live"), (s) => { D.dl = s.data() || null; if (!editing) drawW(); }, () => {});
     });
   });

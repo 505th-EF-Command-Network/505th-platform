@@ -18,6 +18,8 @@ const schema = z.object({
   SITE_URL: z.string().url("SITE_URL must be a full https:// address").optional().or(z.literal("").transform(() => undefined)),
   MONGODB_URI: z.string().startsWith("mongodb", "MONGODB_URI must start with mongodb"),
   MONGODB_DB: z.string().min(1).default("505th"),
+  // "true" ONLY after Presence Intent is switched ON in the Developer Portal → Bot (otherwise Discord refuses the login).
+  PRESENCE_INTENT: z.enum(["true", "false", ""]).optional().transform((v) => v === "true"),
 });
 
 const parsed = schema.safeParse(process.env);

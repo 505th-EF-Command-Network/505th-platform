@@ -5,6 +5,7 @@
  *
  * Jobs: mod.action { discordId, action: warn|timeout|kick|ban, reason, note?, minutes?, deleteDays?, dm? }
  *       mod.lift   { caseId }   — lifts a timeout / unbans / clears a warning
+ *       mod.purge  { channelId, amount 1–100, mode all|member|bots, memberId?, keepPinned, reason } — key modw
  * Access: warn + timeout = "modw" · kick + ban = "modk". Nobody can act on someone of their own website rank or higher.
  * 3 active warnings (30 days) → automatic 24 h timeout (its own case).
  */
@@ -161,6 +162,71 @@ async function lift(client: Client<true>, job: { data: { requestedBy?: string; p
   return { ok: true };
 }
 
+
+/* ───────── purge (approved mock 2026-11-11) ───────── */
+const P = z.object({
+  channelId: z.string().regex(/^\d{5,25}$/, "Pick a channel"),
+  amount: z.number().int().min(1).max(100),
+  mode: z.enum(["all", "member", "bots"]).default("all"),
+  memberId: z.string().regex(/^\d{5,25}$/).optional(),
+  keepPinned: z.boolean().default(true),
+  reason: z.string().trim().max(300).default(""),
+});
+export type PurgeInput = z.input<typeof P>;
+
+/**
+ * Delete the last N matching messages in a channel (Discord bulk delete: only messages under 14 days old).
+ * Looks back through up to 500 recent messages to find N matches. Records mod_purges/<id>, mod log + audit log.
+ */
+export async function doPurge(client: Client<true>, byName: string, input: PurgeInput) {
+  const r = P.safeParse(input);
+  if (!r.success) throw new PermanentJobError(r.error.issues[0]?.message ?? "Bad input");
+  const p = r.data;
+  if (p.mode === "member" && !p.memberId) throw new PermanentJobError("Pick the member");
+  const ch = await client.channels.fetch(p.channelId).catch(() => null);
+  if (!ch || !("bulkDelete" in ch) || ("guildId" in ch && ch.guildId !== env.AUTHORISED_GUILD_ID)) throw new PermanentJobError("That channel can't be purged");
+  const cut = Date.now() - 14 * 864e5 + 60_000;
+  const pick: string[] = [];
+  let tooOld = 0, before: string | undefined;
+  for (let page = 0; page < 5 && pick.length < p.amount; page++) {
+    const batch = await ch.messages.fetch({ limit: 100, ...(before ? { before } : {}) }).catch(() => null);
+    if (!batch?.size) break;
+    for (const m of batch.values()) {
+      if (pick.length >= p.amount) break;
+      if (p.keepPinned && m.pinned) continue;
+      if (p.mode === "member" && m.author.id !== p.memberId) continue;
+      if (p.mode === "bots" && !m.author.bot) continue;
+      if (m.createdTimestamp <= cut) { tooOld++; continue; }
+      pick.push(m.id);
+    }
+    before = batch.last()?.id;
+    if (batch.last() && batch.last()!.createdTimestamp <= cut && p.mode === "all") break;
+  }
+  let deleted = 0;
+  try {
+    if (pick.length === 1) { await ch.messages.delete(pick[0]); deleted = 1; }
+    else if (pick.length) deleted = (await ch.bulkDelete(pick, true)).size;
+  } catch (e) {
+    throw new PermanentJobError(`Discord refused: ${(e as Error).message}`);
+  }
+  const chName = "name" in ch ? String(ch.name) : "channel";
+  const memberName = p.memberId ? ((await client.guilds.cache.get(env.AUTHORISED_GUILD_ID)?.members.fetch(p.memberId).catch(() => null))?.displayName ?? p.memberId) : "";
+  const who = p.mode === "bots" ? "bots" : p.mode === "member" ? memberName : "everyone";
+  const id = autoId(), now = new Date();
+  await TerminalDoc.create({ _id: `mod_purges/${id}`, parent: "mod_purges", docId: id, createTime: now, updateTime: now,
+    data: { channelId: p.channelId, channelName: chName, asked: p.amount, deleted, tooOld, mode: p.mode, memberId: p.memberId ?? null, memberName, reason: p.reason, byName, atISO: now.toISOString() } });
+  await modLog(client, new EmbedBuilder().setColor(COLOR.warn).setTitle(`🧹 Purge · ${deleted} message${deleted === 1 ? "" : "s"}`)
+    .setDescription(`**Channel:** <#${p.channelId}>\n**From:** ${p.mode === "member" ? `<@${p.memberId}> (${memberName})` : who}\n**By:** ${byName}${p.reason ? `\n**Reason:** ${p.reason}` : ""}${tooOld ? `\n**Skipped:** ${tooOld} older than 14 days` : ""}`)
+    .setFooter({ text: "505th Moderation", iconURL: LOGO }).setTimestamp());
+  await auditLog("MOD PURGE", `${deleted} message(s) in #${chName} · from ${who}${p.reason ? " · " + p.reason : ""}`, byName, "security");
+  log.info(`Mod: purge ${deleted} in #${chName} by ${byName}.`);
+  return { deleted, tooOld };
+}
+async function purgeJob(client: Client<true>, job: { data: { requestedBy?: string; payload?: unknown } }) {
+  const by = await requester(job, "modw");
+  return doPurge(client, by.name, (job.data.payload ?? {}) as PurgeInput);
+}
+
 /** Timeouts / warnings that ran out are marked inactive (hourly). */
 async function expire() {
   await TerminalDoc.updateMany({ parent: "mod_cases", "data.active": true, "data.action": { $in: ["timeout", "warn"] }, "data.expiresAtISO": { $lt: nowISO() } }, { $set: { "data.active": false, "data.expired": true, updateTime: new Date() } });
@@ -170,6 +236,7 @@ export function startModeration() {
   registerJob("mod.action", (job, c) => act(c, job));
   registerJob("mod.lift", (job, c) => lift(c, job));
   registerJob("mod.delete", (job, c) => removeCase(c, job));
+  registerJob("mod.purge", (job, c) => purgeJob(c, job));
   void expire().catch(() => {});
   const t = setInterval(() => void expire().catch(() => {}), 3600_000);
   return () => clearInterval(t);

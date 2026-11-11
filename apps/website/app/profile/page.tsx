@@ -4,7 +4,7 @@ import ProfileV2 from "@/components/profile/ProfileV2";
 import ServiceRecordView from "@/components/terminal/views/ServiceRecordView";
 import { getViewer } from "@/lib/auth/session";
 import { DEFAULT_PREFS, myUserDoc, syncPhoto } from "@/lib/profile";
-import { getServiceRecord } from "@/lib/terminal/data";
+import { getPromotionTracker, getServiceRecord } from "@/lib/terminal/data";
 import "@/styles/tw/terminal.css";
 import "@/styles/profile-v2.css";
 
@@ -17,7 +17,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   if (!v) redirect("/login?next=/profile");
   const { tab } = await searchParams;
   const r = v.member ? await getServiceRecord(v.member.id) : null;
-  const me = r ? await myUserDoc(v) : null;
+  const [me, pt] = r ? await Promise.all([myUserDoc(v), getPromotionTracker(v.member!.id).catch(() => null)]) : [null, null];
   const d = me ? await syncPhoto(me.uid, me.data, v.avatar) : null;
   return (
     <ProfileV2
@@ -28,6 +28,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       r={r ? { name: r.name, rank: r.rank, roleLabel: r.roleLabel, platoon: r.platoon, joinedAt: r.joinedAt, callsign: r.callsign, status: r.status, attendance: r.attendance, counts: r.counts, hasDiscord: r.hasDiscord } : null}
       photo={d?.photo ?? { source: "discord", url: null, zoom: 100, x: 50, y: 50 }}
       discordAvatar={v.avatar ?? d?.discordAvatarUrl ?? null}
+      pt={pt}
       prefs={{ ...DEFAULT_PREFS, ...(d?.notifyPrefs ?? {}) }}
       record={r ? <ServiceRecordView r={r} back={{ href: "/home", label: "HOME" }} /> : null}
     />

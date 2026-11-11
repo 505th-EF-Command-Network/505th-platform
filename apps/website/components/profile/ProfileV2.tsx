@@ -10,6 +10,33 @@ type R = {
   attendance: { percent: number; opsAttended: number; opsEligible: number }; counts: { promotions: number; commendations: number; ribbons: number; warnings: number };
 };
 
+type PT = { att: number; pt: number; months: { month: string; reached: boolean; current?: boolean }[] };
+const monthShort = (m: string) => { const d = new Date(m + "-01T12:00:00Z"); return Number.isNaN(d.getTime()) ? m : d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }).toUpperCase(); };
+
+/** Promotion Tracker (approved mock 2026-11-11): ATT this month x/3 → +1 PT at the monthly reset. */
+function PtBox({ pt }: { pt: PT }) {
+  const left = 3 - pt.att;
+  return (
+    <div className="pv-cd pv-pt">
+      <div className="pv-ch">PROMOTION TRACKER</div>
+      <div className="pt-row">
+        <div className="pt-ring" style={{ ["--p" as string]: `${(pt.att / 3) * 100}%` }} role="img" aria-label={`Attendance this month ${pt.att} of 3`}><i>{pt.att}/3</i></div>
+        <div className="pt-mid">
+          <b>ATTENDANCE THIS MONTH</b>
+          <div className="pt-pips" aria-hidden="true">{[1, 2, 3].map((k) => <span key={k} className={pt.att >= k ? "f" : ""} />)}</div>
+          <p>{left > 0 ? <>{left} more op{left > 1 ? "s" : ""} this month to earn <b className="pt-gold">+1 PT</b> at the monthly reset.</> : <>3/3 reached — <b className="pt-gold">+1 PT</b> at the monthly reset.</>}</p>
+          {pt.months.length > 1 && (
+            <div className="pt-hist" aria-label="Months you reached 3 of 3">
+              {pt.months.map((m) => <div key={m.month}><i className={m.current ? "cur" : m.reached ? "y" : ""} title={m.current ? "This month" : m.reached ? "Reached 3/3" : "Not reached"} />{monthShort(m.month)}</div>)}
+            </div>
+          )}
+        </div>
+        <div className="pt-n"><b>{pt.pt}</b><span>PROMOTION<br />POINTS (PT)</span></div>
+      </div>
+    </div>
+  );
+}
+
 const PREF_ROWS: [keyof Omit<Prefs, "quiet">, string, string][] = [
   ["messages", "MESSAGES", "New direct messages"],
   ["notes", "NOTES SHARED", "When someone shares a note with you"],
@@ -43,7 +70,7 @@ function since(iso: string | null) {
   return `${y ? `${y}y ` : ""}${m}m`;
 }
 
-export default function ProfileV2(p: { tab: string; terminal: boolean; discordUsername: string; canEdit: boolean; r: R | null; photo: Photo; discordAvatar: string | null; prefs: Prefs; record: ReactNode }) {
+export default function ProfileV2(p: { tab: string; terminal: boolean; discordUsername: string; canEdit: boolean; r: R | null; photo: Photo; discordAvatar: string | null; prefs: Prefs; record: ReactNode; pt?: PT | null }) {
   const [tab, setTab] = useState(["over", "pfp", "rec", "notif"].includes(p.tab) ? p.tab : "over");
   const [saved, setSaved] = useState<Photo>(p.photo);
   const [ph, setPh] = useState<Photo>(p.photo);
@@ -163,6 +190,7 @@ export default function ProfileV2(p: { tab: string; terminal: boolean; discordUs
                 <p className="pv-hint">Name, rank and platoon are changed by staff in Personnel Files.</p></div>
               <div className="pv-cd"><div className="pv-ch">RECORD</div>
                 {[["PROMOTIONS", r.counts.promotions], ["COMMENDATIONS", r.counts.commendations], ["RIBBONS", r.counts.ribbons], ["OPS ATTENDED", `${r.attendance.opsAttended} / ${r.attendance.opsEligible}`]].map(([k, v]) => <div className="pv-kv" key={String(k)}><span>{k}</span><b>{v}</b></div>)}</div>
+              {p.pt && <PtBox pt={p.pt} />}
             </div>
           )}
 

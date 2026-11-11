@@ -10,21 +10,25 @@
   @media (min-width: 1024px) {
     main,
     .page-footer {
-      margin-left: 72px !important;
+      margin-left: 248px !important;
       transition: none !important;
     }
     body.nav-ready main,
     body.nav-ready .page-footer {
       transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
-    body.nav-panel-open main,
-    body.nav-panel-open .page-footer {
-      margin-left: 332px !important;
+    body.nav-collapsed main,
+    body.nav-collapsed .page-footer {
+      margin-left: 72px !important;
     }
   }
   @media (max-width: 1023px) {
     main {
       margin-top: 78px !important;
+    }
+    /* room for the bottom tab bar */
+    .page-footer {
+      padding-bottom: calc(2rem + 58px + env(safe-area-inset-bottom)) !important;
     }
   }
   @media (prefers-reduced-motion: reduce) {

@@ -9,6 +9,7 @@ import { log } from "./log.ts";
 import { checkGuilds, isAuthorisedGuild } from "./guard.ts";
 import { markOffline, noteError, startHeartbeat } from "./health.ts";
 import { startMonitors } from "./monitors.ts";
+import { startStaffPresence } from "./presence.ts";
 import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
 import { onDbChange, startLive } from "./live.ts";
@@ -38,6 +39,8 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildScheduledEvents,
     GatewayIntentBits.GuildVoiceStates, // who is in which voice channel (Dashboard → Staff Online). Not a privileged intent.
+    // Staff Discord status (Dashboard → Staff Online). Privileged: only when PRESENCE_INTENT=true in .env.local.
+    ...(env.PRESENCE_INTENT ? [GatewayIntentBits.GuildPresences] : []),
   ],
   partials: [Partials.GuildMember, Partials.Message, Partials.Channel],
   // Never ping @everyone / roles unless a feature explicitly allows it.
@@ -54,6 +57,7 @@ client.once(Events.ClientReady, async (ready) => {
   await ready.guilds.cache.get(env.AUTHORISED_GUILD_ID)?.members.fetch().catch(() => {});
   heartbeat = startHeartbeat(ready);
   startMonitors(ready);
+  void startStaffPresence(ready);
   await syncGuild(ready).catch((e) => log.error("First sync failed", e));
   await registerCommands().catch((e) => log.error("Command registration failed", e));
   registerJob("sync.now", async (_j, c) => (await syncGuild(c), { at: new Date().toISOString() })); // Cortana Setup "RE-SYNC"

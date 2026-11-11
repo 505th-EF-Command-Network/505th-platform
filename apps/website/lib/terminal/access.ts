@@ -174,7 +174,8 @@ export function readNeeds(top: string): string | null {
     case "notes": return "notes";
     case "discord_messages": return "send";
     case "tickets": return "tk";
-    case "mod_cases": return "modw";
+    case "mod_cases":
+    case "mod_purges": return "modw";
     case "net_incidents": return "net";
     case "sync_log": return "pers";
     default: return null;

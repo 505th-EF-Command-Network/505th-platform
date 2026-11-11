@@ -12,7 +12,7 @@ import {
 import { randomBytes } from "node:crypto";
 import { TerminalDoc } from "@505th/db";
 import { allowed, websiteAccess } from "../access.ts";
-import { doAction, type ModBy } from "../moderation.ts";
+import { doAction, doPurge, type ModBy } from "../moderation.ts";
 import { parsePreset, postModlist, type Mod } from "../modlist.ts";
 import { markOffline } from "../health.ts";
 import { addPerson, close as closeTicket, isTicketStaff, ticketIdForChannel } from "../tickets.ts";
@@ -84,20 +84,23 @@ const kickOrBan = (action: "kick" | "ban"): Cmd => {
 };
 const purge: Cmd = {
   key: "modw",
-  data: new SlashCommandBuilder().setName("purge").setDescription("Delete recent messages in this channel.")
+  data: new SlashCommandBuilder().setName("purge").setDescription("Delete recent messages in this channel (under 14 days old).")
     .addIntegerOption((o) => o.setName("amount").setDescription("1–100").setRequired(true).setMinValue(1).setMaxValue(100))
-    .addUserOption((o) => o.setName("from").setDescription("Only messages from this member")),
+    .addUserOption((o) => o.setName("from").setDescription("Only messages from this member"))
+    .addBooleanOption((o) => o.setName("bots").setDescription("Only messages from bots"))
+    .addStringOption((o) => o.setName("reason").setDescription("Shown in the mod log").setMaxLength(300)),
   async run(i) {
     await i.deferReply(eph);
-    const ch = i.channel;
-    if (!ch || !("bulkDelete" in ch)) return void (await i.editReply("This channel can't be purged."));
-    const n = i.options.getInteger("amount", true), from = i.options.getUser("from");
-    const fetched = await ch.messages.fetch({ limit: 100 });
-    const cut = Date.now() - 14 * 864e5 + 60_000;
-    const list = [...fetched.values()].filter((m) => !m.pinned && m.createdTimestamp > cut && (!from || m.author.id === from.id)).slice(0, n);
-    const done = list.length ? await ch.bulkDelete(list, true) : new Map();
-    await auditLog("PURGE", `${done.size} message(s) in #${"name" in ch ? ch.name : "channel"}${from ? " from " + from.username : ""}`, (i.member as GuildMember).displayName, "security");
-    await i.editReply(`🧹 Deleted **${done.size}** message${done.size === 1 ? "" : "s"}${from ? ` from ${from.username}` : ""}.${done.size < n ? " (Messages older than 14 days or pinned can't be bulk-deleted.)" : ""}`);
+    const from = i.options.getUser("from"), bots = i.options.getBoolean("bots") === true;
+    try {
+      const r = await doPurge(i.client, (i.member as GuildMember).displayName, {
+        channelId: i.channelId, amount: i.options.getInteger("amount", true), mode: from ? "member" : bots ? "bots" : "all",
+        memberId: from?.id, keepPinned: true, reason: i.options.getString("reason") ?? "",
+      });
+      await i.editReply(`🧹 Deleted **${r.deleted}** message${r.deleted === 1 ? "" : "s"}${from ? ` from ${from.username}` : bots ? " from bots" : ""}.${r.tooOld ? ` ${r.tooOld} skipped (older than 14 days).` : ""} Logged to the mod log.`);
+    } catch (e) {
+      await i.editReply(`⛔ ${(e as Error).message}`);
+    }
   },
 };
 

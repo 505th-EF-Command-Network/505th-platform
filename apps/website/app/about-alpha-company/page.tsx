@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AboutEnhance from "@/components/AboutEnhance";
 import SiteShell from "@/components/SiteShell";
 import { shellA } from "@/components/shell-styles";
 import "@/styles/tw/about-alpha-company.css";
@@ -261,6 +262,7 @@ export default async function AboutAlphaCompanyPage() {
           </div>
         </div>
       </div>
+      <AboutEnhance />
     </SiteShell>
   );
 }
