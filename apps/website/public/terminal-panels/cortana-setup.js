@@ -34,7 +34,7 @@ function blank() {
     welcome: { on: false, channelId: "", roleId: "", dm: false, text: "Welcome to the 505th, {user}!\nRead the rules, then sign up on the website to start Basic Training." },
     announce: { channelId: "", ping: "everyone", minRole: "officer" },
     aux: { channelId: "", pingRoleId: "", template: "📦 Aux Mod {version} is out!\n{changes}\nUpdate via the launcher: {link}" },
-    logs: { modLogId: "", joinLeaveId: "", messageLogId: "", auditId: "" },
+    logs: { modLogId: "", joinLeaveId: "", messageLogId: "", auditId: "", aarId: "" },
     tickets: { open: true, logChannelId: "", transcriptChannelId: "", maxOpen: "1", maxPerHour: "3", autoCloseDays: "0", deleteAfterH: "0" },
   };
 }
@@ -57,6 +57,7 @@ function autoFill(c) {
   c.logs.modLogId = pick(c.logs.modLogId, text, "mod-log", "moderation-log");
   c.logs.joinLeaveId = pick(c.logs.joinLeaveId, text, "join-leave", "joins");
   c.logs.auditId = pick(c.logs.auditId, text, "staff-audit", "audit-log");
+  c.logs.aarId = pick(c.logs.aarId || "", text, "after-action-reports", "aar");
   return [found, tried];
 }
 
@@ -238,7 +239,8 @@ function body() {
     ${row("MODERATION LOG", sel("logs.modLogId", chanOptions(c.logs.modLogId, undefined, "— off —")) + note(c.logs.modLogId))}
     ${row("JOIN / LEAVE LOG", sel("logs.joinLeaveId", chanOptions(c.logs.joinLeaveId, undefined, "— off —")) + note(c.logs.joinLeaveId))}
     ${row("MESSAGE LOG (DELETED / EDITED)", sel("logs.messageLogId", chanOptions(c.logs.messageLogId, undefined, "— off —")) + note(c.logs.messageLogId))}
-    ${row("WEBSITE AUDIT TO DISCORD", sel("logs.auditId", chanOptions(c.logs.auditId, undefined, "— off —")) + note(c.logs.auditId))}</div>`;
+    ${row("WEBSITE AUDIT TO DISCORD", sel("logs.auditId", chanOptions(c.logs.auditId, undefined, "— off —")) + note(c.logs.auditId))}
+    ${row("AAR POSTS", sel("logs.aarId", chanOptions(c.logs.aarId, undefined, "— off (uses the old AAR webhook if set) —")) + note(c.logs.aarId))}</div>`;
 }
 
 function draw() {

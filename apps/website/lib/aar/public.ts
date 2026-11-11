@@ -37,7 +37,8 @@ function pick(src: Record<string, unknown>, id: string): PublicAar {
 
 export async function getPublicAars(): Promise<PublicAar[]> {
   await connectDb();
-  const live = await TerminalDoc.find({ parent: "aars" }, { docId: 1, data: 1 }).lean();
+  // Drafts (status "draft", saved while writing in the Terminal) are never public.
+  const live = await TerminalDoc.find({ parent: "aars", "data.status": { $ne: "draft" } }, { docId: 1, data: 1 }).lean();
   let list = live.map((d) => pick((d.data ?? {}) as Record<string, unknown>, String(d.docId)));
   if (!list.length) {
     const old = await Aar.find().lean();

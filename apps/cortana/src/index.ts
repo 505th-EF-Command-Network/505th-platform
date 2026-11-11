@@ -23,6 +23,7 @@ import { startModeration } from "./moderation.ts";
 import { startModlist } from "./modlist.ts";
 import { startLegacyImport } from "./legacy-import.ts";
 import { startCleanup } from "./cleanup.ts";
+import { startAar } from "./aar.ts";
 import { onJoin, onLeave, onMessageDelete, onMessageEdit } from "./logs.ts";
 import { handleCommandButton, handleCommandModal } from "./commands/staff.ts";
 import { scheduleSync, syncGuild } from "./sync.ts";
@@ -65,6 +66,7 @@ client.once(Events.ClientReady, async (ready) => {
   startQuickUpload();
   startInfoPosts(ready);
   startTickets(ready);
+  startAar();
   startModeration();
   startModlist();
   startLegacyImport();
