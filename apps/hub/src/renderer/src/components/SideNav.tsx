@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isKey } from "../settings";
 import type { HubPrefs, Overview, Summary } from "../../../preload/api";
 import { STATE, type StateKey } from "../ui";
 
@@ -27,12 +28,12 @@ const GROUPS: Group[] = [
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
     { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes" }, { id: "panel-website", label: "Website", icon: "⌂", key: "web" }] },
   { id: "security", label: "SECURITY", icon: "⛉", links: [
-    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om" }, { id: "panel-network", label: "Network Status", icon: "◉", key: "net" }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit" }] },
+    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om" }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true }, { id: "panel-network", label: "Network Status", icon: "◉", key: "net" }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit" }] },
 ];
 const ALL_LINKS = GROUPS.flatMap((g) => g.links);
 export const PAGES: Record<string, string> = {
   ...Object.fromEntries(ALL_LINKS.map((l) => [l.id, l.label])),
-  "my-settings": "App Settings", "my-devices": "My Devices", "my-notifications": "Notifications & Sounds", "my-shortcuts": "Keyboard Shortcuts", "panel-msg2": "Messages", "alerts": "Alerts",
+  "my-settings": "App Settings", "my-devices": "My Devices", "my-notifications": "Notifications & Sounds", "my-shortcuts": "Keyboard Shortcuts", "my-about": "About", "panel-hubaccess": "Hub Access", "panel-msg2": "Messages", "alerts": "Alerts",
 };
 export const NAV_LINKS = ALL_LINKS;
 export type NavPrefs = NonNullable<HubPrefs["nav"]>;
@@ -54,8 +55,8 @@ export function SideNav(p: {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName);
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); set({ rail: !rail }); }
-      else if (e.key === "/" && !typing) { e.preventDefault(); if (rail) set({ rail: false }); setTimeout(() => filter.current?.focus(), 30); }
+      if (isKey(e, "rail")) { e.preventDefault(); set({ rail: !rail }); }
+      else if (isKey(e, "filter") && !typing) { e.preventDefault(); if (rail) set({ rail: false }); setTimeout(() => filter.current?.focus(), 30); }
     };
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
@@ -149,7 +150,7 @@ export function SideNav(p: {
             {([["👤", "My personnel file", () => p.onMyFile()], ["⚠", `My warnings · ${p.ov?.me.warnings ?? 0}`, () => p.onMyFile()]] as [string, string, () => void][]).map(([i, l, f]) => (
               <button key={l} type="button" role="menuitem" onClick={() => { setCard(false); f(); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-[#c6d0da] hover:bg-cyan/10 hover:text-white"><i className="w-4 text-center not-italic text-cyan">{i}</i>{l}</button>))}
             <hr className="my-1 border-cyan/10" />
-            {([["🔔", "Notifications & sounds", "my-notifications"], ["⚙", "App settings", "my-settings"], ["🖥", "My devices", "my-devices"], ["?", "Keyboard shortcuts", "my-shortcuts"]] as [string, string, string][]).map(([i, l, id]) => (
+            {([["🔔", "Notifications & sounds", "my-notifications"], ["⚙", "App settings", "my-settings"], ["🖥", "My devices", "my-devices"], ["⌨", "Keyboard shortcuts", "my-shortcuts"], ["ⓘ", "About", "my-about"]] as [string, string, string][]).map(([i, l, id]) => (
               <button key={id} type="button" role="menuitem" onClick={() => { setCard(false); p.onPage(id); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-[#c6d0da] hover:bg-cyan/10 hover:text-white"><i className="w-4 text-center not-italic text-cyan">{i}</i>{l}</button>))}
             <hr className="my-1 border-cyan/10" />
             <button type="button" role="menuitem" onClick={() => { setCard(false); p.onSignOut(); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-bad hover:bg-bad/10"><i className="w-4 text-center not-italic">⏻</i>Sign out</button>

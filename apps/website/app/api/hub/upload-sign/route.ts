@@ -4,7 +4,7 @@ import { can } from "@/lib/terminal/access";
 
 export const dynamic = "force-dynamic";
 /** Folder → access key needed (same folders as /api/terminal/upload-sign). */
-const FOLDERS: Record<string, string> = { "505th_aar": "aar", "505th_gallery": "media", "505th_projects": "proj" };
+const FOLDERS: Record<string, string> = { "505th_aar": "aar", "505th_gallery": "media", "505th_projects": "proj", "505th_msg": "" };
 
 /**
  * POST { folder } → { cloudName, apiKey, timestamp, folder, signature } for the app (bearer token).
@@ -15,8 +15,9 @@ export async function POST(req: Request) {
   if (!a) return hubJson({ error: "unauthenticated" }, 401);
   const folder = String(((await req.json().catch(() => null)) ?? {}).folder ?? "");
   const key = FOLDERS[folder];
-  if (!key) return hubJson({ error: "Bad folder" }, 400);
-  if (!can(a.role, a.access, key)) return hubJson({ error: "permission-denied" }, 403);
+  if (key === undefined) return hubJson({ error: "Bad folder" }, 400);
+  // "" = any signed-in staff (Messages images).
+  if (key && !can(a.role, a.access, key)) return hubJson({ error: "permission-denied" }, 403);
   const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: secret } = process.env;
   if (!cloudName || !apiKey || !secret) return hubJson({ error: "Uploads not configured" }, 503);
   const timestamp = Math.floor(Date.now() / 1000);

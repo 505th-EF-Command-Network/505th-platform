@@ -71,3 +71,11 @@ body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 7
 .cfm-pop{animation:cfm-pop .18s ease-out}
 @keyframes cfm-pop{from{transform:scale(.96);opacity:0}}
 @media (prefers-reduced-motion:reduce){.cfm-pop{animation:none}}
+
+/* H3 · My Settings → Animations / High contrast */
+.anim-off *, .anim-off *::before, .anim-off *::after { animation: none !important; transition: none !important; }
+.anim-off .rise, .anim-off .wob, .anim-reduced .rise, .anim-reduced .wob { opacity: 1 !important; }
+.anim-reduced *, .anim-reduced *::before, .anim-reduced *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .08s !important; }
+.anim-reduced .tile:hover, .anim-reduced .widget:hover { transform: none !important; }
+.hi-contrast { --color-dim: #b9c6d2; --color-dimmer: #8fa0b0; }
+.hi-contrast [class*="border-cyan/1"], .hi-contrast [class*="border-cyan/2"] { border-color: rgb(0 217 255 / .45) !important; }

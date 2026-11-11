@@ -6,7 +6,9 @@
  */
 import { app, BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
+import { release } from "node:os";
 import { PROTOCOL, createAuth, type AuthState } from "./auth";
+import { createNotifier, type NotifyOpts, type Toast } from "./notify";
 import { createRealtime, type RealtimeState } from "./realtime";
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -17,6 +19,15 @@ if (process.defaultApp && process.argv[1]) app.setAsDefaultProtocolClient(PROTOC
 else app.setAsDefaultProtocolClient(PROTOCOL);
 
 let win: BrowserWindow | null = null;
+let quitting = false;
+/** App settings pushed by the window (My Settings) — only the bits the main process needs. */
+const cfg = { closeToTray: true };
+const startHidden = process.argv.includes("--hidden");
+const notifier = createNotifier({
+  getWin: () => win,
+  onAction: (id, action) => { send("notify:action", { id, action }); if (action === "open" || action === "reply" || action === "view") { win?.show(); win?.focus(); } },
+  onQuit: () => { quitting = true; app.quit(); },
+});
 const send = (ch: string, v: unknown) => win?.webContents.send(ch, v);
 const fromMain = (e: IpcMainInvokeEvent) => !!win && e.sender === win.webContents;
 
@@ -41,8 +52,11 @@ function createWindow() {
   // The window only shows the app's own screens. Any link opens in the normal browser.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) void shell.openExternal(url); return { action: "deny" }; });
   win.webContents.on("will-navigate", (e) => e.preventDefault());
-  win.once("ready-to-show", () => win?.show());
+  win.once("ready-to-show", () => { if (!startHidden) win?.show(); });
   win.on("closed", () => (win = null));
+  // My Settings → "Close button hides to tray": the Hub keeps running so notifications still come.
+  win.on("close", (e) => { if (cfg.closeToTray && !quitting) { e.preventDefault(); win?.hide(); } });
+  win.on("focus", () => win?.flashFrame(false));
   if (!app.isPackaged && process.env["ELECTRON_RENDERER_URL"]) void win.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   else void win.loadFile(join(__dirname, "../renderer/index.html"));
 }
@@ -64,8 +78,13 @@ ipcMain.handle("net:get", (e) => (fromMain(e) ? realtime.getState() : null));
 ipcMain.handle("app:info", (e) => (fromMain(e) ? { version: app.getVersion(), packaged: app.isPackaged } : null));
 
 /** Website API calls the screens may make. Fixed list — the window can't call any other path. */
+/** Sent with every call so My Devices can show the version + Windows build. */
+const CN_HEADERS = { "X-CN-App": app.getVersion(), "X-CN-OS": `Windows ${release()}` };
 async function call(path: string, init?: RequestInit): Promise<unknown> {
   try {
+    const hd = new Headers(init?.headers);
+    for (const [k, v] of Object.entries(CN_HEADERS)) hd.set(k, v);
+    init = { ...init, headers: hd };
     // Never hang: give up after 25 s so pages show an error instead of LOADING forever.
     const r = await auth.api(path, { ...init, signal: init?.signal ?? AbortSignal.timeout(25_000) });
     const b = await r.json().catch(() => ({}));
@@ -103,7 +122,7 @@ ipcMain.handle("hub:aars-action", (e, body: unknown) => {
 });
 /** Image upload (AAR screenshots): the website signs it, the file goes straight to Cloudinary. Images only, max 10 MB. */
 ipcMain.handle("hub:upload", async (e, folder: unknown, name: unknown, type: unknown, bytes: unknown) => {
-  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects"].includes(String(folder)) || typeof type !== "string" || !/^image\/(png|jpeg|webp|gif)$/.test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
+  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg"].includes(String(folder)) || typeof type !== "string" || !/^image\/(png|jpeg|webp|gif)$/.test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
   const s = (await call("/api/hub/upload-sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) })) as Record<string, unknown>;
   if (s.error) return { error: String(s.error) };
   try {
@@ -135,21 +154,49 @@ ipcMain.handle("hub:rsvp", (e, eventId: unknown, key: unknown) => {
   if (!fromMain(e) || typeof eventId !== "string" || typeof key !== "string") return { error: "Not allowed." };
   return call("/api/hub/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, key }) });
 });
-for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"]] as const) {
+for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"]] as const) {
   ipcMain.handle(`hub:${ch}`, (e) => (fromMain(e) ? call(path) : null));
   ipcMain.handle(`hub:${ch}-action`, (e, body: unknown) => {
     if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
     return call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   });
 }
+// Messages: GET can ask for one chat's messages (?conv=id).
+ipcMain.handle("hub:messages", (e, conv: unknown) => (fromMain(e) ? call(`/api/hub/messages${typeof conv === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(conv) ? `?conv=${conv}` : ""}`) : null));
+ipcMain.handle("hub:messages-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 ipcMain.handle("hub:set-status", (e, s: unknown) => {
   if (!fromMain(e) || !s || typeof s !== "object") return { error: "Not allowed." };
   const { state, note, untilISO } = s as Record<string, unknown>;
   return call("/api/hub/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state, note, untilISO }) });
 });
 
+// ───────── H3: settings, notifications, tray ─────────
+ipcMain.handle("app:settings", (e, s: unknown) => {
+  if (!fromMain(e) || !s || typeof s !== "object") return;
+  const v = s as { startup?: unknown; closeToTray?: unknown; zoom?: unknown; toggleKey?: unknown };
+  cfg.closeToTray = v.closeToTray !== false;
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: v.startup === true, args: ["--hidden"] });
+  const z = Number(v.zoom);
+  if (win && z >= 0.8 && z <= 1.4) win.webContents.setZoomFactor(z);
+  notifier.setToggleKey(typeof v.toggleKey === "string" ? v.toggleKey : "");
+});
+ipcMain.handle("notify:show", (e, t: unknown, o: unknown) => {
+  if (!fromMain(e) || !t || typeof t !== "object" || !o || typeof o !== "object") return;
+  const x = t as Toast, y = o as NotifyOpts;
+  notifier.show({ id: String(x.id).slice(0, 80), title: String(x.title).slice(0, 120), body: String(x.body ?? "").slice(0, 300), icon: String(x.icon ?? "").slice(0, 4),
+    color: String(x.color ?? ""), urgent: x.urgent === true, actions: Array.isArray(x.actions) ? x.actions.slice(0, 3).map((a) => ({ id: String(a.id).replace(/[^\w-]/g, "").slice(0, 20), label: String(a.label).slice(0, 20) })) : [] },
+    { popup: y.popup === true, taskbar: y.taskbar === true, edge: y.edge === true });
+});
+ipcMain.handle("notify:unread", (e, n: unknown) => { if (fromMain(e)) notifier.setUnread(Number(n) || 0); });
+ipcMain.handle("app:quit", (e) => { if (fromMain(e)) { quitting = true; app.quit(); } });
+app.on("before-quit", () => { quitting = true; });
+app.on("will-quit", () => notifier.stop());
 
 app.whenReady().then(() => {
+  notifier.startTray();
   createWindow();
   auth.start();
   const link = deepLinkFrom(process.argv);

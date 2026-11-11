@@ -246,6 +246,9 @@ const HubSessionSchema = new Schema(
     member: { type: Schema.Types.ObjectId, ref: "Member", index: true },
     discordId: { type: String, index: true },
     deviceName: { type: String, default: "Windows PC" },
+    /** Sent by the app on each call (X-CN-App / X-CN-OS) — shown in My Devices. */
+    appVersion: String,
+    os: String,
     inGuild: Boolean,
     lastUsedAt: Date,
     revokedAt: Date,

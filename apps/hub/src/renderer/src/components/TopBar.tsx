@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { alertKind, isKey, settingsNow } from "../settings";
 import type { NetState, Overview, Summary } from "../../../preload/api";
 import { countdown, ukTime } from "../ui";
 import { NAV_LINKS } from "./SideNav";
@@ -26,7 +27,7 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
   const [spin, setSpin] = useState(false);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPal(true); } if (e.key === "Escape") { setPal(false); setBell(false); } };
+    const k = (e: KeyboardEvent) => { if (isKey(e, "palette")) { e.preventDefault(); setPal(true); } if (e.key === "Escape") { setPal(false); setBell(false); } };
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
   }, []);
@@ -38,7 +39,8 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
   }, [bell]);
 
   const op = p.sum.ops[0];
-  const unread = p.sum.alerts.filter((a) => !a.read);
+  const shown = p.sum.alerts.filter((a) => settingsNow().notify.ev[alertKind(a)].bell);
+  const unread = shown.filter((a) => !a.read);
   const c = p.sum.system.cortana;
   const live = p.net.state === "live";
   const ms = op ? Date.parse(op.startAtISO) - now : 0;
@@ -72,10 +74,13 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
             <b className="block text-[10.5px] font-normal tracking-[2px] text-white">HUB <span style={{ color: col }}>● {ok ? "LIVE" : part ? "PARTIAL" : "OFFLINE"}</span></b>
             <small className="text-[10px] tracking-[1px]" style={{ color: col }}>{ok ? "OPERATIONAL" : part ? "DEGRADED" : "NO CONNECTION"}</small></span>; })()}
       </div>
-      <div className="px-1 text-right leading-tight"><b className="block font-head text-[17px] tracking-[1px] text-white">{ukTime(now)}</b><small className="text-[9.5px] tracking-[1.5px] text-dim">UK · {ukTime(now, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}</small></div>
+      {(() => { const tm = settingsNow().time; const local = new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+        return <div className="px-1 text-right leading-tight"><b className="block font-head text-[17px] tracking-[1px] text-white">{tm === "local" ? local : ukTime(now)}{tm === "both" && <span className="ml-1.5 text-[11px] text-dim">{local} YOU</span>}</b>
+          <small className="text-[9.5px] tracking-[1.5px] text-dim">{tm === "local" ? "YOUR TIME" : "UK"} · {ukTime(now, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}</small></div>; })()}
       <button type="button" aria-label="Refresh" title="Refresh" onClick={() => { setSpin(true); p.onRefresh(); setTimeout(() => setSpin(false), 800); }} className="grid h-9 w-9 place-items-center border border-cyan/20 text-[15px] text-[#c6d0da] hover:border-cyan hover:shadow-[0_0_12px_-3px_#00d9ff]">
         <span className={spin ? "animate-spin" : ""}>↻</span></button>
-      <button type="button" aria-label="Messages" title="Messages (coming soon)" onClick={() => p.onPage("panel-msg2")} className="grid h-9 w-9 place-items-center border border-cyan/20 text-[14px] text-[#c6d0da] hover:border-cyan">✉</button>
+      <button type="button" aria-label="Messages" title="Messages" onClick={() => p.onPage("panel-msg2")} className="relative grid h-9 w-9 place-items-center border border-cyan/20 text-[14px] text-[#c6d0da] hover:border-cyan">✉
+        {(() => { const n = p.sum.alerts.filter((a) => !a.read && a.type === "message").length; return n > 0 && <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-cyan px-1 text-[10px] font-bold text-black">{n > 9 ? "9+" : n}</span>; })()}</button>
       <div data-bell className="relative">
         <button type="button" aria-label={`Alerts, ${unread.length} unread`} aria-expanded={bell} onClick={() => setBell(!bell)} className="relative grid h-9 w-9 place-items-center border border-cyan/20 text-[14px] hover:border-cyan">
           🔔{unread.length > 0 && <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-bad px-1 text-[10px] text-white">{unread.length > 9 ? "9+" : unread.length}</span>}</button>
@@ -84,7 +89,7 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
             <div className="flex items-center gap-2 border-b border-cyan/15 px-3 py-2.5 text-[11px] tracking-[2px]"><b className="font-normal text-cyan">ALERTS</b><span className="text-dim">{unread.length} unread</span><div className="flex-1" />
               {unread.length > 0 && <button type="button" onClick={() => void window.cn.hub.readAlerts({ all: true }).then(p.onRefresh)} className="text-[11px] tracking-normal text-cyan hover:underline">Mark all read</button>}</div>
             <div className="max-h-[420px] overflow-auto">
-              {p.sum.alerts.length ? p.sum.alerts.map((a) => { const [ic, col] = ALERT_ICON[a.type] ?? ["◆", "#7d8a99"]; return (
+              {shown.length ? shown.map((a) => { const [ic, col] = ALERT_ICON[a.type] ?? ["◆", "#7d8a99"]; return (
                 <button key={a.id} type="button" onClick={() => { if (!a.read) void window.cn.hub.readAlerts({ ids: [a.id] }).then(p.onRefresh); }}
                   className={`flex w-full gap-2.5 border-b border-cyan/5 px-3 py-2.5 text-left text-[12.5px] hover:bg-cyan/5 ${a.read ? "" : "bg-cyan/[.05]"}`}>
                   <span className="grid h-7 w-7 shrink-0 place-items-center border" style={{ color: col, borderColor: col }}>{ic}</span>

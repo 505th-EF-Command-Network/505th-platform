@@ -45,7 +45,17 @@ export type AarData = { reports: Aar[]; events: { id: string; title: string; dat
 export type BctPerson = { id: string; fullName: string; name: string; pfcName: string; initials: string; discordUsername: string; email: string; rank: string; role: string; platoon: string; graduation: string; bctDate: string; bctInstructor: string;
   recruitSource: string; timezone: string; registeredAt: string; approvedAt: string; approvedBy: string; deniedAt: string; deniedBy: string; denyReason: string };
 export type BctData = { pending: BctPerson[]; approved: BctPerson[]; denied: BctPerson[]; thisMonth: number; avg: string; instructors: string[]; platoons: string[]; sources: string[]; denyReasons: string[]; canAct: boolean };
-export type HubPrefs = { dash?: [string, number][]; nav?: { order: string[]; hidden: string[]; pins: string[]; closed: string[]; rail: boolean } };
+export type HubPrefs = { dash?: [string, number][]; nav?: { order: string[]; hidden: string[]; pins: string[]; closed: string[]; rail: boolean }; settings?: AppSettings };
+export type NotifyEvent = "message" | "tag" | "ticket" | "bct" | "op" | "project" | "rank";
+export type ShortcutId = "palette" | "rail" | "filter" | "messages" | "refresh" | "toggle";
+/** My Settings / My Notifications / My Shortcuts — same shape as website lib/hub/settings.ts. */
+export type AppSettings = {
+  startup: boolean; closeToTray: boolean; openOn: "dashboard" | "last"; textSize: "s" | "m" | "l" | "xl"; anim: "on" | "reduced" | "off"; contrast: boolean; time: "uk" | "local" | "both";
+  notify: { popup: boolean; taskbar: boolean; edge: boolean; sound: boolean; dnd: "off" | "night" | "custom"; dndFrom: string; dndTo: string; opMins: number; newDevice: boolean;
+    ev: Record<NotifyEvent, { popup: boolean; bell: boolean; flash: boolean }> };
+  keys: Record<ShortcutId, string>;
+};
+export type Device = { id: string; name: string; appVersion: string; os: string; current: boolean; signedInAt: string; lastUsedAt: string; expiresAt: string; revokedAt: string; revokedReason: string };
 export type Overview = {
   prefs: HubPrefs | null;
   me: { name: string; rank: string; platoon: string; role: string; discordUsername: string; photo: string | null; ribbons: number; medals: number; warnings: number };
@@ -80,6 +90,17 @@ export type Proj = { id: string; title: string; description: string; cover: stri
   tasks: ProjTask[]; images: { url: string; name: string; by: string; atISO: string }[]; comments: { id: string; uid: string; text: string; atISO: string }[];
   activity: { atISO: string; icon: string; text: string }[]; createdAtISO: string; updatedAtISO: string; myRole: "owner" | "editor" | "viewer" | "pending" | null };
 export type ProjData = { me: string; categories: string[]; projects: Proj[]; people: { uid: string; name: string; platoon: string; photo: string | null }[] };
+export type MsgData = {
+  me: string;
+  convs: { id: string; participants: string[]; name: string | null; lastMessage: string; lastMessageAt: string; lastSenderUid: string; unread: number; pinned: boolean; muted: boolean; typing: string[] }[];
+  people: { uid: string; name: string; role: string; platoon: string; photo: string | null; online: boolean }[];
+  messages?: { id: string; senderUid: string; text: string; imageUrl: string; at: string; readBy: string[]; reactions: Record<string, string[]> }[];
+};
+export type HubAccessData = {
+  canManage: boolean;
+  people: { uid: string; name: string; role: string; photo: string | null; always: boolean; status: string; byName: string; atISO: string; reason: string; note: string; requestAtISO: string; devices: number; lastUsedISO: string }[];
+  stats: { access: number; requests: number; online: number; revoked: number };
+};
 declare global {
   interface Window {
     cn: {
@@ -97,6 +118,12 @@ declare global {
         onTopic(cb: (topic: string) => void): () => void;
       };
       info(): Promise<{ version: string; packaged: boolean }>;
+      app: { applySettings(s: { startup: boolean; closeToTray: boolean; zoom: number; toggleKey: string }): Promise<void>; quit(): Promise<void> };
+      notify: {
+        show(t: { id: string; title: string; body: string; icon?: string; color?: string; urgent?: boolean; actions?: { id: string; label: string }[] }, o: { popup: boolean; taskbar: boolean; edge: boolean }): Promise<void>;
+        unread(n: number): Promise<void>;
+        onAction(cb: (a: { id: string; action: string }) => void): () => void;
+      };
       hub: {
         summary(): Promise<Summary | { error: string }>;
         members(): Promise<{ members: MemberTile[]; canEdit: boolean } | { error: string }>;
@@ -128,6 +155,14 @@ declare global {
         ticketsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; queued?: boolean; msg?: string; error?: string }>;
         send(): Promise<SendData | { error: string }>;
         projects(): Promise<ProjData | { error: string }>;
+        messages(conv?: string): Promise<MsgData | { error: string }>;
+        messagesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
+        hubAccess(): Promise<HubAccessData | { error: string }>;
+        hubAccessAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        policy(): Promise<{ version: string; accepted: boolean; atISO: string } | { error: string }>;
+        policyAction(body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
+        devices(): Promise<{ devices: Device[]; recent: Device[] } | { error: string }>;
+        devicesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         projectsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
         sendAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;

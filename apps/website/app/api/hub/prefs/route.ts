@@ -1,5 +1,6 @@
 import { TerminalDoc, connectDb } from "@505th/db";
 import { getHubActor, hubJson } from "@/lib/hub/auth";
+import { cleanSettings } from "@/lib/hub/settings";
 
 export const dynamic = "force-dynamic";
 type U = Record<string, any>;
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
     const n = b.nav as U, list = (v: unknown, max = 20) => (Array.isArray(v) ? v.slice(0, max).map((x) => str(x)) : []);
     set["data.hubPrefs.nav"] = { order: list(n.order), hidden: list(n.hidden), pins: list(n.pins, 12), closed: list(n.closed), rail: !!n.rail };
   }
+  if (b.settings && typeof b.settings === "object") set["data.hubPrefs.settings"] = cleanSettings(b.settings);
   if (!Object.keys(set).length) return hubJson({ error: "Nothing to save." }, 400);
   await TerminalDoc.updateOne({ _id: `users/${a.uid}` }, { $set: set });
   return hubJson({ ok: true });

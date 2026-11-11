@@ -49,6 +49,8 @@ export const ACCESS: AccessItem[] = [
   { key: "om", label: "Officer Management", group: "SECURITY", min: 3 },
   { key: "net", label: "Network + Restart", group: "SECURITY", min: 3 },
   { key: "audit", label: "Audit Log", group: "SECURITY", min: 4 },
+  // Hub Access (release v0.1): who may use the Command Network app. Commander changes it; Developer can see it.
+  { key: "hubacc", label: "Hub Access", group: "SECURITY", min: 4.5, locked: true },
   { key: "bot", label: "Bot Server", group: "COMMAND", min: 4.5, locked: true },
   { key: "set", label: "Settings", group: "COMMAND", min: 4.5, locked: true },
   { key: "ovr", label: "Overall Status", group: "COMMAND", min: 4.5, locked: true },

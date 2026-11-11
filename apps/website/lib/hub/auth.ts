@@ -6,6 +6,7 @@ import "server-only";
  * Only the SHA-256 of that token is stored (hub_sessions). The member is re-read on every call,
  * so rank / role / status changes and Terminal clearance apply at once; losing clearance = signed out.
  */
+import { hubAllowed } from "@/lib/hub/access-list";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { connection } from "next/server";
 import { HubSession, Member, TerminalDoc, clearanceOf, connectDb, memberDisplayName, type MemberStatus, type Role } from "@505th/db";
@@ -65,11 +66,16 @@ export async function getHubActor(req: Request): Promise<HubActor | null> {
     role: m.role as Role, roleLabel: "", status: m.status as MemberStatus, clearance: clearanceOf(m.role),
   });
   if (access.result !== "GRANTED") return null;
-  if (!s.lastUsedAt || now.getTime() - new Date(s.lastUsedAt).getTime() > TOUCH_EVERY_MS) {
-    await HubSession.updateOne({ _id: s._id }, { $set: { lastUsedAt: now, expiresAt: idleExpiry(now) } });
+  const appVersion = (req.headers.get("x-cn-app") ?? "").replace(/[^\w.-]/g, "").slice(0, 20);
+  const os = (req.headers.get("x-cn-os") ?? "").replace(/[^\w .()-]/g, "").slice(0, 40);
+  const sx = s as { appVersion?: string; os?: string };
+  if (!s.lastUsedAt || now.getTime() - new Date(s.lastUsedAt).getTime() > TOUCH_EVERY_MS || (appVersion && appVersion !== sx.appVersion) || (os && os !== sx.os)) {
+    await HubSession.updateOne({ _id: s._id }, { $set: { lastUsedAt: now, expiresAt: idleExpiry(now), ...(appVersion ? { appVersion } : {}), ...(os ? { os } : {}) } });
   }
   await loadRoleDefaults();
   const uid = m.legacyId || String(m._id);
+  // Hub Access (release v0.1): only people the Commander gave access to (Commander / Developer always). Revoked = refused at once.
+  if (!(await hubAllowed(uid, String(m.role ?? "")))) return null;
   const td = await TerminalDoc.findById(`users/${uid}`, { "data.access": 1, "data.cmdGrant": 1 }).lean();
   const d = td?.data as { access?: unknown; cmdGrant?: CmdGrant } | undefined;
   return {

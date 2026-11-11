@@ -19,7 +19,7 @@ const PANEL_KEYS = {
   // new pages
   "panel-tickets": "tk", "panel-events": "ev", "panel-send": "send", "panel-quick": "qu", "panel-info": "info", "panel-mod": "modw",
   "panel-projects": "proj", "panel-notes": "notes",
-  "panel-officers": "om", "panel-network": "net",
+  "panel-officers": "om", "panel-network": "net", "panel-hubaccess": "hubacc",
   "panel-bot": "bot", "panel-overall": "ovr",
   "panel-auditv2": "audit", "panel-website": "web",
   "panel-cmd-status": "cmd_status", "panel-cmd-sitrep": "cmd_sitrep", "panel-cmd-staff": "cmd_staff", "panel-cmd-promote": "cmd_promote", "panel-cmd-suspend": "cmd_suspend", "panel-cmd-settings": "set", "panel-cmd-cortana": "set", "panel-modlist": "set", "panel-cmd-rolesync": "set",
@@ -36,7 +36,7 @@ const GROUPS = [
   { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes and the public website pages.", links: [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"]] },
   { id: "nav-security", icon: "&#9961;", label: "SECURITY", tip: "Who has access to what, network health and the audit log.", links: [
-    ["panel-officers", "&#9733; Officer Management"], ["panel-network", "&#9673; Network Status"], ["panel-auditv2", "&#9741; Audit Log"]] },
+    ["panel-officers", "&#9733; Officer Management"], ["panel-hubaccess", "&#128273; Hub Access"], ["panel-network", "&#9673; Network Status"], ["panel-auditv2", "&#9741; Audit Log"]] },
   { id: "nav-command", icon: "&#9733;", label: "COMMAND", tip: "Running the unit. Commander / Developer, plus anyone the Commander gives Command Access.", cls: "cmdg", links: [
     ["panel-cmd-home", "&#9733; Command Centre"],
     ["label", "UNIT"], ["panel-cmd-status", "&#9673; Unit Status"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-cmd-staff", "&#9823; Command Staff"],
@@ -111,7 +111,7 @@ function buildPanels() {
   const main = document.querySelector(".main-content");
   if (!main) return;
   for (const id of ["panel-tickets", "panel-events", "panel-send", "panel-quick", "panel-info", "panel-mod", "panel-projects", "panel-notes", "panel-officers", "panel-network",
-    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-home", "panel-cmd-access", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help"]) {
+    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-home", "panel-cmd-access", "panel-hubaccess", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help"]) {
     if (document.getElementById(id)) continue;
     const p = document.createElement("div");
     p.className = "panel hidden";

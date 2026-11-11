@@ -3,6 +3,13 @@ import { Recruit } from "./pages/Recruit";
 import { Tickets } from "./pages/Tickets";
 import { Send } from "./pages/Send";
 import { Projects } from "./pages/Projects";
+import { Settings } from "./pages/Settings";
+import { Messages } from "./pages/Messages";
+import { HubAccess } from "./pages/HubAccess";
+import { PolicyGate } from "./components/Policy";
+import { applySettings, isKey, mergeSettings } from "./settings";
+import { useNotifier } from "./useNotifier";
+import type { AppSettings } from "../../preload/api";
 import { History } from "./pages/History";
 import { Media } from "./pages/Media";
 import { Guard } from "./components/Guard";
@@ -65,7 +72,13 @@ export function App() {
 function Shell({ net }: { net: NetState }) {
   const { data, error, reload } = useSummary();
   const [ov, setOv] = useState<Overview | null>(null);
-  const [page, setPage] = useState("dashboard");
+  // My Settings → "Open on: last page" (remembered on this PC).
+  const [page, setPageRaw] = useState(() => { try { return localStorage.getItem("cn:openLast") === "1" ? localStorage.getItem("cn:lastPage") || "dashboard" : "dashboard"; } catch { return "dashboard"; } });
+  const setPage = useCallback((pg: string) => { setPageRaw(pg); try { localStorage.setItem("cn:lastPage", pg); } catch { /* storage off */ } }, []);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  // 505th Software Use Policy — must be accepted before the app can be used (and again when it changes).
+  const [policyOk, setPolicyOk] = useState<boolean | null>(null);
+  useEffect(() => { void window.cn.hub.policy().then((r) => setPolicyOk(!!r && !("error" in r) ? r.accepted : true)).catch(() => setPolicyOk(true)); }, []);
   const [visited, setVisited] = useState<string[]>(["dashboard"]);
   // Remember the last 10 pages opened; older ones are unmounted to save memory.
   useEffect(() => setVisited((v) => (v.includes(page) ? v : [...v, page].slice(-10))), [page]);
@@ -82,6 +95,7 @@ function Shell({ net }: { net: NetState }) {
       setOv(r);
       setNav((n) => n ?? { ...DEFAULT_NAV, ...(r.prefs?.nav ?? {}) });
       setDash((d) => d ?? (r.prefs?.dash?.length ? r.prefs.dash : DEFAULT_DASH));
+      setSettings((s) => s ?? mergeSettings(r.prefs?.settings));
     }
   }, []);
   useEffect(() => {
@@ -103,8 +117,22 @@ function Shell({ net }: { net: NetState }) {
     if (r.error) setToast(r.error); else void reload();
   };
   const refresh = () => { void reload(); void loadOv(); };
+  // Apply settings (look, tray, start-up, global key) whenever they change.
+  useEffect(() => { if (!settings) return; applySettings(settings); try { localStorage.setItem("cn:openLast", settings.openOn === "last" ? "1" : "0"); } catch { /* storage off */ } }, [settings]);
+  const changeSettings = (s: AppSettings) => { setSettings(s); save({ settings: s }); };
+  useNotifier(data, ov, setPage);
+  // My Shortcuts: Open Messages · Refresh (the others live in the top bar and side menu).
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (isKey(e, "messages")) { e.preventDefault(); setPage("panel-msg2"); }
+      else if (isKey(e, "refresh")) { e.preventDefault(); refresh(); }
+    };
+    addEventListener("keydown", k);
+    return () => removeEventListener("keydown", k);
+  });
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
   if (!data) return <Screen icon={error ? "⚠" : "◷"} color={error ? "#f59e0b" : undefined} title={error ? "CAN'T LOAD" : "LOADING…"} text={error ?? undefined}>{error && <Btn onClick={() => void reload()}>⟳ TRY AGAIN</Btn>}</Screen>;
+  if (policyOk === false) return <PolicyGate onAccepted={() => setPolicyOk(true)} />;
   const navP = nav ?? DEFAULT_NAV;
   return (
     <div className="flex h-full flex-col">
@@ -129,6 +157,9 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-tickets" ? <Tickets me={data.me.role} />
           : pg === "panel-send" ? <Send />
           : pg === "panel-projects" ? <Projects />
+          : pg === "panel-msg2" ? <Messages me={data.me.role} />
+          : pg === "panel-hubaccess" ? <HubAccess />
+          : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} />
           : <ComingSoon title={PAGES[pg] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
           </div>))}
       </div>
