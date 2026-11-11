@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
   },
   "dependencies": {
-    "ably": "2.30.0"
+    "@ably/pubsub-device": "3.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",

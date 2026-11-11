@@ -1,3 +1,4 @@
+import { createHttpClient } from "@ably/pubsub-server";
 import { NextResponse } from "next/server";
 import { FsError, getActor } from "@/lib/terminal/fs";
 
@@ -18,21 +19,14 @@ export async function GET() {
     return NextResponse.json({ error: code }, { status: code === "unauthenticated" ? 401 : 403 });
   }
   const key = process.env.ABLY_API_KEY || "";
-  const keyName = key.split(":")[0];
   if (!key.includes(":")) return NextResponse.json({ error: "Instant updates not set up (ABLY_API_KEY missing)" }, { status: 503 });
   const now = Date.now();
   const mine = (hits.get(uid) || []).filter((t) => now - t < 3_600_000);
   if (mine.length >= 30) return NextResponse.json({ error: "Too many token requests" }, { status: 429 });
   hits.set(uid, [...mine, now]);
   try {
-    const r = await fetch(`https://rest.ably.io/keys/${encodeURIComponent(keyName)}/requestToken`, {
-      method: "POST",
-      headers: { Authorization: `Basic ${Buffer.from(key).toString("base64")}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ keyName, clientId: uid, ttl: 3_600_000, timestamp: now, capability: JSON.stringify({ [CHANNEL]: ["subscribe"] }) }),
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!r.ok) throw new Error(`Ably ${r.status}`);
-    const t = (await r.json()) as { token: string; expires: number };
+    // Ably's server package (account is on MAU pricing — the plain REST call can be refused, error 40168).
+    const t = await createHttpClient({ key }).auth.requestToken({ clientId: uid, ttl: 3_600_000, capability: { [CHANNEL]: ["subscribe"] } });
     return NextResponse.json({ token: t.token, expires: t.expires, channel: CHANNEL }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[realtime] token failed:", (e as Error).message);

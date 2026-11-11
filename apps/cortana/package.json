@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "type": "module",
-  "description": "Cortana v2 — 505th Expeditionary Force Discord bot. Talks to the website only through MongoDB.",
+  "description": "Cortana v2 \u2014 505th Expeditionary Force Discord bot. Talks to the website only through MongoDB.",
   "scripts": {
     "dev": "tsx watch --env-file=.env.local src/index.ts",
     "start": "tsx --env-file=.env.local src/index.ts",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@505th/db": "*",
+    "@ably/pubsub-server": "3.1.0",
     "discord.js": "14.28.1",
     "tsx": "4.23.15",
     "zod": "4.6.7"

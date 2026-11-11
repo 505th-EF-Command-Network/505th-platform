@@ -1,10 +1,12 @@
-import * as Ably from "ably";
+import { createClient, type PubSubClient, type TokenRequest } from "@ably/pubsub-device";
 
 /*
  * The 505th Net (Ably channel "505th-live") — the same live line the website Terminal and Cortana use.
  * Same method as the RCD Hub: the app only LISTENS, using a 1-hour token request from /api/hub/realtime
  * (listen-only, can't publish). Each message is just a topic name ("users", "notifications"…);
  * the app then reloads that data through the website API. Never any data on the line itself.
+ * Ably's device package (@ably/pubsub-device): the 505th Ably account is on MAU pricing, which refuses the
+ * old "ably" package (error 40168). The website uses @ably/pubsub-server for the token request.
  * If Ably isn't set up or is unreachable, the app keeps working with a 2-minute check.
  */
 export type RealtimeState = "off" | "connecting" | "live";
@@ -12,7 +14,7 @@ type Api = (path: string, init?: RequestInit) => Promise<Response>;
 const CHANNEL = "505th-live";
 
 export function createRealtime(o: { api: Api; onTopic: (t: string) => void; onState: (s: RealtimeState, why: string | null) => void }) {
-  let client: Ably.Realtime | null = null;
+  let client: PubSubClient | null = null;
   let state: RealtimeState = "off";
   let reason: string | null = null;
   const setState = (s: RealtimeState, why: string | null = null) => {
@@ -24,11 +26,11 @@ export function createRealtime(o: { api: Api; onTopic: (t: string) => void; onSt
 
   function start(): void {
     if (client) return;
-    client = new Ably.Realtime({
+    client = createClient({
       authCallback: (_p, cb) => {
         o.api("/api/hub/realtime")
           .then(async (res) => {
-            const b = (await res.json().catch(() => ({}))) as Ably.TokenRequest & { error?: string };
+            const b = (await res.json().catch(() => ({}))) as TokenRequest & { error?: string };
             if (!res.ok) throw new Error(b.error ?? `Website error ${res.status}`);
             cb(null, b);
           })

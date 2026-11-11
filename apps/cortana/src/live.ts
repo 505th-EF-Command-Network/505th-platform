@@ -5,6 +5,7 @@
  * Also wakes the job worker the moment the website queues a job.
  * No ABLY_API_KEY → only the job wake-up runs; the website keeps polling as before.
  */
+import { createHttpClient } from "@ably/pubsub-server";
 import { TerminalDoc } from "@505th/db";
 import { log } from "./log.ts";
 
@@ -13,15 +14,15 @@ const QUIET = new Set(["presence_sessions"]);
 const pending = new Set<string>();
 let flushTimer: NodeJS.Timeout | undefined;
 
+// Ably's server package: the 505th Ably account is on MAU pricing, which refuses SDKs that don't say
+// whether they run on a server or a device (error 40168). Server traffic isn't counted as users.
+let http: ReturnType<typeof createHttpClient> | null = null;
 function publish(topics: string[]) {
   const key = process.env.ABLY_API_KEY || "";
   if (!key.includes(":") || !topics.length) return;
-  void fetch(`https://rest.ably.io/channels/${CHANNEL}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Basic ${Buffer.from(key).toString("base64")}`, "Content-Type": "application/json" },
-    body: JSON.stringify(topics.map((name) => ({ name, data: "" }))),
-    signal: AbortSignal.timeout(3_000),
-  }).catch(() => undefined);
+  http ??= createHttpClient({ key });
+  void http.channels.get(CHANNEL).publish(topics.map((name) => ({ name, data: "" })))
+    .catch((e: Error) => log.warn(`505th Net publish failed: ${e.message}`));
 }
 export function signal(topic: string) {
   if (QUIET.has(topic)) return;
