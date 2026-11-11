@@ -3,11 +3,11 @@
  *
  * Original rules kept by calling the original functions:
  *  - ATT pip / PT / month-end reset: attendance-core.js (moved out of the legacy Terminal)
- *  - Row menu: openRosterCtx + ctxAction (edit / promote / transfer / warn / stats / medals)
- *  - Backfill platoon dates: openBackfillPlatoonModal
+ *  - Row menu + backfill: ./member-actions.js
  * New: Award Medal / Award Ribbon windows (same record shape as the originals).
  */
 import { doc, updateDoc } from "/terminal-shim/firestore.js";
+import { run as memberAction, backfill } from "./member-actions.js";
 import { addPip, promotePT, resetStatus, runReset, shiftMonth, ukMonth } from "./attendance-core.js";
 import {
   addCss, ask, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, notifyMember, onReady, openModal,
@@ -159,7 +159,7 @@ function drawCard() {
   box.innerHTML = `<button class="xx" data-act="cardclose" aria-label="Close">✕</button><span class="s2">MEMBER</span><h3>${esc(memberName(r))}</h3>
     <div class="s2">${esc(pgOf(r))} · ${esc(r.platoon || "—")}${r.squad ? " · " + esc(r.squad) : ""}${r.billet ? " · " + esc(r.billet) : ""}</div>
     <div class="cst"><div><b>${r.attendance || 0}/3</b><span>ATT</span></div><div><b style="color:var(--a)">${r.promotionTracker || 0}</b><span>PT</span></div><div><b style="color:${rc(p)}">${p == null ? "—" : p + "%"}</b><span>ATTENDANCE</span></div><div><b>${(r.ribbonHistory || []).length}/${(r.commendationHistory || []).length}</b><span>RIB / MED</span></div></div>
-    ${canEdit ? `<div class="acts"><button class="b sm" data-ca="edit">✎ PERSONNEL FILE</button><button class="b sm" data-ca="promote">▲ PROMOTE</button><button class="b sm" data-ca="transfer">⇄ TRANSFER</button><button class="b sm" data-ca="warn" style="color:var(--am);border-color:var(--am)">⚠ WARN</button><button class="b sm" data-ca="medal" style="color:#C9A227;border-color:#C9A227">★ AWARD MEDAL</button><button class="b sm" data-ca="ribbon" style="color:#2dd4bf;border-color:#2dd4bf">▬ AWARD RIBBON</button><button class="b sm" data-ca="medals" style="color:#a78bfa;border-color:#a78bfa">☆ MEDAL HISTORY</button><button class="b sm" data-ca="stats">▤ EDIT STATS</button></div>` : '<p class="s2">VIEW ONLY</p>'}`;
+    ${canEdit ? `<div class="acts"><button class="b sm" data-ca="edit">✎ PERSONNEL FILE</button><button class="b sm" data-ca="promote">▲ PROMOTE</button><button class="b sm" data-ca="transfer">⇄ TRANSFER</button><button class="b sm" data-ca="warn" style="color:var(--am);border-color:var(--am)">⚠ WARN</button><button class="b sm" data-ca="medal" style="color:#C9A227;border-color:#C9A227">★ AWARD MEDAL</button><button class="b sm" data-ca="ribbon" style="color:#2dd4bf;border-color:#2dd4bf">▬ AWARD RIBBON</button><button class="b sm" data-ca="medals" style="color:#a78bfa;border-color:#a78bfa">☆ MEDALS &amp; RIBBONS</button><button class="b sm" data-ca="stats">▤ EDIT STATS</button></div>` : '<p class="s2">VIEW ONLY</p>'}`;
 }
 
 async function givePT(id) {
@@ -176,7 +176,7 @@ async function givePT(id) {
 // ───────── row menu → original quick actions ─────────
 const MENU = [
   ["edit", "✎ Open personnel file"], ["promote", "⇧ Promote"], ["transfer", "⇄ Transfer platoon"],
-  ["medal", "★ Award medal", "#C9A227"], ["ribbon", "▬ Award ribbon", "#2dd4bf"], ["medals", "☆ View medal history", "#a78bfa"],
+  ["medal", "★ Award medal", "#C9A227"], ["ribbon", "▬ Award ribbon", "#2dd4bf"], ["medals", "☆ Medals & ribbons (edit)", "#a78bfa"],
   ["stats", "▣ Edit roster stats"], ["warn", "⚠ File warning", "#f59e0b"],
 ];
 function openMenu(btn, id) {
@@ -209,10 +209,9 @@ document.addEventListener("click", (e) => {
 });
 
 async function runOriginal(action, id) {
-  if (typeof window.openRosterCtx !== "function") return;
-  // openRosterCtx records which member the action is for; ctxAction then opens the original window.
-  window.openRosterCtx({ stopPropagation() {}, preventDefault() {}, clientX: 0, clientY: 0, pageX: 0, pageY: 0 }, id);
-  await window.ctxAction(action);
+  // Personnel File edit still uses the file window; everything else is the new Member Actions windows.
+  if (action === "edit") return window.openEditUser?.(id);
+  return memberAction(action, id, () => load());
 }
 
 // ───────── award windows ─────────
@@ -567,7 +566,7 @@ onReady(() => {
     if (act === "medal") return openMedal();
     if (act === "ribbon") return openRibbon();
     if (act === "public") return window.open("/resources-roster", "_blank", "noopener");
-    if (act === "backfill") return window.openBackfillPlatoonModal?.();
+    if (act === "backfill") return backfill(() => load());
     if (act === "reset") return openReset(el.dataset.mode || "missed");
   });
   root.addEventListener("toggle", (e) => {

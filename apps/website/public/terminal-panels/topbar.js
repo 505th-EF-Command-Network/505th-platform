@@ -1,4 +1,5 @@
 /**
+ * TOP BAR v3 (approved mock 2026-11-11: next op, system status, UK clock, my status; ✉ mobile only).
  * TOP BAR v2 (approved mock 2026-11-10): breadcrumb, search (Ctrl+K), alerts bell,
  * messages, and the "me" menu with the hex profile picture + logout confirm.
  * The original top-bar buttons stay in the page (hidden) so the original code
@@ -54,7 +55,18 @@ addCss("tb2", `
 .tb2-lob .row{display:flex;gap:8px;justify-content:flex-end}.tb2-lob button{min-height:34px;padding:0 16px;font:inherit;font-size:10.5px;letter-spacing:2px;cursor:pointer;background:none;border:1px solid rgba(255,255,255,.25);color:#d6dde6}
 .tb2-lob button.go{background:#ef4444;border-color:#ef4444;color:#fff}
 .tb2 button:focus-visible,.tb2-dd button:focus-visible,.tb2-dd a:focus-visible{outline:2px solid #00D9FF;outline-offset:1px}
-@media(max-width:900px){.tb2-crumb,.tb2-search span,.tb2-me div{display:none}.tb2-search{min-width:0}.tb2-al{right:8px;left:8px;width:auto}}
+/* v3 (approved mock 2026-11-11) */
+@media(min-width:901px){#tb2Msg{display:none}}
+.tb3-pill{display:flex;align-items:center;gap:7px;height:32px;padding:0 11px;border:1px solid rgba(0,217,255,.25);background:rgba(0,0,0,.3);color:#c9d3de;font:inherit;font-size:10.5px;letter-spacing:1.5px;cursor:pointer;white-space:nowrap}
+.tb3-pill:hover,.tb3-pill[aria-expanded=true]{border-color:#00D9FF}.tb3-pill b{font-weight:400}.tb3-clk{cursor:default}.tb3-clk b{color:#fff}.tb3-clk small{color:#4b5765;font-size:9px}
+.tb3-dot{width:7px;height:7px;border-radius:50%;background:#22e07a;box-shadow:0 0 6px currentColor;color:#22e07a}
+.tb3-op b{color:#f59e0b}
+.tb3-hx{position:relative;display:inline-block}.tb3-st{position:absolute;right:-2px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid #080b10;background:#22e07a}
+.tb3-dd{width:330px}.tb3-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px;letter-spacing:1px;color:#d6dde6}
+.tb3-row small{margin-left:auto;color:#7d8a99;font-size:10px}.tb3-row b{font-weight:400;color:#fff}
+.tb2-mm .tb3-s{display:flex;align-items:center;gap:10px}.tb2-mm .tb3-s i{width:9px;height:9px;border-radius:50%}.tb2-mm .tb3-s.on{color:#00D9FF}.tb2-mm .tb3-h{padding:6px 14px 2px;font-size:9px;letter-spacing:2px;color:#4b5765}
+@media(max-width:1250px){.tb3-clk{display:none}}@media(max-width:1100px){.tb3-sys{display:none}}
+@media(max-width:900px){.tb3-pill{display:none}.tb2-crumb,.tb2-search span,.tb2-me div{display:none}.tb2-search{min-width:0}.tb2-al{right:8px;left:8px;width:auto}}
 `);
 
 let uid = null;
@@ -145,10 +157,13 @@ function build() {
   wrap.className = "tb2";
   wrap.innerHTML = `
     <span class="tb2-crumb" id="tb2Crumb"></span>
+    <button class="tb3-pill tb3-op" id="tb3Op" aria-haspopup="true" aria-expanded="false" aria-controls="tb3OpDd" hidden><i class="tb3-dot" style="background:#f59e0b;color:#f59e0b"></i>NEXT OP <b id="tb3Cd">—</b></button>
+    <button class="tb3-pill tb3-sys" id="tb3Sys" aria-haspopup="true" aria-expanded="false" aria-controls="tb3SysDd"><i class="tb3-dot" id="tb3SysDot"></i><span id="tb3SysTx">CORTANA · SITE</span></button>
+    <span class="tb3-pill tb3-clk" aria-label="UK time"><b id="tb3Clk">--:--</b><small>UK</small></span>
     <button class="tb2-search" id="tb2Search" aria-label="Search the terminal (Ctrl+K)">⌕ <span>SEARCH TERMINAL</span><kbd>CTRL K</kbd></button>
     <button class="tb2-ib" id="tb2Bell" aria-label="Alerts" aria-haspopup="true" aria-expanded="false" aria-controls="tb2Al">🔔<span class="tb2-badge" id="tb2AlBadge" hidden></span></button>
     <button class="tb2-ib" id="tb2Msg" aria-label="Open or close messages">✉<span class="tb2-badge" id="tb2MsgBadge" hidden></span></button>
-    <button class="tb2-me" id="tb2Me" aria-haspopup="true" aria-expanded="false" aria-controls="tb2Mm"><span id="tb2MeHex"></span><div><b id="tb2MeName">—</b><small id="tb2MeRole"></small></div></button>`;
+    <button class="tb2-me" id="tb2Me" aria-haspopup="true" aria-expanded="false" aria-controls="tb2Mm"><span class="tb3-hx"><span id="tb2MeHex"></span><i class="tb3-st" id="tb3St"></i></span><div><b id="tb2MeName">—</b><small id="tb2MeRole"></small></div></button>`;
   right.appendChild(wrap);
   document.body.insertAdjacentHTML(
     "beforeend",
@@ -158,7 +173,13 @@ function build() {
       <div class="tb2-list" id="tb2AlList"><div class="tb2-empty">LOADING…</div></div>
       <div class="tb2-alh" style="border:0;border-top:1px solid rgba(0,217,255,.15)"><a class="tb2-lnk" style="margin:0;text-decoration:none" href="/profile?tab=notif">⚙ ALERT SETTINGS</a></div>
     </div>
+    <div class="tb2-dd tb3-dd" id="tb3OpDd" hidden role="dialog" aria-label="Next ops" style="right:420px"><div class="tb2-alh"><b>NEXT OPS</b><button class="tb2-lnk" id="tb3OpGo">EVENTS →</button></div><div id="tb3OpList"></div></div>
+    <div class="tb2-dd tb3-dd" id="tb3SysDd" hidden role="dialog" aria-label="System status" style="right:330px;width:300px"><div class="tb2-alh"><b>SYSTEM STATUS</b></div><div id="tb3SysList"></div></div>
     <div class="tb2-dd tb2-mm" id="tb2Mm" hidden role="menu">
+      <div class="tb3-h">MY STATUS</div>
+      <button class="tb3-s" data-st="online" role="menuitemradio"><i style="background:#22e07a"></i>ONLINE</button>
+      <button class="tb3-s" data-st="dnd" role="menuitemradio"><i style="background:#ff4d4d"></i>DO NOT DISTURB</button>
+      <button class="tb3-s" data-st="invisible" role="menuitemradio"><i style="background:#7d8a99"></i>INVISIBLE</button><hr>
       <a href="/profile" role="menuitem">♟ MY PROFILE</a><a href="/profile?tab=pfp" role="menuitem">⬢ CHANGE PICTURE</a><a href="/profile?tab=notif" role="menuitem">🔔 ALERT SETTINGS</a>
       <hr><a href="/home" role="menuitem">⌂ VIEW WEBSITE</a><a href="/resources-roster" role="menuitem">☰ ROSTER</a>
       <hr><button class="red" id="tb2Out" role="menuitem">⏻ LOG OUT</button>
@@ -172,6 +193,12 @@ function build() {
 
   $("#tb2Bell").onclick = (e) => { e.stopPropagation(); toggle($("#tb2Bell"), $("#tb2Al")); };
   $("#tb2Me").onclick = (e) => { e.stopPropagation(); toggle($("#tb2Me"), $("#tb2Mm")); };
+  $("#tb3Op").onclick = (e) => { e.stopPropagation(); toggle($("#tb3Op"), $("#tb3OpDd")); };
+  $("#tb3Sys").onclick = (e) => { e.stopPropagation(); toggle($("#tb3Sys"), $("#tb3SysDd")); sysCheck(); };
+  $("#tb3OpGo").onclick = () => { closeAll(); window.showPanel?.("panel-events"); };
+  document.querySelectorAll("#tb2Mm .tb3-s").forEach((b) => (b.onclick = () => setMyStatus(b.dataset.st)));
+  const clk = () => ($("#tb3Clk").textContent = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }));
+  clk(); setInterval(clk, 15000);
   new MutationObserver(() => $("#tb2Msg").classList.toggle("on", !document.getElementById("panel-msg2")?.classList.contains("hidden"))).observe(document.querySelector(".main-content") || document.body, { attributes: true, attributeFilter: ["class"], subtree: true });
   $("#tb2Msg").onclick = () => { closeAll(); window.openMessagesV2 ? window.openMessagesV2() : window.toggleMsgPanel?.(); };
   $("#tb2Search").onclick = openSearch;
@@ -225,6 +252,57 @@ function build() {
   crumb();
 }
 
+const ST = { online: "#22e07a", dnd: "#ff4d4d", invisible: "#7d8a99" };
+function paintStatus(ms) {
+  const st = ms?.state && !(ms.untilISO && Date.parse(ms.untilISO) < Date.now()) ? ms.state : "online";
+  $("#tb3St").style.background = ST[st] || ST.online;
+  $("#tb3St").title = st.toUpperCase();
+  document.querySelectorAll("#tb2Mm .tb3-s").forEach((b) => { b.classList.toggle("on", b.dataset.st === st); b.setAttribute("aria-checked", String(b.dataset.st === st)); });
+}
+async function setMyStatus(state) {
+  if (!uid) return;
+  const myStatus = state === "online" ? { state: "online", note: "", untilISO: null } : { state, note: "", untilISO: null, setAtISO: new Date().toISOString() };
+  paintStatus(myStatus);
+  closeAll();
+  await updateDoc(doc(db, "users", uid), { myStatus }).catch(() => {});
+  window.dispatchEvent(new CustomEvent("mystatus:changed", { detail: myStatus }));
+}
+let ops = [];
+const opStart = (e) => Date.parse(e.startAtISO || (e.date ? `${e.date}T${e.startTime || "19:00"}:00Z` : "")) || 0;
+function drawOps() {
+  const now = Date.now();
+  const next = ops.filter((e) => opStart(e) > now - 2 * 3600e3).sort((a, b) => opStart(a) - opStart(b)).slice(0, 3);
+  const btn = $("#tb3Op");
+  btn.hidden = !next.length;
+  if (!next.length) return;
+  const ms = opStart(next[0]) - now;
+  const d = Math.floor(ms / 864e5), h = Math.floor((ms % 864e5) / 36e5), m = Math.floor((ms % 36e5) / 6e4);
+  $("#tb3Cd").textContent = ms <= 0 ? "LIVE NOW" : d ? `${d}D ${String(h).padStart(2, "0")}H` : `${h}H ${String(m).padStart(2, "0")}M`;
+  $("#tb3OpList").innerHTML = next.map((e) => {
+    const mine = (e.signups || []).find((s) => s.uid === uid);
+    const when = new Date(opStart(e)).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase();
+    return `<div class="tb3-row" style="flex-wrap:wrap"><b style="width:100%">${esc(e.title || "Op")}</b><span style="color:#7d8a99;font-size:10px">${when} UK · ${(e.signups || []).length} SIGNED UP</span><small style="color:${mine ? "#22e07a" : "#7d8a99"}">${mine ? "✓ " + esc(String(mine.choice || "SIGNED").toUpperCase()) : "NOT SIGNED"}</small></div>`;
+  }).join("");
+}
+async function sysCheck() {
+  const rows = [];
+  let bad = 0;
+  try {
+    const { cortanaStatus } = await import("./_common.js");
+    const c = await cortanaStatus();
+    if (!c.online) bad++;
+    rows.push(["CORTANA BOT", c.online, c.online ? "ONLINE" : "OFFLINE"]);
+  } catch { bad++; rows.push(["CORTANA BOT", false, "UNKNOWN"]); }
+  const t0 = performance.now();
+  const ok = await fetch("/api/terminal/access", { cache: "no-store" }).then((r) => r.ok).catch(() => false);
+  if (!ok) bad++;
+  rows.push(["WEBSITE / DATABASE", ok, ok ? Math.round(performance.now() - t0) + " MS" : "ERROR"]);
+  $("#tb3SysList").innerHTML = rows.map(([n, g, t]) => `<div class="tb3-row"><i class="tb3-dot" style="background:${g ? "#22e07a" : "#ff4d4d"};color:${g ? "#22e07a" : "#ff4d4d"}"></i>${n}<small>${t}</small></div>`).join("");
+  $("#tb3SysDot").style.background = bad ? "#ff4d4d" : "#22e07a";
+  $("#tb3SysDot").style.color = bad ? "#ff4d4d" : "#22e07a";
+  $("#tb3SysTx").textContent = bad ? "SYSTEM ISSUE" : "CORTANA · SITE";
+}
+
 async function start(user) {
   if (!user || uid) return;
   uid = user.uid;
@@ -235,7 +313,13 @@ async function start(user) {
     $("#tb2MeHex").innerHTML = hexAvatar(me, "sm");
     $("#tb2MeName").textContent = [me.callsign || me.firstName || ""].join(" ").toUpperCase() || "ME";
     $("#tb2MeRole").textContent = String(me.rank || "").split("/").pop().trim().toUpperCase();
+    paintStatus(me.myStatus);
   }
+  onSnapshot(doc(db, "users", uid), (s) => paintStatus(s.data()?.myStatus));
+  onSnapshot(collection(db, "community_events"), (s) => { ops = s.docs.map((d) => ({ id: d.id, ...d.data() })); drawOps(); }, () => {});
+  setInterval(drawOps, 60000);
+  sysCheck();
+  setInterval(sysCheck, 120000);
   onSnapshot(query(collection(db, "notifications", uid, "items"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
     alerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAlerts();

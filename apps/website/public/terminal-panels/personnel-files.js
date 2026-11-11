@@ -15,6 +15,7 @@ import { getAuth } from "/terminal-shim/auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs } from "/terminal-shim/firestore.js";
 import { hexAvatar, photoUrlOf } from "./_common.js";
 import { ask, tell, audit } from "./_common.js";
+import { editEntry, deleteEntry } from "./member-actions.js";
 
 const db = getFirestore();
 const auth = getAuth();
@@ -354,8 +355,8 @@ function pf3Setup(main) {
     top.addEventListener("click", (e) => {
       const f = e.target.closest("[data-f]"); if (f) { pf3.filter = f.dataset.f; return pf3Timeline(); }
       const t = e.target.closest("[data-addt]"); if (t) { pf3.add = t.dataset.addt; return pf3AddShow(); }
-      const d = e.target.closest("[data-del]"); if (d) { const [ty, i] = d.dataset.del.split(":"); return ty === "ribbon" ? window.deleteRibbonEntry?.(+i) : window.deleteHistoryEntry?.(ty, +i); }
-      const ed = e.target.closest("[data-edm]"); if (ed) { pf3.add = "commend"; pf3AddShow(); window.editCommendEntry?.(+ed.dataset.edm); addBox.scrollIntoView({ block: "nearest" }); }
+      const d = e.target.closest("[data-del]"); if (d) { const [ty, i] = d.dataset.del.split(":"); return deleteEntry(pf3.u.id, ty, +i, pf3Reload); }
+      const ed = e.target.closest("[data-edm]"); if (ed) { const [ty, i] = ed.dataset.edm.split(":"); return editEntry(pf3.u.id, ty, +i, pf3Reload); }
       const rg = e.target.closest("[data-rg]"); if (rg) rg.parentElement.classList.toggle("open");
     });
     // The original code re-draws its (hidden) lists after every add / remove → redraw the timeline from the saved record.
@@ -506,7 +507,7 @@ function pf3Timeline() {
   }
   rows.sort((a, b) => b.date.localeCompare(a.date));
   const by = (e) => (e.addedBy ? `<div class="by">${e.auto ? "AUTO · " : ""}BY ${esc(e.addedBy)}</div>` : e.auto ? '<div class="by">AUTO</div>' : "");
-  const del = (ty, i) => (frozen ? "" : `<button type="button" class="x" data-del="${ty}:${i}" aria-label="Remove entry" title="Remove">✕</button>`);
+  const del = (ty, i) => (frozen ? "" : `<button type="button" class="x" data-del="${ty}:${i}" aria-label="Delete entry" title="Delete">🗑</button>`);
   tl.innerHTML = rows.map((r) => {
     const [tag, col] = KIND[r.ty];
     if (r.ty === "ribbon") return `<li style="--k:${col}" class="rg"><button type="button" class="rgh" data-rg>${'<span class="t">' + tag + "</span>"}<b>${esc(r.name)} ×${r.list.length}</b> <span class="by">▾</span></button>
@@ -516,7 +517,7 @@ function pf3Timeline() {
       : r.ty === "platoon" ? `<b>${esc(e.from || "—")} → ${esc(e.to || "—")}</b>${e.note ? `<div>${esc(e.note)}</div>` : ""}`
       : r.ty === "warn" ? `<b>${esc(e.severity || "MINOR")}</b><div>${esc(e.note || "—")}</div>`
       : `<b>${e.medalImg ? `<img src="/images/medal_emojis/${encodeURIComponent(e.medalImg)}" alt="" class="mi">` : ""}★ ${esc(e.title || "Commendation")}</b>${e.note ? `<div>${esc(e.note)}</div>` : ""}`;
-    return `<li style="--k:${col}"><span class="acts">${r.ty === "commend" && !frozen ? `<button type="button" class="x" data-edm="${r.i}" aria-label="Edit medal" title="Edit">✎</button>` : ""}${del(r.ty, r.i)}</span><div class="d">${esc(e.date || "—")}</div><span class="t">${tag}</span>${body}${by(e)}</li>`;
+    return `<li style="--k:${col}"><span class="acts">${!frozen ? `<button type="button" class="x" data-edm="${r.ty}:${r.i}" aria-label="Edit entry" title="Edit">✎</button>` : ""}${del(r.ty, r.i)}</span><div class="d">${esc(e.date || "—")}</div><span class="t">${tag}</span>${body}${by(e)}</li>`;
   }).join("") || '<li class="none">NOTHING ON RECORD YET.</li>';
 }
 function pf3AddShow() {

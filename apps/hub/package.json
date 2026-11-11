@@ -1,0 +1,18 @@
+{
+  "name": "@505th/hub",
+  "productName": "505th Command Network",
+  "version": "0.1.0",
+  "private": true,
+  "description": "505th Command Network desktop app — the Command Terminal as a Windows app.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "npm run build && electron .",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "devDependencies": {
+    "electron": "45.3.0",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}

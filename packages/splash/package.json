@@ -1,0 +1,20 @@
+{
+  "name": "@505th/splash",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reusable Opera-style start-up splash for Electron apps (logo fade + zoom, transparent, no sound).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "peerDependencies": {
+    "electron": ">=30"
+  },
+  "devDependencies": {
+    "electron": "45.3.0",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}
