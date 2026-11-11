@@ -67,13 +67,17 @@ function render() {
   let list = rows.filter((r) => (!pl || (r.platoon || "") === pl) && memberName(r).toLowerCase().includes(q.toLowerCase()));
   list.sort((a, b) => {
     const A = key(a), B = key(b);
-    return (A > B ? 1 : A < B ? -1 : rankOrder(a.rank) - rankOrder(b.rank)) * sortDir;
+    if (A !== B) return (A > B ? 1 : -1) * sortDir;
+    return sortK === "rank" ? memberName(a).localeCompare(memberName(b)) : rankOrder(a.rank) - rankOrder(b.rank);
   });
 
   const row = (r) => {
     const att = r.attendance || 0;
     const ready = att >= 3;
+    const pg = (String(r.rank || "").match(/^([OE]\d+)/) || [])[1] || (r.rank === "Reservist" ? "RES" : "—");
+    const pgc = pg[0] === "O" ? "o" : pg[0] === "E" ? "e" : "r";
     return `<tr>
+      <td><span class="pgb ${pgc}" title="${esc(r.rank || "")}">${esc(pg)}</span></td>
       <td><span class="nm" data-act="edit" data-id="${esc(r.id)}">${esc(memberName(r))}</span><span class="s2">${esc(r.rank || "—")}</span></td>
       <td><span class="pchip">${esc(r.platoon || "—")}</span></td>
       <td>${ukDate(r.joinedPlatoon, { day: "2-digit", month: "short", year: "2-digit" })}<span class="s2">${since(r.joinedPlatoon)} IN PLATOON</span></td>
@@ -90,14 +94,16 @@ function render() {
       <td>${canEdit ? `<button class="rowbtn" aria-label="Actions for ${esc(memberName(r))}" data-act="menu" data-id="${esc(r.id)}">⋯</button>` : ""}</td></tr>`;
   };
   let html = "";
-  if (group && sortK === "name") {
+  if (group && (sortK === "name" || sortK === "rank")) {
     const plats2 = [...new Set(list.map((r) => r.platoon || ""))].sort((a, b) => platoonOrder(a) - platoonOrder(b));
     plats2.forEach((p) => {
       const g = list.filter((r) => (r.platoon || "") === p);
-      html += `<tr class="grp"><td colspan="8">${esc((p || "NO PLATOON").toUpperCase())} · ${g.length}</td></tr>` + g.map(row).join("");
+      html += `<tr class="grp"><td colspan="9">${esc((p || "NO PLATOON").toUpperCase())} · ${g.length}</td></tr>` + g.map(row).join("");
     });
   } else html = list.map(row).join("");
-  root.querySelector("tbody").innerHTML = html || '<tr><td colspan="8"><div class="empty">NOBODY MATCHES</div></td></tr>';
+  root.querySelector("tbody").innerHTML = html || '<tr><td colspan="9"><div class="empty">NOBODY MATCHES</div></td></tr>';
+  const rs = root.querySelector(".rsort");
+  if (rs) rs.value = sortK === "rank" ? (sortDir < 0 ? "rankup" : "rank") : sortK === "name" ? "name" : rs.value;
   root.querySelectorAll("th[data-k]").forEach((th) => {
     th.classList.toggle("s", th.dataset.k === sortK);
     th.classList.toggle("up", th.dataset.k === sortK && sortDir < 0);
@@ -374,6 +380,8 @@ function openReset() {
 }
 
 const CSS = `
+#rosV2 .pgb{display:inline-block;min-width:38px;text-align:center;font:700 11px "Share Tech Mono",monospace;padding:2px 6px;border:1px solid}
+#rosV2 .pgb.o{color:#f59e0b;border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.06)}#rosV2 .pgb.e{color:#00D9FF;border-color:rgba(0,217,255,.4);background:rgba(0,217,255,.05)}#rosV2 .pgb.r{color:#8a9aa6;border-color:#3b4a5a}
 #${ROOT} .pips{display:flex;gap:4px;align-items:center}
 #${ROOT} .pip{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,217,255,.3);background:none;padding:0;display:inline-block}
 #${ROOT} .pip.next{cursor:pointer;border-style:dashed;border-color:var(--a)}
@@ -438,6 +446,7 @@ onReady(() => {
     <div class="bar">
       <input class="srch rq" placeholder="FIND MARINE..." aria-label="Find member" style="width:200px">
       <select class="srch rpl" aria-label="Platoon"></select>
+      <select class="srch rsort" aria-label="Sort by"><option value="name">SORT: NAME A–Z</option><option value="rank">SORT: PAYGRADE (HIGHEST FIRST)</option><option value="rankup">SORT: PAYGRADE (LOWEST FIRST)</option></select>
       <label style="font-size:10px;letter-spacing:1.5px;color:var(--d);display:flex;gap:6px;align-items:center"><input type="checkbox" class="rg" checked style="accent-color:#00D9FF"> GROUP BY PLATOON</label>
       <span class="sp"></span>
       <button class="b gold needs-edit" data-act="medal">★ AWARD MEDAL</button>
@@ -448,7 +457,7 @@ onReady(() => {
           <button data-act="reset" class="reset-btn" style="color:#ff4d4d">⚠ Month-end reset<small>Saves history, +1 PT at 3/3, resets ATT</small></button></div></div>
     </div>
     <div class="wrapx"><table class="t"><thead><tr>
-      <th data-k="name">NAME</th><th data-k="pl">PLATOON</th><th data-k="joined">JOINED · SERVICE</th><th data-k="grad">GRADUATED · IN UNIT</th>
+      <th data-k="rank">PAYGRADE</th><th data-k="name">NAME</th><th data-k="pl">PLATOON</th><th data-k="joined">JOINED · SERVICE</th><th data-k="grad">GRADUATED · IN UNIT</th>
       <th data-k="att">ATT THIS MONTH</th><th data-k="pt">PT</th><th data-k="rib">RIBBONS</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="legend">CLICK THE DASHED PIP TO ADD ATTENDANCE · 3/3 = +1 PT READY · ⋯ = PROMOTE · TRANSFER · AWARD · WARN · CLICK A HEADER TO SORT</div>`;
 
@@ -493,6 +502,12 @@ onReady(() => {
   root.addEventListener("change", (e) => {
     if (e.target.classList.contains("rpl")) {
       pl = e.target.value;
+      render();
+    }
+    if (e.target.classList.contains("rsort")) {
+      // Paygrade: rankOrder puts O9 first, so "highest first" is ascending; ties by name.
+      sortK = e.target.value === "name" ? "name" : "rank";
+      sortDir = e.target.value === "rankup" ? -1 : 1;
       render();
     }
     if (e.target.classList.contains("rg")) {

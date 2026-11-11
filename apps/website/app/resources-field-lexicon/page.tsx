@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import SiteShell from "@/components/SiteShell";
 import { shellB } from "@/components/shell-styles";
+import "@/styles/tw/field-lexicon.css";
+import FieldLexicon from "@/components/FieldLexicon";
 import "@/styles/tw/resources-field-lexicon.css";
 
 export const metadata: Metadata = { title: "Field Lexicon — 505th Expeditionary Force" };
@@ -21,35 +23,7 @@ export default function ResourcesFieldLexiconPage() {
               COMMONLY USED TERMS, ABBREVIATIONS &amp; DEFINITIONS // 505TH EXPEDITIONARY FORCE
             </p>
           </section>
-          <div className="lexicon-search-bar flex items-center [gap:1rem] [margin-bottom:2rem]">
-            <input className="lexicon-search flex-1 [background:var(--bg-card)] [border:1px_solid_rgba(0,217,255,0.35)] [color:var(--text-primary)] [font-family:'Rajdhani',sans-serif] [font-size:1rem] [padding:0.6rem_1rem] [letter-spacing:0.05em] [outline:none] [max-width:480px] placeholder:[color:rgba(255,255,255,0.3)] focus:[border-color:var(--accent)] focus:[box-shadow:0_0_10px_var(--accent-glow)]" id="lexiconSearch" placeholder="Search terms or definitions..." type="text" />
-            <span className="lexicon-count [font-size:0.78rem] [letter-spacing:0.1em] [color:rgba(255,255,255,0.35)] [margin-left:auto]" id="lexiconCount"></span>
-          </div>
-          <div className="lexicon-categories flex [gap:0.5rem] [flex-wrap:wrap] [margin-bottom:2rem]">
-            <button className="cat-btn active [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="">
-              All Categories
-            </button>
-            <button className="cat-btn [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="general">
-              General Military
-            </button>
-            <button className="cat-btn [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="unsc">
-              UNSC / Halo Lore
-            </button>
-            <button className="cat-btn [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="arma">
-              Arma 3 / ACE
-            </button>
-            <button className="cat-btn [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="optre">
-              OPTRE Mod
-            </button>
-            <button className="cat-btn [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="comms">
-              Communications
-            </button>
-            <button className="cat-btn [background:none] [border:1px_solid_rgba(0,217,255,0.25)] [color:var(--text-secondary)] [font-family:'Rajdhani',sans-serif] [font-size:0.78rem] [font-weight:600] [letter-spacing:0.1em] [padding:0.3rem_0.8rem] cursor-pointer uppercase [transition:all_0.2s] hover:[border-color:var(--accent)] hover:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[color:var(--accent)]" data-cat="medical">
-              Medical
-            </button>
-          </div>
-          <div className="lexicon-alpha-nav flex [flex-wrap:wrap] [gap:0.4rem] [margin-bottom:2.5rem]" id="alphaNav"></div>
-          <div id="lexiconBody"></div>
+          <FieldLexicon />
         </div>
       </main>
     </SiteShell>

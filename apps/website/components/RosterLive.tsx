@@ -69,6 +69,15 @@ function getRankSortOrder(rank: string) {
   return (m[1] === "O" ? 0 : 100) + (99 - parseInt(m[2], 10));
 }
 
+/** Coloured paygrade badge (O = orange officer, E = cyan enlisted, RES = grey) + the rank name. */
+function paygrade(rank: string) {
+  const m = String(rank || "").match(/^([OE]\d+)\s*\/\s*(.*)$/);
+  const pg = m ? m[1] : rank === "Reservist" ? "RES" : "";
+  const name = m ? m[2] : rank || "—";
+  const c = pg[0] === "O" ? "#f59e0b" : pg[0] === "E" ? "#00D9FF" : "#8a9aa6";
+  return `${pg ? `<span style="display:inline-block;min-width:36px;text-align:center;font:700 11px 'Share Tech Mono',monospace;padding:2px 6px;margin-right:8px;color:${c};border:1px solid ${c}80;background:${c}10">${esc(pg)}</span>` : ""}<span style="color:#cfd8dd">${esc(name)}</span>`;
+}
+
 function renderRoster(data: RosterRow[]) {
   const groups: Record<string, RosterRow[]> = {};
   data.forEach((r) => (groups[r.platoon || "Other"] ??= []).push(r));
@@ -94,12 +103,12 @@ function renderRoster(data: RosterRow[]) {
       <div class="platoon-section" data-platoon="${esc(platoon)}">
         <div class="platoon-label"><span>${esc(platoon)}</span><span class="platoon-count">${members.length} PERSONNEL</span></div>
         <div class="roster-table-wrap"><table class="roster-table">
-          <thead><tr><th>NAME</th><th>RANK / GRADE</th><th>JOINED PLATOON</th><th>PLATOON SERVICE</th><th>GRADUATION</th><th>TIME IN UNIT</th><th>ATT.</th><th>PT</th><th>RIBBONS</th></tr></thead>
+          <thead><tr><th>NAME</th><th>PAYGRADE / RANK</th><th>JOINED PLATOON</th><th>PLATOON SERVICE</th><th>GRADUATION</th><th>TIME IN UNIT</th><th>ATT.</th><th>PT</th><th>RIBBONS</th></tr></thead>
           <tbody>${members
             .map(
               (r) => `<tr>
             <td class="name-cell">${esc(formatMemberName(r))}</td>
-            <td><span class="rank-badge">${esc(r.rank || "—")}</span></td>
+            <td>${paygrade(r.rank)}</td>
             <td>${fmtDate(r.joinedPlatoon)}</td>
             <td class="time-val">${calcPeriod(r.joinedPlatoon)}</td>
             <td>${fmtDate(r.graduation)}</td>
@@ -137,8 +146,10 @@ export default function RosterLive({ rows }: { rows: RosterRow[] }) {
             formatMemberName(r).toLowerCase().includes(q),
         );
       if (p) list = list.filter((r) => r.platoon === p);
-      if (sort?.value === "rank-asc") list = [...list].sort((a, b) => getRankSortOrder(a.rank) - getRankSortOrder(b.rank));
-      if (sort?.value === "rank-desc") list = [...list].sort((a, b) => getRankSortOrder(b.rank) - getRankSortOrder(a.rank));
+      const byName = (a: RosterRow, b: RosterRow) => formatMemberName(a).replace(/^\S+\s/, "").localeCompare(formatMemberName(b).replace(/^\S+\s/, ""));
+      if (sort?.value === "rank-asc") list = [...list].sort((a, b) => getRankSortOrder(a.rank) - getRankSortOrder(b.rank) || byName(a, b));
+      if (sort?.value === "rank-desc") list = [...list].sort((a, b) => getRankSortOrder(b.rank) - getRankSortOrder(a.rank) || byName(a, b));
+      if (sort?.value === "name") list = [...list].sort(byName);
       renderRoster(list);
     };
 

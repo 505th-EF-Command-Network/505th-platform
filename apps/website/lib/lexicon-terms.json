@@ -1,0 +1,500 @@
+[
+{
+"abbr": "AAR",
+"full": "After Action Report",
+"def": "A structured review conducted after a mission to assess what happened, what worked, and what needs improvement.",
+"cat": "general"
+},
+{
+"abbr": "AO",
+"full": "Area of Operations",
+"def": "The designated geographic area where a military operation is being conducted.",
+"cat": "general"
+},
+{
+"abbr": "ASAP",
+"full": "As Soon As Possible",
+"def": "Term used to indicate urgency. Act or report immediately.",
+"cat": "general"
+},
+{
+"abbr": "BDA",
+"full": "Battle Damage Assessment",
+"def": "Evaluation of damage caused to a target following a strike or engagement.",
+"cat": "general"
+},
+{
+"abbr": "BLUFOR",
+"full": "Blue Forces",
+"def": "Friendly forces. Used in OPFOR/BLUFOR designations to distinguish allies from enemies.",
+"cat": "general"
+},
+{
+"abbr": "BP",
+"full": "Battle Position",
+"def": "A defensive position from which a unit can engage the enemy.",
+"cat": "general"
+},
+{
+"abbr": "CAS",
+"full": "Close Air Support",
+"def": "Air action against hostile targets that are in close proximity to friendly forces.",
+"cat": "general"
+},
+{
+"abbr": "CO",
+"full": "Commanding Officer",
+"def": "The officer in command of a unit or element during an operation.",
+"cat": "general"
+},
+{
+"abbr": "CP",
+"full": "Command Post / Checkpoint",
+"def": "Either the headquarters location for a command element, or a designated point on a route to be secured.",
+"cat": "general"
+},
+{
+"abbr": "CQB",
+"full": "Close Quarters Battle",
+"def": "Combat conducted at very close range, typically inside buildings or confined spaces.",
+"cat": "general"
+},
+{
+"abbr": "ETA",
+"full": "Estimated Time of Arrival",
+"def": "Expected time for a unit or element to reach a destination.",
+"cat": "general"
+},
+{
+"abbr": "EXFIL",
+"full": "Exfiltration",
+"def": "The process of withdrawing from an area after completing a mission.",
+"cat": "general"
+},
+{
+"abbr": "FRAGO",
+"full": "Fragmentary Order",
+"def": "An abbreviated form of an operations order used to make changes to a mission in progress.",
+"cat": "general"
+},
+{
+"abbr": "FOB",
+"full": "Forward Operating Base",
+"def": "A secured forward position used to support tactical operations.",
+"cat": "general"
+},
+{
+"abbr": "HVT",
+"full": "High Value Target",
+"def": "An enemy target of significant importance whose capture or neutralisation would severely impact enemy operations.",
+"cat": "general"
+},
+{
+"abbr": "INFIL",
+"full": "Infiltration",
+"def": "The process of moving into an operational area without being detected.",
+"cat": "general"
+},
+{
+"abbr": "IP",
+"full": "Initial Point",
+"def": "A designated starting point for beginning an attack or navigation phase.",
+"cat": "general"
+},
+{
+"abbr": "KIA",
+"full": "Killed in Action",
+"def": "A combatant who has died as a result of hostile action.",
+"cat": "general"
+},
+{
+"abbr": "LZ",
+"full": "Landing Zone",
+"def": "A designated area where aircraft can land to insert or extract personnel.",
+"cat": "general"
+},
+{
+"abbr": "MIA",
+"full": "Missing in Action",
+"def": "A combatant whose status is unknown following hostile engagement.",
+"cat": "general"
+},
+{
+"abbr": "MOPP",
+"full": "Mission Oriented Protective Posture",
+"def": "Level of protection worn against chemical, biological, radiological or nuclear threats.",
+"cat": "general"
+},
+{
+"abbr": "OP",
+"full": "Observation Post",
+"def": "A position from which military observations are made.",
+"cat": "general"
+},
+{
+"abbr": "OPFOR",
+"full": "Opposing Forces",
+"def": "Enemy or hostile forces in a given scenario.",
+"cat": "general"
+},
+{
+"abbr": "OPORD",
+"full": "Operations Order",
+"def": "A directive issued by a commander to subordinates for the purpose of executing an operation.",
+"cat": "general"
+},
+{
+"abbr": "ORP",
+"full": "Objective Rally Point",
+"def": "A covered and concealed location near the objective where final preparations are made before an assault.",
+"cat": "general"
+},
+{
+"abbr": "PID",
+"full": "Positive Identification",
+"def": "Confirmed identification of a target as hostile before engagement.",
+"cat": "general"
+},
+{
+"abbr": "PL",
+"full": "Phase Line",
+"def": "A line used for control and coordination, often named and used to track progress of an advance.",
+"cat": "general"
+},
+{
+"abbr": "POW",
+"full": "Prisoner of War",
+"def": "An enemy combatant captured and held according to rules of engagement.",
+"cat": "general"
+},
+{
+"abbr": "QRF",
+"full": "Quick Reaction Force",
+"def": "A unit held on standby to respond rapidly to unexpected threats or situations.",
+"cat": "general"
+},
+{
+"abbr": "ROE",
+"full": "Rules of Engagement",
+"def": "Directives that define the circumstances and limitations under which forces may engage.",
+"cat": "general"
+},
+{
+"abbr": "RP",
+"full": "Rally Point",
+"def": "A designated location where elements regroup following dispersion or contact with the enemy.",
+"cat": "general"
+},
+{
+"abbr": "RV",
+"full": "Rendezvous",
+"def": "A pre-arranged meeting point for two or more units.",
+"cat": "general"
+},
+{
+"abbr": "SITREP",
+"full": "Situation Report",
+"def": "A verbal or written update on the current status of a unit, area, or operation.",
+"cat": "general"
+},
+{
+"abbr": "SOP",
+"full": "Standard Operating Procedure",
+"def": "A set of step-by-step instructions compiled to carry out routine operations.",
+"cat": "general"
+},
+{
+"abbr": "TIC",
+"full": "Troops in Contact",
+"def": "Radio code indicating that a unit is actively engaged with the enemy.",
+"cat": "general"
+},
+{
+"abbr": "WIA",
+"full": "Wounded in Action",
+"def": "A combatant who has been injured as a result of hostile action.",
+"cat": "general"
+},
+{
+"abbr": "WP",
+"full": "Waypoint",
+"def": "A reference point in physical space used for navigation or coordination.",
+"cat": "general"
+},
+{
+"abbr": "UNSC",
+"full": "United Nations Space Command",
+"def": "The military arm and primary government body of humanity in the Halo universe.",
+"cat": "unsc"
+},
+{
+"abbr": "ONI",
+"full": "Office of Naval Intelligence",
+"def": "The intelligence and special operations division of the UNSC. Operates in extreme secrecy.",
+"cat": "unsc"
+},
+{
+"abbr": "ODST",
+"full": "Orbital Drop Shock Trooper",
+"def": "Elite UNSC shock infantry who deploy from orbit in Single Occupant Exoatmospheric Insertion Vehicles (SOEIVs).",
+"cat": "unsc"
+},
+{
+"abbr": "MAC",
+"full": "Magnetic Accelerator Cannon",
+"def": "The primary offensive weapon of UNSC warships, firing ferric tungsten slugs at high velocity.",
+"cat": "unsc"
+},
+{
+"abbr": "SOEIV",
+"full": "Single Occupant Exoatmospheric Insertion Vehicle",
+"def": "Commonly called a drop pod. Used by ODSTs for orbital insertion into combat zones.",
+"cat": "unsc"
+},
+{
+"abbr": "MJOLNIR",
+"full": "MJOLNIR Powered Assault Armour",
+"def": "The powered exoskeleton armour system used by UNSC Spartan supersoldiers.",
+"cat": "unsc"
+},
+{
+"abbr": "AI",
+"full": "Artificial Intelligence",
+"def": "UNSC smart or dumb AI constructs used to support warship operations, tactics, and logistics.",
+"cat": "unsc"
+},
+{
+"abbr": "SRS99",
+"full": "Sniper Rifle System 99",
+"def": "Standard UNSC anti-materiel sniper rifle. 14.5×114mm semi-automatic.",
+"cat": "unsc"
+},
+{
+"abbr": "MA5",
+"full": "Assault Rifle, Model 5",
+"def": "UNSC standard-issue assault rifle series. Chambered in 7.62×51mm full-auto configuration.",
+"cat": "unsc"
+},
+{
+"abbr": "M6",
+"full": "M6 Series Pistol",
+"def": "Standard UNSC sidearm series. Semi-automatic, 12.7×40mm.",
+"cat": "unsc"
+},
+{
+"abbr": "INSURRECTION",
+"full": "The Insurrection",
+"def": "An ongoing rebel movement against the UNSC, primarily operating in the Outer Colonies. The 505th's primary OPFOR.",
+"cat": "unsc"
+},
+{
+"abbr": "INNIES",
+"full": "Insurrectionists",
+"def": "Colloquial term for members of the Insurrectionist movement.",
+"cat": "unsc"
+},
+{
+"abbr": "LONGSWORD",
+"full": "F/A-71 Longsword",
+"def": "UNSC interceptor and strike craft used for space superiority and planetary bombing runs.",
+"cat": "unsc"
+},
+{
+"abbr": "PELICAN",
+"full": "D77-TC Pelican",
+"def": "The primary UNSC dropship and atmospheric combat craft. Used for troop insertion and extraction.",
+"cat": "unsc"
+},
+{
+"abbr": "WARTHOG",
+"full": "M12 Warthog FAV",
+"def": "UNSC's iconic light utility vehicle. Available in multiple variants including LRV and LAAV.",
+"cat": "unsc"
+},
+{
+"abbr": "ACE",
+"full": "Advanced Combat Environment",
+"def": "The ACE3 mod framework adding realistic medical, explosives, interactions, and ballistics to Arma 3.",
+"cat": "arma"
+},
+{
+"abbr": "CBA",
+"full": "Community Base Addons",
+"def": "A required Arma 3 framework mod providing shared functionality for most other mods to work correctly.",
+"cat": "arma"
+},
+{
+"abbr": "ACRE",
+"full": "Advanced Combat Radio Environment",
+"def": "A mod adding realistic radio simulation including range limits, terrain effects, and interference.",
+"cat": "arma"
+},
+{
+"abbr": "ALT+S",
+"full": "ACE Surrender",
+"def": "Default ACE keybind to raise hands and surrender.",
+"cat": "arma"
+},
+{
+"abbr": "TFAR",
+"full": "Task Force Arrowhead Radio",
+"def": "An alternative radio mod to ACRE2. Provides voice comms tied to in-game radios.",
+"cat": "arma"
+},
+{
+"abbr": "Zeus",
+"full": "Zeus Game Master",
+"def": "Arma 3's built-in real-time mission editor allowing a GM to control the mission dynamically.",
+"cat": "arma"
+},
+{
+"abbr": "JIP",
+"full": "Join in Progress",
+"def": "A player joining a mission that is already underway.",
+"cat": "arma"
+},
+{
+"abbr": "VAR",
+"full": "Virtual Arsenal",
+"def": "Arma 3's loadout editor, accessible in-game via ACE interact or scripted triggers.",
+"cat": "arma"
+},
+{
+"abbr": "OPTRE",
+"full": "Operation TREBUCHET",
+"def": "The primary Arma 3 mod the 505th uses, adding UNSC/Halo assets, weapons, vehicles, and factions.",
+"cat": "optre"
+},
+{
+"abbr": "HEMTT",
+"full": "Modding Toolkit",
+"def": "Build tool used by the 505th developer team to compile and package the aux mod.",
+"cat": "optre"
+},
+{
+"abbr": "AUX",
+"full": "Auxiliary Mod",
+"def": "The 505th's custom Arma 3 mod adding unit-specific content layered on top of OPTRE.",
+"cat": "optre"
+},
+{
+"abbr": "BREAK",
+"full": "Break",
+"def": "Radio term indicating a pause between messages, or used to interrupt a transmission in an emergency.",
+"cat": "comms"
+},
+{
+"abbr": "CALLSIGN",
+"full": "Call Sign",
+"def": "A unique identifier used in radio communications to identify a unit, vehicle, or individual.",
+"cat": "comms"
+},
+{
+"abbr": "COMMS",
+"full": "Communications",
+"def": "General term for radio or verbal communication between elements.",
+"cat": "comms"
+},
+{
+"abbr": "NET",
+"full": "Radio Network",
+"def": "A specific radio frequency or channel assigned to a unit or mission.",
+"cat": "comms"
+},
+{
+"abbr": "OVER",
+"full": "Over",
+"def": "Radio proword indicating transmission is complete and a reply is expected.",
+"cat": "comms"
+},
+{
+"abbr": "OUT",
+"full": "Out",
+"def": "Radio proword indicating the conversation is complete and no reply is expected.",
+"cat": "comms"
+},
+{
+"abbr": "ROGER",
+"full": "Acknowledged",
+"def": "Radio proword confirming a message has been received and understood.",
+"cat": "comms"
+},
+{
+"abbr": "WILCO",
+"full": "Will Comply",
+"def": "Radio proword meaning the message is understood and the instruction will be followed.",
+"cat": "comms"
+},
+{
+"abbr": "ZERO",
+"full": "Command Net / HQ",
+"def": "The command element or HQ on the radio net.",
+"cat": "comms"
+},
+{
+"abbr": "CCP",
+"full": "Casualty Collection Point",
+"def": "A designated area where casualties are brought for treatment and stabilisation prior to evacuation.",
+"cat": "medical"
+},
+{
+"abbr": "CASEVAC",
+"full": "Casualty Evacuation",
+"def": "The movement of casualties from the point of injury to medical treatment facilities.",
+"cat": "medical"
+},
+{
+"abbr": "MEDEVAC",
+"full": "Medical Evacuation",
+"def": "Evacuation of casualties by dedicated medical assets, typically aircraft.",
+"cat": "medical"
+},
+{
+"abbr": "PAK",
+"full": "Personal Aid Kit",
+"def": "ACE3 medical item for basic self-treatment. Limited to bandaging in standard configs.",
+"cat": "medical"
+},
+{
+"abbr": "FAK",
+"full": "First Aid Kit",
+"def": "ACE3 medical item for treating wounds on other players. More versatile than a PAK.",
+"cat": "medical"
+},
+{
+"abbr": "MEDBAG",
+"full": "Medical Bag",
+"def": "ACE3 advanced medical item required for surgical and IV procedures. Corpsman use.",
+"cat": "medical"
+},
+{
+"abbr": "PAX",
+"full": "Patients / Personnel",
+"def": "Informal term for a casualty requiring medical attention.",
+"cat": "medical"
+},
+{
+"abbr": "T1",
+"full": "Triage Priority 1 (Immediate)",
+"def": "Highest priority casualty — life-threatening injury requiring immediate treatment.",
+"cat": "medical"
+},
+{
+"abbr": "T2",
+"full": "Triage Priority 2 (Delayed)",
+"def": "Moderate priority — serious injury but can wait for treatment without immediate risk of death.",
+"cat": "medical"
+},
+{
+"abbr": "T3",
+"full": "Triage Priority 3 (Minimal)",
+"def": "Minor injuries. Can walk and wait for treatment.",
+"cat": "medical"
+},
+{
+"abbr": "TOURNIQUET",
+"full": "Tourniquet (TQ)",
+"def": "ACE3 medical item used to stop bleeding on limbs. Must be removed to restore circulation.",
+"cat": "medical"
+}
+]

@@ -118,15 +118,15 @@ export default async function ResourcesRosterPage() {
                     Reserves
                   </option>
                 </select>
-                <select id="rankSort">
-                  <option value="">
-                    SORT: DEFAULT
-                  </option>
+                <select id="rankSort" defaultValue="rank-asc" aria-label="Sort">
                   <option value="rank-asc">
-                    RANK: HIGH → LOW
+                    SORT: PAYGRADE (HIGHEST FIRST)
                   </option>
                   <option value="rank-desc">
-                    RANK: LOW → HIGH
+                    SORT: PAYGRADE (LOWEST FIRST)
+                  </option>
+                  <option value="name">
+                    SORT: NAME A–Z
                   </option>
                 </select>
               </div>

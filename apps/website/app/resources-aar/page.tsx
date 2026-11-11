@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import SiteShell from "@/components/SiteShell";
 import { shellB } from "@/components/shell-styles";
 import "@/styles/tw/resources-aar.css";
+import AarLive from "@/components/AarLive";
+import { getPublicAars } from "@/lib/aar/public";
 
 export const metadata: Metadata = { title: "After Action Reports — 505th Expeditionary Force" };
+export const dynamic = "force-dynamic";
 
 /** Converted 1:1 from the live resources-aar.html (content after the shared shell). */
-export default function ResourcesAarPage() {
+export default async function ResourcesAarPage() {
+  const aars = await getPublicAars().catch(() => []);
   return (
     <SiteShell styles={shellB}>
       <main className="homepage-content [min-height:calc(100vh_-_110px)] relative overflow-hidden before:content-[''] before:[position:absolute] before:[top:50%] before:[left:50%] before:[transform:translate(-50%,-50%)] before:[width:1100px] before:[height:1100px] before:[background-image:url('/images/logo.png')] before:[background-size:contain] before:[background-repeat:no-repeat] before:[background-position:center] before:[opacity:0.04] before:[z-index:0] before:[pointer-events:none] max-[768px]:before:[width:700px] max-[768px]:before:[height:700px] max-[768px]:before:[opacity:0.03] max-[480px]:before:[width:500px] max-[480px]:before:[height:500px] min-[1024px]:[margin-top:72px]! min-[1024px]:[margin-left:52px]! min-[1024px]:[transition:margin-left_0.28s_cubic-bezier(0.4,0,0.2,1)] min-[1024px]:[body.panel-open_&]:[margin-left:252px]!">
@@ -132,6 +136,7 @@ export default function ResourcesAarPage() {
           </button>
         </div>
       </div>
+      <AarLive aars={aars} />
     </SiteShell>
   );
 }

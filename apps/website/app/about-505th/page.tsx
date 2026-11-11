@@ -2,11 +2,17 @@ import type { Metadata } from "next";
 import SiteShell from "@/components/SiteShell";
 import { shellA } from "@/components/shell-styles";
 import "@/styles/tw/about-505th.css";
+import "@/styles/tw/unit-cards.css";
+import UnitCards from "@/components/UnitCards";
+import { getBattalionStats } from "@/lib/units/cards";
 
 export const metadata: Metadata = { title: "505th Expeditionary Force - 505th" };
 
 /** Converted 1:1 from the live about-505th.html (content after the shared shell). */
-export default function About505thPage() {
+export const dynamic = "force-dynamic";
+
+export default async function About505thPage() {
+  const stats = await getBattalionStats().catch(() => null);
   return (
     <SiteShell styles={shellA}>
       <main className="page-content [min-height:calc(100vh_-_200px)] [padding:3rem_2rem] relative overflow-hidden before:content-[''] before:[position:absolute] before:[top:50%] before:[left:50%] before:[transform:translate(-50%,-50%)] before:[width:1100px] before:[height:1100px] before:[background-image:url('/images/logo.png')] before:[background-size:contain] before:[background-repeat:no-repeat] before:[background-position:center] before:[opacity:0.04] before:[z-index:0] before:[pointer-events:none] max-[768px]:[padding:2rem_1rem] max-[768px]:before:[width:700px] max-[768px]:before:[height:700px] max-[768px]:before:[opacity:0.03] max-[480px]:before:[width:500px] max-[480px]:before:[height:500px] mq1:[padding:1rem] min-[1024px]:[margin-top:72px]! min-[1024px]:[margin-left:52px]! min-[1024px]:[transition:margin-left_0.28s_cubic-bezier(0.4,0,0.2,1)] min-[1024px]:[body.panel-open_&]:[margin-left:252px]!">
@@ -205,7 +211,7 @@ export default function About505thPage() {
           <div className="stat-strip flex [gap:12px] [flex-wrap:wrap]" style={{marginBottom: '2rem'}}>
             <a className="stat-pill [background:rgba(0,217,255,.04)] [border:1px_solid_rgba(0,217,255,.12)] [padding:10px_20px] [font-family:'Share_Tech_Mono',monospace] flex flex-col [gap:2px] flex-1 [min-width:120px] text-center" href="/resources-roster" style={{textDecoration: 'none', cursor: 'pointer', transition: 'border-color .2s'}}>
               <span className="val [.stat-pill_&]:[font-size:26px] [.stat-pill_&]:[font-weight:700] [.stat-pill_&]:[line-height:1]" id="statDaysService" style={{color: 'var(--accent)'}}>
-                —
+                {stats?.days || "—"}
               </span>
               <span className="lbl [.stat-pill_&]:[font-size:11px] [.stat-pill_&]:[letter-spacing:3px] [.stat-pill_&]:[color:#aaa]">
                 DAYS IN SERVICE
@@ -213,7 +219,7 @@ export default function About505thPage() {
             </a>
             <a className="stat-pill [background:rgba(0,217,255,.04)] [border:1px_solid_rgba(0,217,255,.12)] [padding:10px_20px] [font-family:'Share_Tech_Mono',monospace] flex flex-col [gap:2px] flex-1 [min-width:120px] text-center" href="/resources-roster" style={{textDecoration: 'none', cursor: 'pointer', transition: 'border-color .2s'}}>
               <span className="val [.stat-pill_&]:[font-size:26px] [.stat-pill_&]:[font-weight:700] [.stat-pill_&]:[line-height:1]" id="statActiveCount" style={{color: '#7FFF7F'}}>
-                —
+                {stats?.active ?? "—"}
               </span>
               <span className="lbl [.stat-pill_&]:[font-size:11px] [.stat-pill_&]:[letter-spacing:3px] [.stat-pill_&]:[color:#aaa]">
                 ACTIVE
@@ -221,7 +227,7 @@ export default function About505thPage() {
             </a>
             <a className="stat-pill [background:rgba(0,217,255,.04)] [border:1px_solid_rgba(0,217,255,.12)] [padding:10px_20px] [font-family:'Share_Tech_Mono',monospace] flex flex-col [gap:2px] flex-1 [min-width:120px] text-center" href="resources-roster.html?platoon=Reserves" style={{textDecoration: 'none', cursor: 'pointer', transition: 'border-color .2s'}}>
               <span className="val [.stat-pill_&]:[font-size:26px] [.stat-pill_&]:[font-weight:700] [.stat-pill_&]:[line-height:1]" id="statReserveCount" style={{color: '#FFD700'}}>
-                —
+                {stats?.reserves ?? "—"}
               </span>
               <span className="lbl [.stat-pill_&]:[font-size:11px] [.stat-pill_&]:[letter-spacing:3px] [.stat-pill_&]:[color:#aaa]">
                 RESERVES
@@ -229,7 +235,7 @@ export default function About505thPage() {
             </a>
             <a className="stat-pill [background:rgba(0,217,255,.04)] [border:1px_solid_rgba(0,217,255,.12)] [padding:10px_20px] [font-family:'Share_Tech_Mono',monospace] flex flex-col [gap:2px] flex-1 [min-width:120px] text-center" href="/resources-roster" style={{textDecoration: 'none', cursor: 'pointer', transition: 'border-color .2s'}}>
               <span className="val [.stat-pill_&]:[font-size:26px] [.stat-pill_&]:[font-weight:700] [.stat-pill_&]:[line-height:1]" id="statDetachCount" style={{color: 'var(--accent)'}}>
-                —
+                {stats?.detachments ?? "—"}
               </span>
               <span className="lbl [.stat-pill_&]:[font-size:11px] [.stat-pill_&]:[letter-spacing:3px] [.stat-pill_&]:[color:#aaa]">
                 ACTIVE DETACHMENTS
@@ -240,7 +246,7 @@ export default function About505thPage() {
             <h3 style={{fontFamily: "'Rajdhani',sans-serif", color: 'var(--accent)', fontSize: '1.8rem', letterSpacing: '4px', textAlign: 'center', marginBottom: '1.5rem', textShadow: '0 0 10px var(--accent-glow)'}}>
               BATTALION COMMAND
             </h3>
-            <div data-unit="Battalion Command" id="unitCardsEmbed"></div>
+            <UnitCards id="bc" />
           </section>
           <div className="cta-box [background:var(--bg-elevated)] [border:2px_solid_var(--accent)] [padding:2rem] [margin:3rem_0] text-center">
             <h3>

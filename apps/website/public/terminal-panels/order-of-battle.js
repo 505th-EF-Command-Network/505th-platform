@@ -6,7 +6,7 @@
  * Order of Battle page keeps working.
  */
 import { doc, getDoc, setDoc } from "/terminal-shim/firestore.js";
-import { addCss, audit, db, esc, getUsers, isMember, memberName, mountPanel, notify, onReady } from "./_common.js";
+import { addCss, audit, db, esc, getUsers, isMember, memberName, mountPanel, notify, onReady, rankAbbr } from "./_common.js";
 
 const ROOT = "obV2";
 // Copied from UNIT_CARD_STRUCTURE in the original page.
@@ -72,100 +72,87 @@ function unitStats(u) {
   return { f, o, n };
 }
 
-function slotHtml(u, section, s, squad) {
+// Public page each unit card is shown on (approved mock 2026-11-11: editor + live public preview).
+const PAGES = {
+  "Battalion Command": ["505th Expeditionary Force", "/about-505th"], "Alpha Company": ["Alpha Company", "/about-alpha-company"],
+  "JSOTF-23": ["JTF-23 Force Recon", "/about-stalker"], "Support Company": ["Hospital Corpsman", "/about-corpsman"], "54th Air Wing": ["54th Air Wing", "/about-54th-air-wing"],
+};
+const ORDER = ["Battalion Command", "Alpha Company", "JSOTF-23", "Support Company", "54th Air Wing"];
+const userById = (id) => users.find((u) => u.id === id);
+const rankOf = (u) => (u ? rankAbbr(u.rank || "") : "");
+const nameOf = (u) => (u ? memberName(u).replace(/^\S+\s/, (m) => (rankOf(u) && m.trim() === rankOf(u) ? "" : m)) : "");
+
+function rowHtml(u, section, s, squad) {
   const k = slotKey(u, section, s, squad);
   const v = data[k] || { status: "open", name: "", userId: "" };
   const st = v.status || "open";
-  const who = st === "filled" ? v.name || "—" : st === "open" ? "OPEN — RECRUITING" : "CLOSED";
   const dirty = JSON.stringify(data[k] ?? null) !== JSON.stringify(saved[k] ?? null);
-  return `<button class="slot ${st} ${dirty ? "dirty" : ""}" data-key="${esc(k)}" data-pos="${esc(s)}"><span class="pos">${esc(s.toUpperCase())}</span><span class="who">${esc(who)}</span></button>`;
+  const opts = `<option value="">— pick a member —</option>${!v.userId && v.name ? `<option value="__typed" selected>★ ${esc(v.name)} (typed name, not linked)</option>` : ""}${users.map((x) => `<option value="${esc(x.id)}" ${x.id === v.userId ? "selected" : ""}>${esc(memberName(x))}</option>`).join("")}`;
+  return `<div class="row${dirty ? " dirty" : ""}"><span class="sl" title="${esc(s)}">${esc(s)}</span>
+    <div class="seg" role="group" aria-label="${esc(s)} status">${["open", "filled", "closed"].map((t) => `<button type="button" class="${t}${st === t ? " on" : ""}" aria-pressed="${st === t}" data-k="${esc(k)}" data-st="${t}">${t.toUpperCase()}</button>`).join("")}</div>
+    <div class="mem">${st === "filled" ? `<select class="fld" data-mk="${esc(k)}" aria-label="Member for ${esc(s)}">${opts}</select>` : `<span class="na">${st === "open" ? "— open, recruiting —" : "— closed —"}</span>`}</div></div>`;
+}
+
+/** Public preview — same look as the career page (design B). */
+function previewHtml(u) {
+  const cfg = STRUCTURE[u];
+  const slot = (section, s, squad) => {
+    const v = data[slotKey(u, section, s, squad)] || {};
+    const st = v.status === "filled" || v.status === "closed" ? v.status : "open";
+    const m = userById(v.userId);
+    return { s, st, rank: st === "filled" ? rankOf(m) : "", name: st === "filled" ? (m ? nameOf(m) : v.name || "") : "" };
+  };
+  let h = "";
+  for (const [section, slots] of Object.entries(cfg.sections)) {
+    if (data[hiddenKey(u, section)] === true) { h += `<div class="pv-hid">“${esc(section)}” is hidden — visitors don't see it</div>`; continue; }
+    const { staff, squads } = groupSlots(slots);
+    const all = [...staff.map((s) => slot(section, s, "")), ...squads.flatMap((q) => q.slots.map((s) => slot(section, s, q.name)))];
+    const f = all.filter((x) => x.st === "filled").length, t = all.filter((x) => x.st !== "closed").length;
+    h += `<div class="pv-pl"><div class="pv-plh"><b>${esc(u === "Battalion Command" ? "COMMAND STAFF" : section.toUpperCase())}</b><span>${t ? `${f} / ${t} FILLED` : "NOT RECRUITING"}<i><u style="width:${t ? (f / t) * 100 : 0}%"></u></i></span></div>
+      ${staff.length ? `<div class="pv-lead">${staff.map((s) => { const x = slot(section, s, ""); const c = x.st[0]; return `<div class="pv-ldr"><div class="pv-hex ${c}">${c === "f" ? esc(x.rank || "★") : c === "o" ? "+" : "—"}</div><div><div class="pv-r">${esc(s.toUpperCase())}</div><div class="pv-n ${c}">${c === "f" ? esc(`${x.rank ? x.rank + " " : ""}${x.name}`) : c === "o" ? "Open" : "Closed"}</div></div></div>`; }).join("")}</div>` : ""}
+      ${squads.length ? `<div class="pv-sqs">${squads.map((q) => `<div class="pv-sq"><div class="pv-sqh">${esc(q.name.toUpperCase())}</div>${q.slots.map((s, i) => { const x = slot(section, s, q.name); const c = x.st[0]; return `<div class="pv-sl ${c}${i === 0 ? " sql" : ""}"><span class="d"></span><span class="w">${c === "f" ? esc(x.name) : c === "o" ? "Open" : "Closed"}</span>${c === "f" ? `<span class="rk">${esc(x.rank || "—")}</span>` : ""}</div>`; }).join("")}</div>`).join("")}</div>` : ""}</div>`;
+  }
+  return h;
 }
 
 function render() {
   const root = document.getElementById(ROOT);
   if (!root) return;
-  root.querySelector(".units").innerHTML = Object.keys(STRUCTURE)
-    .map((u) => {
-      const s = unitStats(u);
-      return `<button class="ut ${u === unit ? "on" : ""}" data-unit="${esc(u)}">${esc(u.toUpperCase())}<small>${s.f} FILLED · ${s.o} OPEN</small></button>`;
-    })
-    .join("");
+  root.querySelector(".units").innerHTML = ORDER.map((u) => {
+    const s = unitStats(u);
+    return `<button class="ut ${u === unit ? "on" : ""}" style="--ac:${STRUCTURE[u].accent}" data-unit="${esc(u)}"><i></i>${esc(PAGES[u][0].toUpperCase())}<small>${s.f}/${s.f + s.o}</small></button>`;
+  }).join("");
   const cfg = STRUCTURE[unit];
-  root.querySelector(".sects").innerHTML = Object.entries(cfg.sections)
-    .map(([section, slots]) => {
-      const hk = hiddenKey(unit, section);
-      const hidden = data[hk] === true;
-      const { staff, squads } = groupSlots(slots);
-      const filled = [...staff.map((s) => slotKey(unit, section, s, "")), ...squads.flatMap((q) => q.slots.map((s) => slotKey(unit, section, s, q.name)))].filter((k) => data[k]?.status === "filled").length;
-      return `<div class="sect" style="--ac:${cfg.accent}">
-        <div class="sect-h"><h3>${esc(section.toUpperCase())}</h3><div class="meta">${filled}/${slots.length} FILLED
-          <button class="vis ${hidden ? "off" : ""}" data-hide="${esc(hk)}">${hidden ? "◌ HIDDEN ON PUBLIC PAGE" : "◉ VISIBLE ON PUBLIC PAGE"}</button></div></div>
-        ${
-          hidden
-            ? '<div class="hidnote">THIS PLATOON IS HIDDEN ON THE PUBLIC ORDER OF BATTLE PAGE.</div>'
-            : `${staff.length ? `<div class="squad"><div class="slots">${staff.map((s) => slotHtml(unit, section, s, "")).join("")}</div></div>` : ""}
-               ${squads.map((q) => `<div class="squad"><h4>${esc(q.name.toUpperCase())}<span>${q.slots.filter((s) => data[slotKey(unit, section, s, q.name)]?.status === "filled").length}/${q.slots.length} FILLED</span></h4><div class="slots">${q.slots.map((s) => slotHtml(unit, section, s, q.name)).join("")}</div></div>`).join("")}`
-        }</div>`;
-    })
-    .join("");
+  root.querySelector(".edT").textContent = PAGES[unit][0].toUpperCase();
+  root.querySelector(".edS").textContent = "PUBLIC CARD: " + unit.toUpperCase();
+  root.querySelector(".pvurl").textContent = "505expeditionaryforce.com" + PAGES[unit][1];
+  root.querySelector(".sects").innerHTML = Object.entries(cfg.sections).map(([section, slots]) => {
+    const hk = hiddenKey(unit, section);
+    const hidden = data[hk] === true;
+    const { staff, squads } = groupSlots(slots);
+    return `<div class="sect" style="--ac:${cfg.accent}"><div class="sh"><b>${esc(section)}</b><button type="button" class="tog${hidden ? " off" : ""}" role="switch" aria-checked="${!hidden}" data-hide="${esc(hk)}"><span></span>${hidden ? "HIDDEN" : "SHOWN"}</button></div>
+      <div class="sq">${staff.map((s) => rowHtml(unit, section, s, "")).join("")}${squads.map((q) => `<div class="sqn">${esc(q.name.toUpperCase())}</div>${q.slots.map((s) => rowHtml(unit, section, s, q.name)).join("")}`).join("")}</div></div>`;
+  }).join("");
+  const pv = root.querySelector(".pv");
+  pv.style.setProperty("--ac", cfg.accent);
+  pv.innerHTML = previewHtml(unit);
   const n = dirtyKeys().length;
   const bar = root.querySelector(".savebar");
   bar.classList.toggle("show", n > 0);
   bar.querySelector(".dn").textContent = `${n} UNSAVED CHANGE${n === 1 ? "" : "S"}`;
 }
 
-function openPop(btn) {
-  closePop();
-  popKey = btn.dataset.key;
-  const v = data[popKey] || { status: "open", name: "", userId: "" };
-  const p = document.createElement("div");
-  p.className = "obpop";
-  p.id = "obPop";
-  p.setAttribute("role", "dialog");
-  p.setAttribute("aria-label", "Edit slot");
-  let st = v.status || "open";
-  const draw = () => {
-    p.innerHTML = `<div class="t">${esc(btn.dataset.pos.toUpperCase())}</div>
-      <label>STATUS</label><div class="seg">${["filled", "open", "closed"].map((s) => `<button data-st="${s}" class="${s === st ? "on " + s : ""}">${s.toUpperCase()}</button>`).join("")}</div>
-      <label for="obM">MEMBER</label><select id="obM" ${st !== "filled" ? "disabled" : ""}><option value="">— SELECT —</option>${users.map((u) => `<option value="${esc(u.id)}" ${u.id === v.userId ? "selected" : ""}>${esc(memberName(u))}</option>`).join("")}${!v.userId && v.name ? `<option value="" selected>★ ${esc(v.name)} (no user link)</option>` : ""}</select>
-      <div class="pa"><button class="b" data-pa="cancel">CANCEL</button><button class="b gold" data-pa="apply">APPLY</button></div>`;
-  };
-  draw();
-  document.body.appendChild(p);
-  const r = btn.getBoundingClientRect();
-  p.style.left = Math.max(8, Math.min(r.left, innerWidth - 280)) + "px";
-  p.style.top = Math.max(8, Math.min(r.bottom + 6, innerHeight - p.offsetHeight - 8)) + "px";
-  p.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const sb = e.target.closest("[data-st]");
-    if (sb) {
-      st = sb.dataset.st;
-      const keepSel = p.querySelector("#obM").value;
-      draw();
-      if (keepSel) p.querySelector("#obM").value = keepSel;
-      return;
-    }
-    const pa = e.target.closest("[data-pa]")?.dataset.pa;
-    if (pa === "cancel") return closePop();
-    if (pa === "apply") {
-      const uid = p.querySelector("#obM").value;
-      if (st === "filled" && !uid && !(v.name && !v.userId)) return notify("PICK A MEMBER", 1);
-      const u = users.find((x) => x.id === uid);
-      data[popKey] = st === "filled" ? { status: "filled", userId: uid || "", name: u ? memberName(u) : v.name || "" } : { status: st, name: "", userId: "" };
-      closePop();
-      render();
-    }
-  });
-  p.querySelector("button")?.focus();
+/** Set one slot. Filled keeps / asks for a member; open + closed clear the member. */
+function setSlot(k, st, uid) {
+  const v = data[k] || { status: "open", name: "", userId: "" };
+  if (st !== "filled") data[k] = { status: st, name: "", userId: "" };
+  else {
+    const id = uid === undefined ? v.userId : uid === "__typed" ? "" : uid;
+    const m = userById(id);
+    data[k] = { status: "filled", userId: id || "", name: m ? memberName(m) : id === "" && uid === "__typed" ? v.name : v.name || "" };
+  }
+  render();
 }
-function closePop() {
-  document.getElementById("obPop")?.remove();
-  popKey = null;
-}
-document.addEventListener("click", (e) => {
-  if (!e.target.closest("#obPop") && !e.target.closest(".slot")) closePop();
-});
-document.addEventListener("keydown", (e) => e.key === "Escape" && closePop());
 
 async function save() {
   const changed = dirtyKeys();
@@ -190,42 +177,48 @@ async function save() {
 
 const CSS = `
 #${ROOT} .units{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
-#${ROOT} .ut{border:1px solid var(--l);background:var(--p);padding:8px 14px;font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:2.5px;font-size:12px;color:var(--d);cursor:pointer;text-align:left}
-#${ROOT} .ut.on{color:var(--a);border-color:var(--a)}
-#${ROOT} .ut small{display:block;font-family:'Share Tech Mono',monospace;font-weight:400;font-size:9px;letter-spacing:1px;color:var(--d);margin-top:2px}
-#${ROOT} .legend3{display:flex;gap:16px;flex-wrap:wrap;font-size:9.5px;letter-spacing:1.5px;color:var(--d);margin:6px 0 12px}
-#${ROOT} .legend3 i{display:inline-block;width:10px;height:10px;border:1px solid;margin-right:5px;vertical-align:-1px}
-#${ROOT} .sect{border:1px solid var(--l);background:var(--p);margin-bottom:14px}
-#${ROOT} .sect-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--l);border-left:3px solid var(--ac);background:rgba(255,255,255,.015)}
-#${ROOT} .sect-h h3{margin:0;font-family:Rajdhani,sans-serif;letter-spacing:3px;font-size:14px;color:var(--ac)}
-#${ROOT} .sect-h .meta{font-size:9.5px;letter-spacing:1.5px;color:var(--d);display:flex;gap:10px;align-items:center}
-#${ROOT} .vis{border:1px solid var(--l2);background:none;color:var(--a);font:inherit;font-size:9.5px;letter-spacing:1.5px;padding:3px 8px;cursor:pointer}
-#${ROOT} .vis.off{color:var(--am);border-color:rgba(245,158,11,.5)}
-#${ROOT} .hidnote{padding:12px 14px;font-size:10px;letter-spacing:1.5px;color:var(--am)}
-#${ROOT} .squad{padding:12px 14px;border-bottom:1px solid rgba(0,217,255,.05)}
-#${ROOT} .squad h4{margin:0 0 8px;font-family:Rajdhani,sans-serif;letter-spacing:2.5px;font-size:11.5px;color:var(--ac);opacity:.85;display:flex;justify-content:space-between}
-#${ROOT} .squad h4 span{font-family:'Share Tech Mono',monospace;font-size:9.5px;color:var(--d);letter-spacing:1px}
-#${ROOT} .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
-#${ROOT} .slot{border:1px solid;padding:9px 10px;cursor:pointer;background:var(--p2);text-align:left;position:relative;font:inherit;color:inherit}
-#${ROOT} .slot .pos{display:block;font-size:9px;letter-spacing:1.5px;color:var(--d)}
-#${ROOT} .slot .who{display:block;font-size:12.5px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#${ROOT} .slot.filled{border-color:rgba(34,224,122,.45)}#${ROOT} .slot.filled .who{color:#fff}
-#${ROOT} .slot.open{border-color:rgba(0,217,255,.45);border-style:dashed}#${ROOT} .slot.open .who{color:var(--a)}
-#${ROOT} .slot.closed{border-color:#26303b;opacity:.6}#${ROOT} .slot.closed .who{color:var(--dd)}
-#${ROOT} .slot.dirty::after{content:"●";position:absolute;top:6px;right:8px;color:var(--am);font-size:10px}
-#${ROOT} .slot:focus-visible{outline:2px solid var(--a)}
-#${ROOT} .savebar{position:sticky;bottom:10px;display:none;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--am);background:#141006;padding:10px 14px;font-size:11px;letter-spacing:2px;color:var(--am);margin-top:10px;z-index:5}
+#${ROOT} .ut{display:flex;gap:8px;align-items:center;border:1px solid rgba(0,217,255,.18);background:none;padding:8px 12px;font:700 12px 'Share Tech Mono',monospace;letter-spacing:1.5px;color:#6f8a96;cursor:pointer}
+#${ROOT} .ut i{width:10px;height:10px;background:var(--ac)}#${ROOT} .ut small{font-size:10px;opacity:.8}
+#${ROOT} .ut.on{color:#fff;border-color:var(--ac);background:color-mix(in srgb,var(--ac) 12%,transparent)}#${ROOT} .ut:focus-visible{outline:2px solid #00D9FF}
+#${ROOT} .lay{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:1100px){#${ROOT} .lay{grid-template-columns:1fr}}
+#${ROOT} .card{border:1px solid rgba(0,217,255,.18);background:rgba(0,0,0,.25)}
+#${ROOT} .ch{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(0,217,255,.18)}#${ROOT} .ch b{font:700 12px 'Share Tech Mono',monospace;letter-spacing:2px;color:#00D9FF}#${ROOT} .ch small{font:10px 'Share Tech Mono',monospace;color:#6f8a96;letter-spacing:1px}
+#${ROOT} .sect{border-bottom:1px solid rgba(0,217,255,.08)}
+#${ROOT} .sh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(0,217,255,.04)}#${ROOT} .sh b{flex:1;font:700 13px Rajdhani,sans-serif;letter-spacing:2px;text-transform:uppercase;color:var(--ac)}
+#${ROOT} .tog{display:flex;gap:6px;align-items:center;background:none;border:0;cursor:pointer;font:10px 'Share Tech Mono',monospace;letter-spacing:1px;color:#6f8a96}
+#${ROOT} .tog span{width:30px;height:16px;border:1px solid #22e07a;background:rgba(34,224,122,.2);position:relative}#${ROOT} .tog span:after{content:"";position:absolute;right:2px;top:2px;width:10px;height:10px;background:#22e07a}
+#${ROOT} .tog.off span{border-color:#6f8a96;background:none}#${ROOT} .tog.off span:after{left:2px;right:auto;background:#6f8a96}#${ROOT} .tog:focus-visible{outline:2px solid #00D9FF}
+#${ROOT} .sq{padding:4px 14px 8px}#${ROOT} .sqn{font:700 11px 'Share Tech Mono',monospace;letter-spacing:2px;color:var(--ac);margin:10px 0 2px}
+#${ROOT} .row{display:grid;grid-template-columns:150px 228px minmax(0,1fr);gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.03);position:relative}
+#${ROOT} .row.dirty:before{content:"●";position:absolute;left:-11px;color:#f59e0b;font-size:9px}
+#${ROOT} .row .sl{font-weight:600;color:#e0e0e0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#${ROOT} .seg{display:flex;gap:4px}#${ROOT} .seg button{flex:1;cursor:pointer;text-align:center;font:700 10px 'Share Tech Mono',monospace;letter-spacing:1px;padding:6px 8px;color:#6f8a96;border:1px solid rgba(0,217,255,.2);background:#061018}
+#${ROOT} .seg button:hover{border-color:rgba(0,217,255,.5);color:#cfe9f2}#${ROOT} .seg button:focus-visible{outline:2px solid #00D9FF}
+#${ROOT} .seg button.on.open{background:rgba(0,217,255,.15);color:#00D9FF;border-color:#00D9FF}#${ROOT} .seg button.on.filled{background:rgba(138,173,68,.22);color:#b0d860;border-color:#8aad44}#${ROOT} .seg button.on.closed{background:#1b2328;color:#c4ccd2;border-color:#55626a}
+#${ROOT} .mem .na{font-size:12px;color:#4d6470}
+@media(max-width:620px){#${ROOT} .row{grid-template-columns:1fr;gap:6px;padding:10px 0}}
+#${ROOT} .ft{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;font:10px 'Share Tech Mono',monospace;color:#6f8a96;letter-spacing:1px}
+#${ROOT} .pvw{background:#050709;padding:16px}
+#${ROOT} .pvbar{font:10px 'Share Tech Mono',monospace;letter-spacing:1px;color:#6f8a96;margin-bottom:12px;border:1px solid rgba(0,217,255,.18);padding:3px 8px;background:#0a1216}
+#${ROOT} .pv{--ac:#8aad44}
+#${ROOT} .pv-hid{font:11px 'Share Tech Mono',monospace;color:#6f8a96;text-align:center;border:1px dashed rgba(0,217,255,.18);padding:8px;margin:8px 0}
+#${ROOT} .pv-pl{border:1px solid color-mix(in srgb,var(--ac) 30%,transparent);margin-bottom:12px}
+#${ROOT} .pv-plh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:linear-gradient(90deg,color-mix(in srgb,var(--ac) 14%,transparent),transparent)}
+#${ROOT} .pv-plh b{font:700 13px 'Share Tech Mono',monospace;letter-spacing:2px;color:var(--ac)}#${ROOT} .pv-plh span{font:10px 'Share Tech Mono',monospace;color:#8a9aa6}#${ROOT} .pv-plh i{display:inline-block;width:70px;height:5px;background:#162027;margin-left:6px;vertical-align:middle}#${ROOT} .pv-plh u{display:block;height:100%;background:var(--ac)}
+#${ROOT} .pv-lead{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;padding:8px 12px}
+#${ROOT} .pv-ldr{display:flex;gap:8px;align-items:center;border:1px solid rgba(255,255,255,.07);padding:6px 8px;background:#0a1216}
+#${ROOT} .pv-hex{width:30px;height:33px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);display:grid;place-items:center;font:700 9px 'Share Tech Mono',monospace;flex:0 0 auto}
+#${ROOT} .pv-hex.f{background:var(--ac);color:#fff}#${ROOT} .pv-hex.o{background:rgba(0,217,255,.14);color:#00D9FF}#${ROOT} .pv-hex.c{background:#1b2328;color:#55626a}
+#${ROOT} .pv-r{font:9px 'Share Tech Mono',monospace;color:#8a9aa6}#${ROOT} .pv-n{font-weight:700;font-size:12px}#${ROOT} .pv-n.o{color:rgba(0,217,255,.65);font-style:italic}#${ROOT} .pv-n.c{color:#6b7880}
+#${ROOT} .pv-sqs{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;padding:0 12px 10px}
+#${ROOT} .pv-sq{border:1px solid rgba(255,255,255,.08);background:#0a1216}#${ROOT} .pv-sqh{font:700 10px 'Share Tech Mono',monospace;letter-spacing:1.5px;color:var(--ac);padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.06)}
+#${ROOT} .pv-sl{display:grid;grid-template-columns:12px 1fr auto;gap:6px;align-items:center;padding:3px 8px;font-size:12px}
+#${ROOT} .pv-sl .d{width:7px;height:7px;border-radius:50%}#${ROOT} .pv-sl.f .d{background:var(--ac)}#${ROOT} .pv-sl.o .d{border:1px dashed #00D9FF}#${ROOT} .pv-sl.c .d{background:#2a343b}
+#${ROOT} .pv-sl.o .w{color:rgba(0,217,255,.6);font-style:italic}#${ROOT} .pv-sl.c .w{color:#55626a}#${ROOT} .pv-sl .rk{font:700 9px 'Share Tech Mono',monospace;border:1px solid color-mix(in srgb,var(--ac) 45%,transparent);padding:0 4px}
+#${ROOT} .pv-sl.sql{background:color-mix(in srgb,var(--ac) 7%,transparent)}
+#${ROOT} .savebar{position:sticky;bottom:10px;display:none;align-items:center;justify-content:space-between;gap:10px;border:1px solid #f59e0b;background:#141006;padding:10px 14px;font-size:11px;letter-spacing:2px;color:#f59e0b;margin-top:10px;z-index:5}
 #${ROOT} .savebar.show{display:flex}
-.obpop{position:fixed;z-index:9990;background:#0b0f15;border:1px solid rgba(0,217,255,.35);padding:12px;width:270px;box-shadow:0 12px 40px rgba(0,0,0,.6);font-family:'Share Tech Mono',monospace;color:#d6dde6}
-.obpop .t{font-size:11px;letter-spacing:1.5px;color:#fff}
-.obpop label{display:block;font-size:9.5px;letter-spacing:2px;color:#aeb9c4;margin:10px 0 5px}
-.obpop .seg{display:flex;gap:4px}
-.obpop .seg button{flex:1;border:1px solid rgba(0,217,255,.18);background:none;padding:6px 0;font:inherit;font-size:10px;letter-spacing:1.5px;color:#7d8a99;cursor:pointer}
-.obpop .seg button.on{color:#000}.obpop .seg .filled{background:#22e07a}.obpop .seg .open{background:#00D9FF}.obpop .seg .closed{background:#7d8a99}
-.obpop select{width:100%;background:#070a0f;border:1px solid rgba(0,217,255,.35);padding:7px;font:inherit;font-size:12px;outline:0;color:#d6dde6}
-.obpop select:disabled{opacity:.4}
-.obpop .pa{display:flex;gap:6px;margin-top:12px}.obpop .pa .b{flex:1;background:none;border:1px solid rgba(0,217,255,.35);color:#00D9FF;padding:7px;font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:2px;cursor:pointer}
-.obpop .pa .b.gold{background:#f59e0b;border-color:#f59e0b;color:#000}
 `;
 
 onReady(() => {
@@ -234,34 +227,27 @@ onReady(() => {
   addCss(ROOT, CSS);
   root.innerHTML = `
     <div class="h1">ORDER OF BATTLE</div>
-    <div class="bar" style="margin-top:10px"><span class="sub" style="margin:0">POSITION SLOTS SHOWN ON THE PUBLIC ORDER OF BATTLE PAGE — CLICK A SLOT TO CHANGE IT</span><span class="sp"></span><button class="b" data-act="public">↗ VIEW PUBLIC PAGE</button></div>
+    <div class="bar" style="margin-top:10px"><span class="sub" style="margin:0">SETS THE UNIT CARDS ON THE PUBLIC CAREER PAGES · LIVE PREVIEW ON THE RIGHT</span><span class="sp"></span><button class="b" data-act="public">↗ VIEW PUBLIC PAGE</button></div>
     <div class="units"></div>
-    <div class="legend3"><span><i style="border-color:#22e07a"></i>FILLED</span><span><i style="border-color:#00D9FF;border-style:dashed"></i>OPEN — RECRUITING</span><span><i style="border-color:#26303b"></i>CLOSED</span><span><span style="color:#f59e0b">●</span> UNSAVED</span></div>
-    <div class="sects"><div class="empty">LOADING...</div></div>
-    <div class="savebar"><span class="dn"></span><div style="display:flex;gap:8px"><button class="b" data-act="discard">DISCARD</button><button class="b gold" data-act="save">SAVE CHANGES</button></div></div>`;
+    <div class="lay"><div class="card"><div class="ch"><b class="edT">EDIT</b><small class="edS"></small></div><div class="sects"><div class="empty">LOADING...</div></div>
+      <div class="ft"><span>FILLED + MEMBER = RANK &amp; NAME STAY IN SYNC WITH PERSONNEL FILES</span></div></div>
+      <div class="card"><div class="ch"><b>PUBLIC PAGE PREVIEW</b><small>WHAT VISITORS SEE</small></div><div class="pvw"><div class="pvbar">🌐 <span class="pvurl"></span></div><div class="pv"></div></div></div></div>
+    <div class="savebar"><span class="dn"></span><div style="display:flex;gap:8px"><button class="b" data-act="discard">DISCARD</button><button class="b gold" data-act="save">SAVE · UPDATE PUBLIC PAGE</button></div></div>`;
   root.addEventListener("click", (e) => {
     const ut = e.target.closest("[data-unit]");
-    if (ut) {
-      unit = ut.dataset.unit;
-      return render();
-    }
-    const sl = e.target.closest(".slot");
-    if (sl) {
-      e.stopPropagation();
-      return openPop(sl);
-    }
+    if (ut) { unit = ut.dataset.unit; return render(); }
+    const sb = e.target.closest("[data-st]");
+    if (sb) return setSlot(sb.dataset.k, sb.dataset.st);
     const hk = e.target.closest("[data-hide]");
-    if (hk) {
-      data[hk.dataset.hide] = !(data[hk.dataset.hide] === true);
-      return render();
-    }
+    if (hk) { data[hk.dataset.hide] = !(data[hk.dataset.hide] === true); return render(); }
     const act = e.target.closest("[data-act]")?.dataset.act;
     if (act === "save") return save();
-    if (act === "discard") {
-      data = JSON.parse(JSON.stringify(saved));
-      return render();
-    }
-    if (act === "public") return window.open("/about-alpha-company", "_blank", "noopener");
+    if (act === "discard") { data = JSON.parse(JSON.stringify(saved)); return render(); }
+    if (act === "public") return window.open(PAGES[unit][1], "_blank", "noopener");
+  });
+  root.addEventListener("change", (e) => {
+    const m = e.target.closest("select[data-mk]");
+    if (m) setSlot(m.dataset.mk, "filled", m.value);
   });
   addEventListener("beforeunload", (e) => {
     if (dirtyKeys().length) e.preventDefault();

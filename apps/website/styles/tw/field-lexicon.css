@@ -1,0 +1,28 @@
+/* Field Lexicon (approved mock 2026-11-11) */
+.fl{--flc:#00D9FF;--fld:#8a9aa6;--flbd:rgba(0,217,255,.15);font-family:"Rajdhani",sans-serif;color:#e8eef2;margin-bottom:3rem}
+.fl-bar{position:sticky;top:60px;z-index:5;background:rgba(5,7,9,.94);backdrop-filter:blur(6px);padding:10px 0 8px;border-bottom:1px solid var(--flbd);margin-bottom:16px}
+.fl-srow{display:flex;gap:10px;align-items:center}
+.fl-search{flex:1;height:44px;background:#0b1418;border:1px solid rgba(0,217,255,.35);color:#fff;font:1rem "Rajdhani",sans-serif;padding:0 14px;outline:none}
+.fl-search:focus{border-color:var(--flc);box-shadow:0 0 0 1px var(--flc)}
+.fl-count{font:11px "Share Tech Mono",monospace;letter-spacing:1.5px;color:var(--fld);white-space:nowrap}
+.fl-cats{display:flex;gap:6px;overflow-x:auto;padding:10px 0 6px;scrollbar-width:none}.fl-cats::-webkit-scrollbar{display:none}
+.fl-cat{cursor:pointer;flex:0 0 auto;padding:6px 12px;border:1px solid var(--flbd);background:none;font:700 12px "Rajdhani",sans-serif;letter-spacing:.08em;color:var(--fld);display:flex;gap:6px;align-items:center}
+.fl-cat i{width:8px;height:8px;border-radius:50%}.fl-cat small{font:10px "Share Tech Mono",monospace;opacity:.7}
+.fl-cat.on{color:#fff;border-color:var(--cc);background:color-mix(in srgb,var(--cc) 12%,transparent)}.fl-cat:focus-visible{outline:2px solid var(--flc)}
+.fl-az{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none}.fl-az::-webkit-scrollbar{display:none}
+.fl-az button{cursor:pointer;flex:0 0 auto;width:28px;height:28px;display:grid;place-items:center;font:700 12px "Share Tech Mono",monospace;color:var(--flc);border:1px solid var(--flbd);background:none;padding:0}
+.fl-az button.off{color:#2a3a42;cursor:default;border-color:transparent}.fl-az button:not(.off):hover,.fl-az button:focus-visible{background:rgba(0,217,255,.12);outline:none}
+.fl-letter{display:flex;align-items:center;gap:12px;margin:22px 0 10px;scroll-margin-top:210px}
+.fl-letter b{font:700 26px "Orbitron","Share Tech Mono",monospace;color:var(--flc);width:40px;height:40px;display:grid;place-items:center;border:1px solid rgba(0,217,255,.4);background:rgba(0,217,255,.05)}
+.fl-letter:after{content:"";flex:1;height:1px;background:linear-gradient(to right,rgba(0,217,255,.35),transparent)}
+.fl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
+.fl-t{cursor:pointer;display:block;text-align:left;font:inherit;color:inherit;background:#0b1418;border:1px solid rgba(255,255,255,.06);border-left:3px solid var(--cc);padding:12px 14px;position:relative;transition:border-color .15s,background .15s}
+.fl-t:hover,.fl-t:focus-visible{border-color:var(--cc);background:#0e1b21;outline:none}
+.fl-t>span{display:block}.fl-ab{font:700 20px "Share Tech Mono",monospace;letter-spacing:1px;color:#fff;padding-right:110px}
+.fl-fu{font-weight:700;color:var(--cc);font-size:.95rem;margin:1px 0 6px}.fl-df{color:#b7c3ca;font-size:.92rem}
+.fl-t .fl-tag{position:absolute;top:10px;right:12px;font:10px "Share Tech Mono",monospace;letter-spacing:1px;color:var(--cc);opacity:.85}
+.fl-t .fl-cp{position:absolute;bottom:8px;right:10px;font:10px "Share Tech Mono",monospace;color:var(--fld);opacity:0}.fl-t:hover .fl-cp,.fl-t:focus-visible .fl-cp{opacity:1}
+.fl mark{background:rgba(245,158,11,.3);color:#fff;padding:0 1px}
+.fl-empty{text-align:center;color:var(--fld);padding:40px;border:1px dashed var(--flbd)}
+.fl-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0b1418;border:1px solid var(--flc);padding:8px 16px;font:12px "Share Tech Mono",monospace;letter-spacing:1px;color:var(--flc);opacity:0;transition:opacity .2s;pointer-events:none;z-index:50}.fl-toast.on{opacity:1}
+@media(max-width:600px){.fl-grid{grid-template-columns:1fr}.fl-count{display:none}}
