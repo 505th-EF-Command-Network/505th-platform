@@ -74,6 +74,12 @@ async function call(path: string, init?: RequestInit): Promise<unknown> {
   }
 }
 ipcMain.handle("hub:summary", (e) => (fromMain(e) ? call("/api/hub/summary") : null));
+ipcMain.handle("hub:members", (e) => (fromMain(e) ? call("/api/hub/members") : null));
+ipcMain.handle("hub:member", (e, id: unknown) => (fromMain(e) && typeof id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(id) ? call(`/api/hub/members/${id}`) : { error: "Invalid member." }));
+ipcMain.handle("hub:member-action", (e, id: unknown, body: unknown) => {
+  if (!fromMain(e) || typeof id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(id) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call(`/api/hub/members/${id}/action`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 ipcMain.handle("hub:set-status", (e, s: unknown) => {
   if (!fromMain(e) || !s || typeof s !== "object") return { error: "Not allowed." };
   const { state, note, untilISO } = s as Record<string, unknown>;

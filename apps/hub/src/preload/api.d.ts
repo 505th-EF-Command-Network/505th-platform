@@ -15,6 +15,16 @@ export type Summary = {
   system: { cortana: { online: boolean; pingMs: number | null }; website: boolean };
   at: string;
 };
+export type MemberTile = { id: string; firstName: string; lastName: string; callsign: string; rank: string; role: string; platoon: string; joinedAt: string; opsAttended: number; opsEligible: number; inactive: boolean; retired: boolean; photo: string | null; discordUsername: string };
+export type HistoryEntry = Record<string, string | boolean | undefined> & { date?: string; note?: string; addedBy?: string };
+export type MemberFile = Omit<MemberTile, "opsAttended" | "opsEligible"> & {
+  squad: string; graduation: string; joinedPlatoon: string; recruitSource: string; discordLinked: boolean;
+  attendance: number; promotionTracker: number; opsAttended: number; opsEligible: number; lastAttendedDate: string;
+  promotionHistory: HistoryEntry[]; platoonHistory: HistoryEntry[]; warningHistory: HistoryEntry[]; commendationHistory: HistoryEntry[]; ribbonHistory: HistoryEntry[];
+  lastOps: { date: string; title: string; result: "present" | "excused" | "absent" }[];
+  canEdit: boolean;
+  lists: { ranks: string[]; platoons: string[]; medals: [string, string][] };
+};
 export type NetState = { state: "off" | "connecting" | "live"; reason: string | null };
 
 declare global {
@@ -36,6 +46,9 @@ declare global {
       info(): Promise<{ version: string; packaged: boolean }>;
       hub: {
         summary(): Promise<Summary | { error: string }>;
+        members(): Promise<{ members: MemberTile[]; canEdit: boolean } | { error: string }>;
+        member(id: string): Promise<MemberFile | { error: string }>;
+        memberAction(id: string, body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
     };

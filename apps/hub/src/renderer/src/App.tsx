@@ -6,6 +6,7 @@ import { PAGES, SideNav } from "./components/SideNav";
 import { TopBar } from "./components/TopBar";
 import type { StateKey } from "./ui";
 import { useSummary } from "./useSummary";
+import { Personnel } from "./pages/Personnel";
 import logo from "../../../assets/logo.png";
 
 /** Sign-in screens, then the app (H2: Dashboard + My Status + Staff Status). */
@@ -63,7 +64,9 @@ function Shell({ net }: { net: NetState }) {
       <TopBar data={data} net={net} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onStatus={(s) => void setStatus(s)} onSignOut={() => void window.cn.auth.logout()} />
       <div className="flex min-h-0 flex-1">
         <SideNav access={data.me.access} page={page} onPage={setPage} cortanaOk={data.system.cortana.online} />
-        {page === "dashboard" ? <Dashboard data={data} onStatus={(s) => void setStatus(s)} onPage={setPage} /> : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}
+        {page === "dashboard" ? <Dashboard data={data} onStatus={(s) => void setStatus(s)} onPage={setPage} />
+          : page === "panel-active" ? <Personnel />
+          : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}
         <RightBar staff={data.staff} myUid={data.me.uid} />
       </div>
       {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}
