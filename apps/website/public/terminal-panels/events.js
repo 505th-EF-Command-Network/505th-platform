@@ -100,7 +100,7 @@ const isOpen = (e) => e.status !== "cancelled" && e.status !== "completed" && !e
 const needsFix = (e) => isOpen(e) && (e.discord?.status === "failed" || e.discord?.status === "queued" || !e.discord?.status || (e.discord?.status === "posted" && e.discord?.missing));
 let evTab = "details";
 let cortanaOnline = null; // from bot_status/cortana heartbeat (null = unknown)
-const discordChip = (e) => e.status === "completed" ? '<span class="ch ok">✓ Completed</span>' : (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : e.discord?.missing ? '<span class="ch wt">⚠ POST MISSING</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
+const discordChip = (e) => e.status === "completed" ? '<span class="ch ok">✓ Completed</span>' : (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : e.discord?.missing ? '<span class="ch wt">⚠ POST MISSING</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING TO POST</span>');
 const signedUpUids = (e) => {
   const att = new Set((e.buttons || []).filter((b) => b.attending).map((b) => b.key));
   return [...new Set((e.signups || []).filter((s) => att.has(s.choice) && s.uid).map((s) => s.uid))];
@@ -216,7 +216,7 @@ function drawWizard(err) {
   if (s === 2)
     body = `<h2 class="eh">SIGN-UPS</h2><p class="hint">Choose the buttons people press under the sign-up post.</p>
       <span class="lbl">POST THE SIGN-UP IN</span><div class="pres" role="radiogroup" aria-label="Sign-up channel">${signupList().map(([c, id]) => { const on = id && v.channel === id; return `<button class="pill${on ? " on" : ""}" role="radio" aria-checked="${on ? "true" : "false"}" data-chan="${esc(id)}" ${id ? "" : 'disabled title="Not found in Discord yet"'} style="${on ? "border-color:#00D9FF;color:#00D9FF;background:rgba(0,217,255,.12)" : ""}">#${esc(c)}</button>`; }).join("")}</div>
-      ${signupList().some(([, id]) => id) ? "" : '<p class="hint">Channels appear once Cortana v2 has synced the Discord server. Set them in COMMAND → Cortana Setup.</p>'}
+      ${signupList().some(([, id]) => id) ? "" : '<p class="hint">Channels appear once Cortana has synced the Discord server. Set them in COMMAND → Cortana Setup.</p>'}
       <span class="lbl">QUICK PRESETS</span><div class="pres">${PRESETS.map((p, i) => `<button class="pill" data-preset="${i}">${p[0]}</button>`).join("")}</div>
       <span class="lbl">BUTTONS (${v.buttons.length}/${LIMITS.buttons})</span>
       <ul class="ebl">${v.buttons
@@ -243,7 +243,7 @@ function drawWizard(err) {
       ${v.linkAttendance ? "<li>✓ <b>Attendance Tracker event created</b> · sign-ups shown as SIGNED UP · NCO+ confirms at the Attendance Check</li>" : '<li style="opacity:.55">✕ No attendance event</li>'}</ul>
       ${w.editId && v.attendanceEventId ? '<p class="hint">Attendance is already linked to this event.</p>' : `<label class="eo ${v.linkAttendance ? "on" : ""}" style="margin-top:16px"><input type="checkbox" id="evLink" ${v.linkAttendance ? "checked" : ""}><span><b>▣ ALSO CREATE ATTENDANCE TRACKER EVENT</b><small>Same title and date. People who press an "Attending" button show as SIGNED UP — not present. An NCO or above ticks who actually turned up at the Attendance Check, then Staff NCO+ locks it.</small></span></label>
       `}
-      <p class="hint" style="color:#f59e0b">◷ Cortana v2 isn't running yet: the event is saved now and posted to Discord automatically when Cortana v2 goes live.</p>`;
+      ${cortanaOnline === false ? '<p class="hint" style="color:#f59e0b">◷ Cortana is offline right now: the event is saved and posted to Discord automatically when Cortana is back.</p>' : '<p class="hint">✓ Cortana posts the sign-up in Discord within a few seconds of CREATE.</p>'}`;
 
   root.querySelector(".wiz-form").innerHTML = `
     <ol class="esteps">${STEPS.map((t, i) => `<li><button class="${i < s ? "dn" : i === s ? "cu" : ""}" data-go="${i}" ${i === s ? 'aria-current="step"' : ""}><i></i><b>${i + 1}</b>${t}</button></li>`).join("")}</ol>
@@ -487,7 +487,7 @@ function openEvent(id) {
       <div class="sg">${counts(e)
         .map(([b, n]) => `<div><b>${esc(b.emoji)} ${esc(b.label)} <span>${n}${b.limit ? "/" + b.limit : ""}</span></b><small>${(e.signups || []).filter((s) => s.choice === b.key).map((s) => esc(s.name)).join(", ") || "—"}</small></div>`)
         .join("")}</div>
-      ${e.discord?.status !== "posted" ? '<p class="hint">Sign-ups arrive from the Discord buttons once Cortana v2 posts this event.</p>' : ""}
+      ${e.discord?.status !== "posted" ? '<p class="hint">Sign-ups arrive from the Discord buttons once Cortana posts this event.</p>' : ""}
       <div class="hint">CREATED BY ${esc(e.createdByName || "—")}${e.updatedByName ? ` · LAST EDIT ${esc(e.updatedByName)}` : ""}</div>`}
     </div>
     <div class="ft"><div style="display:flex;gap:8px">${e.status !== "cancelled" && e.status !== "completed" && acc.ev ? '<button class="b red" data-x="cancel">CANCEL EVENT</button>' : ""}${acc.ev ? '<button class="b red" data-x="delete">🗑 DELETE</button>' : ""}</div>

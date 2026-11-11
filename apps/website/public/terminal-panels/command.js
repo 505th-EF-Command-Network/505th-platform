@@ -317,7 +317,7 @@ async function renderOverall() {
       <div class="kvr"><span>OPS LOGGED</span><b>${att.docs.filter((d) => Date.parse(d.data().date || 0) > wk).length}</b></div>
       <div class="kvr"><span>AARS SUBMITTED</span><b>${aars.docs.filter((d) => Date.parse(d.data().submittedAt || 0) > wk).length}</b></div>
       <div class="kvr"><span>BCT APPROVALS</span><b>${us.filter((u) => Date.parse(u.approvedAt || 0) > wk).length}</b></div></div>
-    <p class="hint">Uptime history and website visits appear once Cortana v2 and the status sampler are running (same as RCD Hub).</p>`;
+    <p class="hint">Uptime history and website visits build up while Cortana is running (it checks every minute).</p>`;
 }
 
 /* ───────────────────────────────── BOT SERVER ───────────────────────────── */
