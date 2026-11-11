@@ -27,7 +27,7 @@ export const TOP_COLLECTIONS = new Set([
   "comms_media", "conversations", "discord_tracking", "fragos", "media", "notifications",
   "presence_sessions", "roster", "settings", "unit_config", "users",
   // v2 terminal pages
-  "projects", "notes", "community_events", "bot_jobs",
+  "projects", "projects_v2", "notes", "community_events", "bot_jobs",
   // written by Cortana v2 only (read-only here)
   "bot_status", "bot_state", "discord_channels", "discord_roles", "discord_messages",
   "info_posts", "ticket_types", "tickets", "mod_cases", "mod_purges", "net_incidents", "sync_log",
@@ -274,6 +274,7 @@ export type UserTarget = { uid: string; role: string; discordId?: string | null 
 export function checkRead(actor: Actor, top: string) {
   // Notes have per-note sharing: only /api/terminal/notes can read them.
   if (top === "notes") throw new FsError("permission-denied", "Notes are opened through the Notes page");
+  if (top === "projects_v2") throw new FsError("permission-denied", "Projects are opened through the Projects page");
   const k = readNeeds(top);
   if (k && !can(actor.role, actor.access, k)) throw new FsError("permission-denied", "You don't have access to this");
 }
@@ -291,6 +292,7 @@ export function checkWrite(
   };
 
   if (target.top === "notes") deny("Notes are saved through the Notes page");
+  if (target.top === "projects_v2") deny("Projects are saved through the Projects page");
   if (BOT_ONLY.has(target.top)) deny("Only Cortana writes this");
   const needs = writeNeeds(target.top, target.docId, fields, newValues);
   if (needs && !needs.some((k) => can(actor.role, actor.access, k))) deny("You don't have access to change this");

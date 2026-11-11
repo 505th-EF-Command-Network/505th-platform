@@ -74,6 +74,12 @@ export type TicketData = { tickets: Ticket[]; types: { id: string; name: string;
 export type SentMsg = { id: string; kind: string; channelName: string; content: string; embed: { title?: string; description?: string; color?: number; image?: string; thumbnail?: boolean } | null; buttons: { label: string; url: string }[]; sentByName: string; sentAtISO: string; jumpUrl: string };
 export type SendData = { channels: { id: string; name: string; parentName: string; canSend: boolean }[]; roles: { id: string; name: string; color: string }[];
   emojis: { id: string; name: string; animated: boolean; url: string }[]; members: { discordId: string; name: string }[]; gallery: { id: string; url: string; name: string }[]; sent: SentMsg[] };
+export type ProjTask = { id: string; title: string; done: boolean; doneAtISO?: string | null; assigneeUid: string; due: string; priority: "high" | "med" | "low"; parent: string | null; createdBy: string };
+export type Proj = { id: string; title: string; description: string; cover: string; category: string; priority: "high" | "med" | "low"; status: "planning" | "active" | "hold" | "done"; deadline: string;
+  privacy: "private" | "invite"; ownerUid: string; members: { uid: string; role: "editor" | "viewer"; status: "active" | "pending"; invitedBy: string; atISO: string; message?: string }[];
+  tasks: ProjTask[]; images: { url: string; name: string; by: string; atISO: string }[]; comments: { id: string; uid: string; text: string; atISO: string }[];
+  activity: { atISO: string; icon: string; text: string }[]; createdAtISO: string; updatedAtISO: string; myRole: "owner" | "editor" | "viewer" | "pending" | null };
+export type ProjData = { me: string; categories: string[]; projects: Proj[]; people: { uid: string; name: string; platoon: string; photo: string | null }[] };
 declare global {
   interface Window {
     cn: {
@@ -121,6 +127,8 @@ declare global {
         tickets(): Promise<TicketData | { error: string }>;
         ticketsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; queued?: boolean; msg?: string; error?: string }>;
         send(): Promise<SendData | { error: string }>;
+        projects(): Promise<ProjData | { error: string }>;
+        projectsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
         sendAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };

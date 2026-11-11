@@ -46,6 +46,8 @@ contextBridge.exposeInMainWorld("cn", {
     tickets: () => ipcRenderer.invoke("hub:tickets"),
     ticketsAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:tickets-action", body),
     send: () => ipcRenderer.invoke("hub:send"),
+    projects: () => ipcRenderer.invoke("hub:projects"),
+    projectsAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:projects-action", body),
     sendAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:send-action", body),
     overview: () => ipcRenderer.invoke("hub:overview"),
     savePrefs: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:prefs", body),

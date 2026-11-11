@@ -2,6 +2,7 @@ import { Oob } from "./pages/Oob";
 import { Recruit } from "./pages/Recruit";
 import { Tickets } from "./pages/Tickets";
 import { Send } from "./pages/Send";
+import { Projects } from "./pages/Projects";
 import { History } from "./pages/History";
 import { Media } from "./pages/Media";
 import { Guard } from "./components/Guard";
@@ -127,6 +128,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-recruit-source" ? <Recruit />
           : pg === "panel-tickets" ? <Tickets me={data.me.role} />
           : pg === "panel-send" ? <Send />
+          : pg === "panel-projects" ? <Projects />
           : <ComingSoon title={PAGES[pg] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
           </div>))}
       </div>

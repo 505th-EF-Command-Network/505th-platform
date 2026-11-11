@@ -102,7 +102,7 @@ ipcMain.handle("hub:aars-action", (e, body: unknown) => {
 });
 /** Image upload (AAR screenshots): the website signs it, the file goes straight to Cloudinary. Images only, max 10 MB. */
 ipcMain.handle("hub:upload", async (e, folder: unknown, name: unknown, type: unknown, bytes: unknown) => {
-  if (!fromMain(e) || (folder !== "505th_aar" && folder !== "505th_gallery") || typeof type !== "string" || !/^image\/(png|jpeg|webp|gif)$/.test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
+  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects"].includes(String(folder)) || typeof type !== "string" || !/^image\/(png|jpeg|webp|gif)$/.test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
   const s = (await call("/api/hub/upload-sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) })) as Record<string, unknown>;
   if (s.error) return { error: String(s.error) };
   try {
@@ -134,7 +134,7 @@ ipcMain.handle("hub:rsvp", (e, eventId: unknown, key: unknown) => {
   if (!fromMain(e) || typeof eventId !== "string" || typeof key !== "string") return { error: "Not allowed." };
   return call("/api/hub/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, key }) });
 });
-for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"]] as const) {
+for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"]] as const) {
   ipcMain.handle(`hub:${ch}`, (e) => (fromMain(e) ? call(path) : null));
   ipcMain.handle(`hub:${ch}-action`, (e, body: unknown) => {
     if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
