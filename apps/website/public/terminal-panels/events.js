@@ -428,7 +428,7 @@ function liveHtml(e) {
   const going = (e.signups || []).filter((x) => !x.waiting && (e.buttons || []).find((b) => b.key === x.choice)?.attending).length;
   const t = (iso) => (iso ? esc(ukFmt(iso, { weekday: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()) : "");
   const steps = [
-    ["POSTED", d.postedAtISO || (d.status === "posted" ? e.createdAtISO : null), d.status === "posted"],
+    [d.status === "posted" && d.missing ? "⚠ POST DELETED" : "POSTED", d.postedAtISO || (d.status === "posted" ? e.createdAtISO : null), d.status === "posted" && !d.missing],
     ["REMINDER", d.reminderSentISO, !!d.reminderSentISO],
     [`STARTED${d.startSentISO ? ` · PINGED ${going}` : ""}`, d.startSentISO || e.startAtISO, !!d.startSentISO],
     ["LOCKED", d.lockedISO || d.startSentISO, !!(d.lockedISO || d.startSentISO)],
