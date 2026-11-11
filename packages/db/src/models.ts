@@ -238,6 +238,36 @@ const TerminalDocSchema = new Schema(
   { collection: "terminal_fs", minimize: false, versionKey: false },
 );
 
+// ───────────────────────── Command Network app (Hub) sign-in ─────────────────────────
+/** One signed-in copy of the desktop app. Only the SHA-256 of the token is stored. */
+const HubSessionSchema = new Schema(
+  {
+    tokenHash: { type: String, unique: true },
+    member: { type: Schema.Types.ObjectId, ref: "Member", index: true },
+    discordId: { type: String, index: true },
+    deviceName: { type: String, default: "Windows PC" },
+    inGuild: Boolean,
+    lastUsedAt: Date,
+    revokedAt: Date,
+    revokedReason: String,
+    expiresAt: { type: Date, index: { expires: 0 } },
+  },
+  { timestamps: true, collection: "hub_sessions" },
+);
+/** Short-lived (5 min) one-time code from /hub/connect, swapped for a token with PKCE. */
+const HubAuthCodeSchema = new Schema(
+  {
+    codeHash: { type: String, unique: true },
+    challenge: String,
+    member: { type: Schema.Types.ObjectId, ref: "Member" },
+    discordId: String,
+    deviceName: String,
+    inGuild: Boolean,
+    expiresAt: { type: Date, index: { expires: 0 } },
+  },
+  { timestamps: true, collection: "hub_auth_codes" },
+);
+
 function model<T extends Schema>(name: string, schema: T) {
   return (mongoose.models[name] as Model<InferSchemaType<T>>) ?? mongoose.model(name, schema);
 }
@@ -253,5 +283,7 @@ export const SiteContent = model("SiteContent", SiteContentSchema);
 export const UnitStatus = model("UnitStatus", UnitStatusSchema);
 export const LegacyDoc = model("LegacyDoc", LegacyDocSchema);
 export const TerminalDoc = model("TerminalDoc", TerminalDocSchema);
+export const HubSession = model("HubSession", HubSessionSchema);
+export const HubAuthCode = model("HubAuthCode", HubAuthCodeSchema);
 
 export type MemberDoc = InferSchemaType<typeof MemberSchema> & { _id: mongoose.Types.ObjectId };

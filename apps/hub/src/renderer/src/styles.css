@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* 505th Command Terminal look (same colours / fonts as the website). */
+@theme {
+  --color-cyan: #00d9ff;
+  --color-ok: #22e07a;
+  --color-amber: #f59e0b;
+  --color-bad: #ff4d4d;
+  --color-gold: #c9a227;
+  --color-panel: #0b0f15;
+  --color-panel2: #0e131b;
+  --color-dim: #7d8a99;
+  --color-dimmer: #4b5765;
+  --font-mono: "Share Tech Mono", ui-monospace, Consolas, monospace;
+  --font-head: "Rajdhani", "Segoe UI", sans-serif;
+}
+html, body, #root { height: 100%; }
+body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 70%); color: #d6dde6; font-family: var(--font-mono); }
+:focus-visible { outline: 2px solid #00d9ff; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

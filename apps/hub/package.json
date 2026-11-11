@@ -3,16 +3,30 @@
   "productName": "505th Command Network",
   "version": "0.1.0",
   "private": true,
-  "description": "505th Command Network desktop app — the Command Terminal as a Windows app.",
-  "main": "dist/main.js",
+  "description": "505th Command Network — Windows desktop app. Talks to the website (API) and the 505th Net (Ably) like Cortana does.",
+  "author": "REV Creative Developer",
+  "main": "out/main/index.js",
   "scripts": {
-    "build": "tsc -p .",
-    "start": "npm run build && electron .",
-    "typecheck": "tsc -p . --noEmit"
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+  },
+  "dependencies": {
+    "ably": "2.30.0"
   },
   "devDependencies": {
-    "electron": "45.3.0",
+    "@tailwindcss/vite": "4.3.5",
     "@types/node": "22.20.5",
-    "typescript": "5.9.3"
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "electron": "45.3.0",
+    "electron-vite": "6.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.5",
+    "typescript": "5.9.3",
+    "vite": "8.3.6"
   }
 }
