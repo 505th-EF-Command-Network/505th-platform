@@ -2,13 +2,13 @@
  * BATTALION ROSTER v2 (approved mock 2026-11-09) — replaces #panel-roster.
  *
  * Original rules kept by calling the original functions:
- *  - ATT pip: markAttendance (+1 only; corrections via "Edit roster stats")
- *  - +1 PT at 3/3: promotePT (also resets ATT)
+ *  - ATT pip / PT / month-end reset: attendance-core.js (moved out of the legacy Terminal)
  *  - Row menu: openRosterCtx + ctxAction (edit / promote / transfer / warn / stats / medals)
- *  - Month-end reset: forceMonthlyReset · Backfill: openBackfillPlatoonModal
+ *  - Backfill platoon dates: openBackfillPlatoonModal
  * New: Award Medal / Award Ribbon windows (same record shape as the originals).
  */
 import { doc, updateDoc } from "/terminal-shim/firestore.js";
+import { addPip, promotePT, resetStatus, runReset, shiftMonth, ukMonth } from "./attendance-core.js";
 import {
   addCss, ask, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, notifyMember, onReady, openModal,
   platoonOrder, rankAbbr, rankOrder, since, today, ukDate, webhook,
@@ -26,6 +26,8 @@ const EDIT_ROLES = new Set(["commander", "officer", "developer", "staff_nco"]);
 const RESET_ROLES = new Set(["commander", "developer", "staff_nco", "officer"]);
 
 let rows = [];
+let meta = {};
+let pollT = null;
 let me = null;
 let sortK = "rank";
 let sortDir = 1;
@@ -35,6 +37,8 @@ let group = true;
 
 async function load() {
   me = await getMe();
+  meta = await resetStatus().catch(() => ({ month: ukMonth() })); // Cortana runs the reset at 00:00 on the 1st
+
   rows = (await getUsers()).filter((u) => isMember(u) && u.role !== "retired_veteran");
   render();
 }
@@ -73,9 +77,7 @@ function render() {
     <div class="k"><b>${rows.filter((r) => r.platoon === "Awaiting BCT").length}</b><span>AWAITING BCT</span></div>
     <div class="k"><b style="color:${rc(rate)}">${rate}%</b><span>ATTENDANCE</span></div>
     <div class="k"><b style="color:var(--g)">${act.filter((r) => (r.attendance || 0) >= 3).length}</b><span>3/3 THIS MONTH</span></div>`;
-  const nx = new Date(); nx.setMonth(nx.getMonth() + 1, 1);
-  const days = Math.ceil((nx.setHours(0, 0, 0, 0) - Date.now()) / 864e5);
-  root.querySelector(".reset").innerHTML = `<span>↻ MONTHLY RESET — ${ukDate(nx, { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()} (in ${days} day${days === 1 ? "" : "s"}). Everyone at 3/3 gets +1 PT, then ATT goes back to 0. Snapshot saved to Attendance History.</span>${RESET_ROLES.has(me?.role) ? '<button class="b sm" data-act="reset">RUN NOW…</button>' : ""}`;
+  root.querySelector(".reset").outerHTML = bannerHtml();
   const plSel = root.querySelector(".rpl");
   const plats = [...new Set(rows.map((r) => r.platoon || ""))].sort((a, b) => platoonOrder(a) - platoonOrder(b));
   plSel.innerHTML = `<option value="">ALL PLATOONS</option>` + plats.map((p) => `<option ${pl && p === pl ? "selected" : ""} value="${esc(p)}">${esc(p || "No platoon")}</option>`).join("");
@@ -122,6 +124,27 @@ function render() {
   drawCard();
 }
 
+// ───────── monthly reset banner ─────────
+const monLabel = (m) => { const [y, mo] = String(m).split("-").map(Number); return new Date(Date.UTC(y, mo - 1, 15)).toLocaleString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" }).toUpperCase(); };
+function bannerHtml() {
+  const cur = meta.month || ukMonth(), next = shiftMonth(cur, 1), last = meta.lastAttendanceReset || "";
+  const can = RESET_ROLES.has(me?.role);
+  const run = meta.resetRunning;
+  clearTimeout(pollT);
+  if (run && Date.now() - Date.parse(run.startedAt) < 15 * 60000) {
+    pollT = setTimeout(() => load().catch(() => {}), 5000);
+    return `<div class="reset run" role="status"><span><b>◷ RESET RUNNING…</b> — by ${esc(run.by || "?")} · ${run.total ? `${run.done} / ${run.total} members done` : "starting"}<small>Don't close the page if you started it.</small></span></div>`;
+  }
+  const [y, mo] = next.split("-").map(Number);
+  const days = Math.max(0, Math.ceil((Date.UTC(y, mo - 1, 1) - Date.now()) / 864e5));
+  if (last >= next) return `<div class="reset ok"><span><b>✓ ${monLabel(next)} RESET DONE EARLY</b> — ${esc(ukDate(meta.lastResetAt, { day: "2-digit", month: "short" }).toUpperCase())} by ${esc(meta.lastResetBy || "—")} · Cortana will skip it on the 1st.</span></div>`;
+  if (last === cur) {
+    const by = meta.lastResetAt ? `${ukDate(meta.lastResetAt, { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()} ${new Date(meta.lastResetAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} by ${meta.lastResetBy || "—"}` : "done";
+    return `<div class="reset ${days <= 3 ? "due" : "ok"}"><span><b>✓ ${monLabel(cur)} RESET DONE</b> — ${esc(by)}${meta.lastResetPromoted != null ? ` · ${meta.lastResetPromoted} got +1 PT` : ""}${meta.lastResetSaved ? ` · ${monLabel(meta.lastResetSaved)} saved to History` : ""}<small>Next reset: 01 ${monLabel(next)} (in ${days} day${days === 1 ? "" : "s"}) — Cortana runs it at 00:00 UK time.${days <= 3 ? " Only run early if the Commander asks." : ""}</small></span>${days <= 3 && can ? '<button class="b sm r" data-act="reset" data-mode="early">RUN EARLY…</button>' : ""}</div>`;
+  }
+  return `<div class="reset miss" role="alert"><span><b>⚠ ${monLabel(cur)} RESET HAS NOT RUN</b> — Cortana may have been offline at midnight.<small>Running it now: saves ${monLabel(shiftMonth(cur, -1))} to History → +1 PT for 3/3 → ATT back to 0/3. Events already locked this month are kept.</small></span>${can ? '<button class="b sm red" data-act="reset" data-mode="missed">↻ RUN RESET NOW</button>' : '<span class="s2">ASK STAFF TO RUN IT</span>'}</div>`;
+}
+
 // ───────── side card ─────────
 let sel = null;
 function drawCard() {
@@ -142,7 +165,7 @@ function drawCard() {
 async function givePT(id) {
   const r = rows.find((x) => x.id === id);
   if (!r) return;
-  if ((r.attendance || 0) >= 3) return window.promotePT(id);
+  if ((r.attendance || 0) >= 3) return promotePT(r);
   if (!(await ask({ kind: "warn", title: "GIVE +1 PT?", body: `${r.attendance || 0}/3 this month — this is a manual award (ATT is not reset).`, item: memberName(r), go: "+1 PT" }))) return;
   const n = (r.promotionTracker || 0) + 1;
   await updateDoc(doc(db, "users", id), { promotionTracker: n, updatedAt: new Date().toISOString() });
@@ -389,30 +412,28 @@ function openRibbon(pre = []) {
   });
 }
 
-function openReset() {
-  const ready = rows.filter((r) => (r.attendance || 0) >= 3).length;
-  const month = new Date().toLocaleString("en-GB", { month: "long", year: "numeric" }).toUpperCase();
+function openReset(mode) {
+  const cur = meta.month || ukMonth();
+  const month = mode === "early" ? shiftMonth(cur, 1) : cur;
+  if ((meta.lastAttendanceReset || "") >= month) return notify(`${monLabel(month)} RESET IS ALREADY DONE`, 1);
+  const prev = shiftMonth(month, -1);
+  const ready = rows.filter((r) => r.platoon !== "Reserves" && (r.attendance || 0) >= 3);
+  const names = ready.slice(0, 8).map((r) => esc(memberName(r))).join(", ") + (ready.length > 8 ? ` … +${ready.length - 8}` : "");
   const ov = openModal(
-    `<div class="hd"><div><h2>⚠ MONTH-END RESET</h2><small>${month}</small></div><button class="xx" data-close aria-label="Close">✕</button></div>
-     <div class="bd"><div class="danger-box">This will:<br>1. <b>Save</b> this month's attendance to Attendance History.<br>2. Give <b>+1 PT</b> to the ${ready} member${ready === 1 ? "" : "s"} at 3/3.<br>3. <b>Reset</b> everyone's ATT to 0/3.<br><br>It cannot be undone.</div>
+    `<div class="hd"><div><h2>⚠ RUN ${monLabel(month)} RESET${mode === "early" ? " EARLY" : ""}?</h2><small>${mode === "early" ? "CORTANA WILL THEN SKIP IT ON THE 1ST" : "BACKUP — CORTANA NORMALLY DOES THIS AT 00:00 ON THE 1ST"}</small></div><button class="xx" data-close aria-label="Close">✕</button></div>
+     <div class="bd"><div class="danger-box">1. <b>Save</b> ${monLabel(prev)} to Attendance History.<br>2. <b>+1 PT</b> to everyone who reached 3/3 (${ready.length} now${ready.length ? ": " + names : ""}).<br>3. Everyone's ATT → <b>0/3</b> (events already locked in ${monLabel(month)} still count).<br><br>It cannot be undone.</div>
        <label class="lbl" for="rsT" style="margin-top:14px">TYPE <b style="color:#ff4d4d;font-weight:400">RESET</b> TO CONFIRM</label><input class="fld" id="rsT" autocomplete="off"></div>
-     <div class="ft"><span class="hint">LOGGED IN THE AUDIT LOG</span><div style="display:flex;gap:8px"><button class="b" data-close>CANCEL</button><button class="b red" id="rsGo" disabled>⚠ RESET MONTH</button></div></div>`,
-    { color: "rgba(255,77,77,.55)", title: "#ff4d4d", width: 520 },
+     <div class="ft"><span class="hint">LOGGED IN THE AUDIT LOG</span><div style="display:flex;gap:8px"><button class="b" data-close>CANCEL</button><button class="b red" id="rsGo" disabled>↻ RUN RESET</button></div></div>`,
+    { color: "rgba(255,77,77,.55)", title: "#ff4d4d", width: 560 },
   );
   const t = ov.querySelector("#rsT"), go = ov.querySelector("#rsGo");
   t.addEventListener("input", () => (go.disabled = t.value !== "RESET"));
   go.addEventListener("click", async () => {
     go.disabled = true;
     closeModal();
-    if (typeof window.loadRosterPanel === "function") await window.loadRosterPanel();
-    // The original asks again with confirm(); the typed RESET above is the confirmation.
-    const realConfirm = window.confirm;
-    window.confirm = () => true;
-    try {
-      await window.forceMonthlyReset();
-    } finally {
-      window.confirm = realConfirm;
-    }
+    const p = runReset(month, memberName(me) || me?.callsign || "Staff");
+    setTimeout(() => load().catch(() => {}), 800); // shows the running banner
+    await p;
     load();
   });
 }
@@ -434,7 +455,9 @@ const CSS = `
 #${ROOT} .rowbtn{background:none;border:1px solid transparent;color:var(--d);cursor:pointer;padding:2px 8px;font-size:14px}
 #${ROOT} .rowbtn:hover{border-color:var(--l2);color:var(--a)}
 #${ROOT} .kp{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
-#${ROOT} .reset{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid rgba(0,217,255,.35);background:rgba(0,217,255,.05);margin:0 0 12px;font-size:11.5px;color:#c6d0da}#${ROOT} .reset span{flex:1}
+#${ROOT} .reset{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px solid rgba(0,217,255,.35);background:rgba(0,217,255,.05);margin:0 0 12px;font-size:11.5px;color:#c6d0da}#${ROOT} .reset>span{flex:1;min-width:240px}#${ROOT} .reset small{display:block;color:var(--d);font-size:10.5px;margin-top:2px}
+#${ROOT} .reset b{font-weight:400}#${ROOT} .reset.ok{border-color:rgba(34,224,122,.45);background:rgba(34,224,122,.05)}#${ROOT} .reset.ok b,#${ROOT} .reset.due b{color:var(--g)}#${ROOT} .reset.miss{border-color:#ff4d4d;background:rgba(255,77,77,.08)}#${ROOT} .reset.miss b{color:#ff4d4d}#${ROOT} .reset.run{border-color:#ffd166;background:rgba(255,209,102,.06)}#${ROOT} .reset.run b{color:#ffd166}
+#${ROOT} .b.red{background:#ff4d4d;border-color:#ff4d4d;color:#fff}#${ROOT} .b.r{border-color:#ff4d4d;color:#ff4d4d}
 #${ROOT} .grp2{margin-bottom:10px}#${ROOT} .grp2 summary{cursor:pointer;list-style:none;display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--l);background:var(--p);font:700 14px Rajdhani,sans-serif;letter-spacing:2px;color:#fff}
 #${ROOT} .grp2 summary::before{content:"▸";color:var(--a);transition:transform .15s}#${ROOT} .grp2[open] summary::before{transform:rotate(90deg)}#${ROOT} .grp2 summary small{margin-left:auto;font:10.5px 'Share Tech Mono',monospace;letter-spacing:1px;color:var(--d)}
 #${ROOT} .grp2 summary:focus-visible,#${ROOT} .nm:focus-visible,#${ROOT} .pl:focus-visible{outline:2px solid var(--a);outline-offset:2px}
@@ -504,7 +527,7 @@ onReady(() => {
       <div class="more"><button class="b" data-act="more" aria-haspopup="true">⋯ MORE</button>
         <div class="menu"><button data-act="public">↗ View public roster page<small>What members see</small></button>
           <button data-act="backfill" class="needs-edit">▶ Backfill platoon dates<small>Fill missing 'joined platoon' dates</small></button>
-          <button data-act="reset" class="reset-btn" style="color:#ff4d4d">⚠ Month-end reset<small>Saves history, +1 PT at 3/3, resets ATT</small></button></div></div>
+          <button data-act="reset" data-mode="early" class="reset-btn" style="color:#ff4d4d">⚠ Run next month’s reset early<small>Cortana normally runs it at 00:00 on the 1st</small></button></div></div>
     </div>
     <div class="reset"></div>
     <div class="tables"></div>
@@ -530,7 +553,8 @@ onReady(() => {
     if (act === "edit") return EDIT_ROLES.has(me?.role) ? runOriginal("edit", id) : null;
     if (act === "att") {
       el.disabled = true;
-      await window.markAttendance(id, { checked: true });
+      const u = rows.find((x) => x.id === id);
+      if (u) await addPip(u);
       return load();
     }
     if (act === "pt") {
@@ -544,7 +568,7 @@ onReady(() => {
     if (act === "ribbon") return openRibbon();
     if (act === "public") return window.open("/resources-roster", "_blank", "noopener");
     if (act === "backfill") return window.openBackfillPlatoonModal?.();
-    if (act === "reset") return openReset();
+    if (act === "reset") return openReset(el.dataset.mode || "missed");
   });
   root.addEventListener("toggle", (e) => {
     const d = e.target.closest?.("details.grp2");

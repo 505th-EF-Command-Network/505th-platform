@@ -12,6 +12,7 @@
  */
 import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
+import { rebuildMonth, ukMonth } from "./attendance-core.js";
 import { addCss, ask, audit, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, onReady, platoonOrder, rankOrder, rateColor, today, toDate } from "./_common.js";
 
 let canLock = false;
@@ -224,6 +225,18 @@ function newHtml() {
 }
 
 // ───────── saving ─────────
+/** An event from an earlier month changed after its month was saved → update that month's History record. */
+async function historyCatchUp(e, action) {
+  const m = String(e?.date || "").slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(m) || m >= ukMonth()) return;
+  try {
+    await rebuildMonth(m, { by: me?.callsign || memberName(me) || "Staff", title: e.title || "—", action });
+    notify(`ATTENDANCE HISTORY FOR ${m} UPDATED`);
+  } catch (x) {
+    console.warn("history catch-up failed", x);
+  }
+}
+
 async function save(patch, quiet) {
   if (!cur) return;
   busy++;
@@ -284,6 +297,7 @@ async function lockEvent(e = cur, asked = false) {
     await audit("battalion_ops", "EVENT LOCKED", `${e.title} (${e.date}) — ${p} present, ${(e.excused || []).length} excused, stats recalculated`);
     window.fireWebhook?.("attendance", { title: e.title, date: e.date, type: (TYPE[e.type] || [e.type])[0], present: p, by: me?.callsign || "Staff" });
     notify(`EVENT LOCKED — ${p} PRESENT — STATS RECALCULATED`);
+    await historyCatchUp(e, "locked late");
   } catch (x) {
     notify("LOCK FAILED: " + x.message, 1);
   } finally {
@@ -298,6 +312,7 @@ async function unlockEvent(e = cur, asked = false) {
     await updateDoc(doc(db, "attendance_events", e.id), { locked: false, unlockedBy: me?.callsign || "Staff", unlockedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     await audit("battalion_ops", "EVENT UNLOCKED", `${e.title || "—"} (${e.date || "—"}) unlocked for corrections`);
     notify("EVENT UNLOCKED — MAKE CORRECTIONS THEN LOCK AGAIN");
+    await historyCatchUp(e, "unlocked");
   } catch (x) {
     notify("UNLOCK FAILED: " + x.message, 1);
   }

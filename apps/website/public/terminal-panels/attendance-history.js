@@ -1,13 +1,15 @@
 /**
  * ATTENDANCE HISTORY v2 (approved mock 2026-11-09) — replaces #panel-att-history.
- * Reads the monthly snapshots in `attendance_history` (written by month-end
- * reset). Snapshot / Backfill use the original functions.
+ * Reads the monthly snapshots in `attendance_history` (saved by Cortana's monthly reset).
+ * Rebuild / Snapshot / Backfill: attendance-core.js.
  */
-import { collection, getDocs } from "/terminal-shim/firestore.js";
+import { collection, getDocs, query, where } from "/terminal-shim/firestore.js";
+import { backfillHistory, rebuildMonth, snapshotCurrentMonth, ukMonth } from "./attendance-core.js";
 import { addCss, db, esc, mountPanel, notify, onReady, platoonOrder, rateColor } from "./_common.js";
 
 const ROOT = "ahV2";
 let months = []; // [{id, month, totalOps, members:[...]}] newest first
+let missing = []; // past months with locked events but no record
 let sel = null;
 let q = "";
 let pl = "";
@@ -18,6 +20,9 @@ let sortDir = -1;
 async function load() {
   const snap = await getDocs(collection(db, "attendance_history"));
   months = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => b.id.localeCompare(a.id));
+  const ev = await getDocs(query(collection(db, "attendance_events"), where("locked", "==", true))).catch(() => null);
+  const have = new Set(months.map((m) => m.id)), cur = ukMonth();
+  missing = ev ? [...new Set(ev.docs.map((d) => String(d.data().date || "").slice(0, 7)))].filter((m) => /^\d{4}-\d{2}$/.test(m) && m < cur && !have.has(m)).sort() : [];
   if (!sel || !months.some((m) => m.id === sel)) sel = months[0]?.id || null;
   render();
 }
@@ -34,8 +39,9 @@ const avg = (m) => {
 function render() {
   const root = document.getElementById(ROOT);
   if (!root) return;
+  const miss = missing.map((x) => `<div class="hb miss" role="alert"><span><b>⚠ ${label(x)} HAS NO HISTORY RECORD</b> — it has locked events.</span><button class="b sm" data-build="${esc(x)}">↻ BUILD IT NOW</button></div>`).join("");
   if (!months.length) {
-    root.querySelector(".body").innerHTML = '<div class="empty">NO HISTORY YET — HISTORY IS SAVED AT MONTH-END RESET</div>';
+    root.querySelector(".body").innerHTML = miss + '<div class="empty">NO HISTORY YET — CORTANA SAVES EACH MONTH AT 00:00 ON THE 1ST</div>';
     return;
   }
   const i = months.findIndex((m) => m.id === sel);
@@ -55,10 +61,18 @@ function render() {
     return (A > B ? 1 : A < B ? -1 : 0) * sortDir;
   });
 
-  root.querySelector(".body").innerHTML = `
+  const when = (v) => (v ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase() : "—");
+  const tags = [
+    `<span class="tg" style="color:var(--g);border-color:var(--g)">✓ SAVED ${when(m.snapshotAt)}${m.savedBy ? " · " + esc(String(m.savedBy).toUpperCase()) : ""}</span>`,
+    m.lateUpdate ? `<span class="tg" style="color:var(--a);border-color:var(--a)">↻ UPDATED ${when(m.lateUpdate.at)} — "${esc(m.lateUpdate.title || "event")}" ${esc(m.lateUpdate.action || "changed")} by ${esc(m.lateUpdate.by || "—")}</span>` : "",
+    m.rebuiltAt ? `<span class="tg" style="color:var(--a);border-color:var(--a)">↻ REBUILT ${when(m.rebuiltAt)}</span>` : "",
+    `<span class="tg">${m.totalOps || 0} LOCKED OPS</span>`,
+  ].join("");
+  root.querySelector(".body").innerHTML = `${miss}
     <div class="months">${months
       .map((x) => `<button class="mo ${x.id === sel ? "on" : ""}" data-m="${esc(x.id)}">${label(x.id)}<small style="color:${rateColor(avg(x))}">${avg(x)}% · ${x.totalOps || 0} OPS</small></button>`)
       .join("")}</div>
+    <div class="bar" style="margin:8px 0 10px">${tags}<span class="sp"></span><button class="b sm" data-act="rebuild" title="Recount ${label(m.id)} from its locked events (ATT pips and PT are not changed)">↻ REBUILD ${label(m.id)}</button></div>
     <div class="kp">
       <div class="k"><b style="color:var(--a)">${m.totalOps || 0}</b><span>OPS</span></div>
       <div class="k"><b style="color:${rateColor(a)}">${a}%</b><span>UNIT AVG ${pa == null ? "" : `<span style="color:${a >= pa ? "var(--g)" : "var(--r)"}">${a >= pa ? "▲" : "▼"} ${Math.abs(a - pa)}%</span>`}</span></div>
@@ -102,6 +116,8 @@ const CSS = `
 #${ROOT} .rbar .tr{flex:1;height:6px;background:#1a2330}#${ROOT} .rbar i{display:block;height:100%}
 #${ROOT} .rbar b{font-family:Rajdhani,sans-serif;font-size:14px;width:44px;text-align:right}
 #${ROOT} .delta{font-size:10px;letter-spacing:1px}
+#${ROOT} .tg{font-size:10px;letter-spacing:1px;padding:2px 7px;border:1px solid var(--l);color:var(--d)}
+#${ROOT} .hb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 12px;border:1px solid #ff4d4d;background:rgba(255,77,77,.08);margin:8px 0;font-size:11.5px}#${ROOT} .hb span{flex:1}#${ROOT} .hb b{color:#ff4d4d;font-weight:400}
 #${ROOT} .ns{font-size:8.5px;letter-spacing:1.5px;color:var(--r);border:1px solid rgba(255,77,77,.5);padding:1px 5px;margin-left:6px}
 `;
 
@@ -111,7 +127,7 @@ onReady(() => {
   addCss(ROOT, CSS);
   root.innerHTML = `
     <div class="h1">ATTENDANCE HISTORY</div>
-    <div class="bar" style="margin-top:10px"><span class="sub" style="margin:0">MONTHLY RECORDS — SAVED AUTOMATICALLY AT MONTH-END RESET</span><span class="sp"></span>
+    <div class="bar" style="margin-top:10px"><span class="sub" style="margin:0">MONTHLY RECORDS — CORTANA SAVES EACH MONTH AT 00:00 ON THE 1ST</span><span class="sp"></span>
       <div class="more"><button class="b" data-act="more" aria-haspopup="true">⋯ MORE</button>
         <div class="menu"><button data-act="snap">▲ Snapshot current month now<small>Saves this month so far</small></button>
           <button data-act="backfill">▶ Backfill all missing months<small>Rebuilds months from locked events</small></button></div></div></div>
@@ -123,6 +139,13 @@ onReady(() => {
       sortK = th.dataset.k;
       return render();
     }
+    const bd = e.target.closest("[data-build]");
+    if (bd) {
+      bd.disabled = true;
+      await rebuildMonth(bd.dataset.build).then(() => notify("HISTORY BUILT FOR " + bd.dataset.build), (x) => notify("BUILD FAILED: " + x.message, 1));
+      sel = bd.dataset.build;
+      return load();
+    }
     const mo = e.target.closest("[data-m]");
     if (mo) {
       sel = mo.dataset.m;
@@ -132,12 +155,16 @@ onReady(() => {
     const menu = root.querySelector(".menu");
     if (act === "more") return menu.classList.toggle("open");
     menu.classList.remove("open");
+    if (act === "rebuild" && sel) {
+      await rebuildMonth(sel).then(() => notify("HISTORY REBUILT FOR " + sel), (x) => notify("REBUILD FAILED: " + x.message, 1));
+      return load();
+    }
     if (act === "snap") {
-      await window.snapshotCurrentMonth?.();
+      await snapshotCurrentMonth();
       return load();
     }
     if (act === "backfill") {
-      await window.backfillAttendanceHistory?.();
+      await backfillHistory();
       return load();
     }
   });

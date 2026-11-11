@@ -847,15 +847,6 @@
 
         // ── ROSTER (reads from users collection) ────────────────────────────
         function calcPeriod(dateStr){if(!dateStr)return'—';const d=new Date(dateStr),now=new Date();let m=(now.getFullYear()-d.getFullYear())*12+(now.getMonth()-d.getMonth());const y=Math.floor(m/12),r=m%12;return(y>0?y+' year'+(y!==1?'s ':' '):'')+r+' month'+(r!==1?'s':'');}
-        window.setRosterSort=function(sort){
-            rosterSort=sort;
-            document.querySelectorAll('.roster-sort-btn').forEach(b=>{
-                b.style.background=b.dataset.sort===sort?'rgba(0,217,255,.15)':'transparent';
-                b.style.color=b.dataset.sort===sort?'var(--accent)':'#aaa';
-                b.style.borderColor=b.dataset.sort===sort?'var(--accent)':'rgba(0,217,255,.2)';
-            });
-            renderRosterTable();
-        };
 
         window.loadRosterPanel = async function loadRosterPanel(){
             const c=document.getElementById('rosterList');
@@ -864,7 +855,6 @@
             const _bfBtn=document.getElementById('backfillPlatoonBtn');
             if(_bfBtn) _bfBtn.style.display=P().canEditProfiles?'':'none';
             try{
-                await checkMonthlyReset();
                 // Read from users collection — single source of truth
                 const s=await getDocs(query(collection(db,'users'),orderBy('callsign','asc')));
                 rosterData=[];
@@ -872,7 +862,7 @@
                     const u={id:d.id,...d.data()};
                     if(u.status!=='pending'&&u.status!=='denied'&&u.role!=='retired_veteran') rosterData.push(u);
                 });
-                renderRosterTable();
+                // (roster table is drawn by /terminal-panels/battalion-roster.js)
             }catch(e){if(c)c.innerHTML='<div class="empty-state">ERROR: '+e.message+'</div>';}
         }
 
@@ -918,249 +908,8 @@
             }catch(e){notify('BACKFILL FAILED: '+e.message,1);}
         };
 
-        function getRankSortOrder(rank) {
-            if(!rank) return 999;
-            const m = rank.match(/^([OE])(\d+)/);
-            if(!m) return 998;
-            const tier = m[1]==='O' ? 0 : 100;
-            return tier + (99 - parseInt(m[2]));
-        }
 
-        function renderRosterTable(){
-            const c=document.getElementById('rosterList');if(!c)return;
-            const sorted=[...rosterData];
-            if(rosterSort==='name-asc')        sorted.sort((a,b)=>(a.firstName||a.callsign||'').localeCompare(b.firstName||b.callsign||''));
-            if(rosterSort==='name-desc')       sorted.sort((a,b)=>(b.firstName||b.callsign||'').localeCompare(a.firstName||a.callsign||''));
-            if(rosterSort==='joined')          sorted.sort((a,b)=>new Date(a.joinedAt||'9999')-new Date(b.joinedAt||'9999'));
-            if(rosterSort==='platoon-service') sorted.sort((a,b)=>new Date(a.joinedPlatoon||'9999')-new Date(b.joinedPlatoon||'9999'));
-            if(rosterSort==='time-in-unit')    sorted.sort((a,b)=>new Date(a.graduation||'9999')-new Date(b.graduation||'9999'));
-            if(rosterSort==='rank-asc')        sorted.sort((a,b)=>getRankSortOrder(a.rank)-getRankSortOrder(b.rank));
-            if(rosterSort==='rank-desc')       sorted.sort((a,b)=>getRankSortOrder(b.rank)-getRankSortOrder(a.rank));
-            const active=sorted.filter(r=>r.platoon!=='Reserves');
-            const reserves=sorted.filter(r=>r.platoon==='Reserves');
-            const tot=document.getElementById('rosterTotal'),act=document.getElementById('rosterActiveCount'),res=document.getElementById('rosterReservesCount');
-            if(tot)tot.textContent=rosterData.length;
-            if(act)act.textContent=active.length;
-            if(res)res.textContent=reserves.length;
-            if(!rosterData.length){c.innerHTML='<div class="empty-state">NO ROSTER ENTRIES</div>';return;}
-            c.innerHTML=sorted.map(r=>{
-                const att=r.attendance||0;
-                const attColor=att>=3?'#7FFF7F':att>=2?'#FFD700':'var(--accent)';
-                const pt=r.promotionTracker||0;
-                const ptReady=att>=3;
-                const ptStyle=ptReady?'color:#7FFF7F;font-weight:700;font-size:14px;text-shadow:0 0 8px rgba(127,255,127,.6);animation:ptGlow 1s ease-in-out infinite':'color:var(--accent);font-weight:700;font-size:14px';
-                return`<div class="roster-row">
-                    <div class="roster-cell roster-name" onclick="openRosterCtx(event,'${r.id}')">${esc(formatMemberName(r)||r.callsign)}</div>
-                    <div class="roster-cell">${r.platoon
-                        ? `<span style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:600;padding:3px 10px;border:1px solid rgba(0,217,255,.35);color:var(--accent)">${esc(r.platoon)}</span>`
-                        : `<span style="color:#555;font-size:10px">—</span>`
-                    }</div>
-                    <div class="roster-cell" style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:500;color:#bbb">${r.joinedAt?new Date(r.joinedAt).toLocaleDateString('en-US'):'—'}</div>
-                    <div class="roster-cell" style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:500;color:#ccc">${calcPeriod(r.joinedPlatoon)}</div>
-                    <div class="roster-cell" style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:500">${esc(r.rank||'—')}</div>
-                    <div class="roster-cell" style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:500;color:#bbb">${r.graduation?new Date(r.graduation).toLocaleDateString('en-US'):'—'}</div>
-                    <div class="roster-cell">
-                        <div style="display:flex;align-items:center;gap:6px">
-                            <span style="color:${attColor};font-family:Rajdhani,sans-serif;font-weight:700;font-size:15px;min-width:22px">${att}/3</span>
-                            ${att<3?`<input type="checkbox" onchange="markAttendance('${r.id}',this)" title="Mark attendance pip (+1)" style="cursor:pointer;width:15px;height:15px;accent-color:var(--accent)">`:'<span style="color:#7FFF7F;font-size:8px;letter-spacing:1px">FULL</span>'}
-                        </div>
-                    </div>
-                    <div class="roster-cell" style="font-family:Rajdhani,sans-serif;font-size:12px;font-weight:500;color:#ccc">${calcPeriod(r.graduation)}</div>
-                    <div class="roster-cell" style="display:flex;align-items:center;gap:6px">
-                        <span style="${ptStyle}">${pt}</span>
-                        ${ptReady?`<button class="action-btn approve-btn small" onclick="promotePT('${r.id}')" style="font-size:8px;padding:2px 8px;letter-spacing:1px;animation:ptGlow 1s ease-in-out infinite" title="Award +1 PT &amp; reset attendance">+1 PT</button>`:''}
-                    </div>
-                    <div class="roster-cell" title="Total ribbons awarded"><span style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;color:${(r.ribbonHistory||[]).length?'#2DD4BF':'#555'}">${(r.ribbonHistory||[]).length}</span></div>
-                </div>`;
-            }).join('');
-            // Ensure scroll-wrap is applied after data renders
-            if(typeof window.applyRosterScrollWrap==='function') window.applyRosterScrollWrap();
-        }
-
-        window.filterRosterRows = function(val) {
-            const q = val.trim().toLowerCase();
-            const rows = document.querySelectorAll('#rosterList .roster-row');
-            rows.forEach(row => {
-                const name = row.querySelector('.roster-name');
-                if(!name) return;
-                row.style.display = (!q || name.textContent.toLowerCase().includes(q)) ? '' : 'none';
-            });
-        };
-
-        window.openRosterEditFromSelect=function(sel){
-            const id=sel.value;
-            if(!id)return;
-            openRosterEdit(id);
-            // Reset selector back to placeholder after opening modal
-            sel.value='';
-        };
-
-        if(!document.getElementById('ptGlowStyle')){
-            const s=document.createElement('style');s.id='ptGlowStyle';
-            s.textContent='@keyframes ptGlow{0%,100%{text-shadow:0 0 8px rgba(127,255,127,.6)}50%{text-shadow:0 0 18px rgba(127,255,127,.9),0 0 30px rgba(127,255,127,.4)}}';
-            document.head.appendChild(s);
-        }
-
-        window.markAttendance=async function(id,cb){
-            cb.checked=false;
-            const r=rosterData.find(x=>x.id===id);if(!r)return;
-            let att=(r.attendance||0)+1;
-            if(att>3)att=3;
-            r.attendance=att;
-            await updateDoc(doc(db,'users',id),{attendance:att,updatedAt:new Date().toISOString()});
-            writeAuditLog('battalion_ops','ATTENDANCE PIP',`Manual +1 pip for ${formatMemberName(r)||r.callsign} (now ${att}/3)`);
-            if(att>=3) notify(formatMemberName(r)+' — 3/3 ATTENDANCE — READY FOR PT PROMOTION');
-            else notify(formatMemberName(r)+' — ATTENDANCE: '+att+'/3');
-            renderRosterTable();
-        };
-
-        window.promotePT=async function(id){
-            const r=rosterData.find(x=>x.id===id);if(!r)return;
-            const pt=(r.promotionTracker||0)+1;
-            r.promotionTracker=pt;
-            r.attendance=0;
-            await updateDoc(doc(db,'users',id),{promotionTracker:pt,attendance:0,updatedAt:new Date().toISOString()});
-            writeAuditLog('battalion_ops','PT AWARDED',`+1 PT for ${formatMemberName(r)||r.callsign} (now ${pt} PT), attendance reset`);
-            notify(formatMemberName(r)+' — PT +1 (NOW '+pt+') — ATTENDANCE RESET');
-            renderRosterTable();
-        };
-
-        // ── Monthly attendance reset — now reads/writes users ───────────────
-
-        // snapshotAttendanceHistory — accepts optional pre-loaded evList to avoid compound Firestore query
-        async function snapshotAttendanceHistory(monthStr, memberDocs, preloadedEvents) {
-            try {
-                // NOTE: TOTAL OPS / ATTENDED / RATE count ALL locked events (Op, Patrol, FTX, Fun Op).
-                // MISSED counts only OP-tagged (main_op) events missed (per Drake, 2026-07-24) —
-                // missing a Patrol, FTX, or Fun Op does NOT add to the MISSED number.
-                let evList = [];
-                if (preloadedEvents) {
-                    // Use pre-loaded events — no Firestore query needed
-                    evList = preloadedEvents.filter(ev => ev.locked && ev.date && ev.date.startsWith(monthStr));
-                } else {
-                    // Fallback: fetch all locked events and filter client-side — no compound query, no index needed
-                    const evSnap = await getDocs(query(collection(db, 'attendance_events'), where('locked','==',true)));
-                    evSnap.forEach(d => {
-                        const ev = {id:d.id,...d.data()};
-                        if (ev.date && ev.date.startsWith(monthStr)) evList.push(ev);
-                    });
-                }
-                const totalOps = evList.length;
-                const opEvents = evList.filter(ev => ev.type === 'main_op');
-                const totalOpTagOps = opEvents.length;
-
-                const members = [];
-                memberDocs.forEach(d => {
-                    const u = d.data ? d.data() : d;
-                    const uid = d.id || u.id;
-                    if (u.status==='pending'||u.status==='denied'||u.platoon==='Reserves') return;
-                    const attended = evList.filter(ev=>(ev.attendees||[]).includes(uid)).length;
-                    const eligible = totalOps;
-                    const rate     = eligible > 0 ? Math.round((attended/eligible)*100) : 0;
-                    // MISSED — Op tag only: how many OP-tagged events this member did not attend
-                    const opAttended = opEvents.filter(ev=>(ev.attendees||[]).includes(uid)).length;
-                    const missed     = totalOpTagOps - opAttended;
-                    members.push({
-                        uid,
-                        name:     formatMemberName(u) || u.callsign || 'Unknown',
-                        rank:     u.rank || '—',
-                        platoon:  u.platoon || '—',
-                        role:     u.role || '—',
-                        attended, eligible, missed, rate,
-                        pip:      u.attendance || 0,
-                    });
-                });
-
-                members.sort((a,b) => b.rate - a.rate || a.name.localeCompare(b.name));
-
-                await setDoc(doc(db,'attendance_history',monthStr), {
-                    month:     monthStr,
-                    totalOps,
-                    memberCount: members.length,
-                    snapshotAt: new Date().toISOString(),
-                    members,
-                });
-                console.log(`Attendance history snapshot saved for ${monthStr}`);
-            } catch(e) { console.warn('snapshotAttendanceHistory failed:', e); }
-        }
-
-        async function checkMonthlyReset(){
-            try{
-                const settingsSnap=await getDoc(doc(db,'settings','roster_meta'));
-                const meta=settingsSnap.exists()?settingsSnap.data():{};
-                const lastReset=meta.lastAttendanceReset||'';
-                const now=new Date();
-                const currentMonth=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0');
-                if(lastReset===currentMonth) return;
-                const snap=await getDocs(collection(db,'users'));
-                // Snapshot BEFORE reset so we preserve last month's data
-                const prevMonth = new Date(now.getFullYear(), now.getMonth()-1, 1);
-                const prevMonthStr = prevMonth.getFullYear()+'-'+String(prevMonth.getMonth()+1).padStart(2,'0');
-                await snapshotAttendanceHistory(prevMonthStr, snap.docs);
-                const batch=[];
-                snap.forEach(d=>{
-                    const data=d.data();
-                    if(data.status==='pending'||data.status==='denied') return;
-                    if((data.attendance||0)>=3){
-                        batch.push({id:d.id,pt:(data.promotionTracker||0)+1});
-                    }
-                });
-                for(const b of batch){
-                    await updateDoc(doc(db,'users',b.id),{promotionTracker:b.pt,attendance:0,updatedAt:now.toISOString()});
-                }
-                const snap2=await getDocs(collection(db,'users'));
-                snap2.forEach(async d=>{
-                    const data=d.data();
-                    if(data.status==='pending'||data.status==='denied') return;
-                    if((data.attendance||0)>0){
-                        await updateDoc(doc(db,'users',d.id),{attendance:0,updatedAt:now.toISOString()});
-                    }
-                });
-                await setDoc(doc(db,'settings','roster_meta'),{lastAttendanceReset:currentMonth},{merge:true});
-                if(batch.length) notify('MONTHLY RESET: '+batch.length+' MEMBER(S) AUTO-PROMOTED BEFORE RESET');
-                else notify('MONTHLY ATTENDANCE RESET COMPLETE');
-            }catch(e){console.warn('Monthly reset check:',e.message);}
-        }
-
-        // ── Manual force month-end reset (staff/commander/developer only) ──
-        window.forceMonthlyReset=async function(){
-            const affected=rosterData.filter(r=>(r.attendance||0)>=3);
-            const msg=affected.length
-                ? `FORCE MONTH-END RESET?\n\n${affected.length} member(s) at 3/3 will receive +1 PT:\n${affected.map(r=>formatMemberName(r)).join('\n')}\n\nAll attendance will reset to 0.`
-                : 'FORCE MONTH-END RESET?\n\nNo members are currently at 3/3 — all attendance will be reset to 0.';
-            if(!(await window.cfConfirm(msg))) return;
-            const btn=document.getElementById('forceResetBtn');
-            if(btn){btn.disabled=true;btn.textContent='PROCESSING...';}
-            try{
-                const now=new Date();
-                const currentMonth=now.getFullYear()+'-'+(now.getMonth()+1).toString().padStart(2,'0');
-                const snap=await getDocs(collection(db,'users'));
-                // Snapshot current month before clearing
-                await snapshotAttendanceHistory(currentMonth, snap.docs);
-                let promoted=0;
-                for(const d of snap.docs){
-                    const data=d.data();
-                    if(data.status==='pending'||data.status==='denied') continue;
-                    const att=data.attendance||0;
-                    const pt=data.promotionTracker||0;
-                    if(att>=3){
-                        await updateDoc(doc(db,'users',d.id),{promotionTracker:pt+1,attendance:0,updatedAt:now.toISOString()});
-                        promoted++;
-                    } else if(att>0){
-                        await updateDoc(doc(db,'users',d.id),{attendance:0,updatedAt:now.toISOString()});
-                    }
-                }
-                // Update the last-reset stamp so auto-reset won't double-fire this month
-                await setDoc(doc(db,'settings','roster_meta'),{lastAttendanceReset:currentMonth},{merge:true});
-                notify('MONTH-END RESET COMPLETE — '+promoted+' MEMBER(S) PROMOTED, ALL ATTENDANCE CLEARED');
-                writeAuditLog('battalion_ops','MONTH-END RESET',`Reset for ${currentMonth} — ${promoted} promoted, history snapshot saved`);
-                await loadRosterPanel();
-            }catch(e){
-                notify('RESET FAILED: '+e.message,1);
-            }finally{
-                if(btn){btn.disabled=false;btn.textContent='&#9654; MONTH-END RESET';}
-            }
-        };
+        // ── ROSTER: ATT pip, PT, month-end reset and history snapshots → /terminal-panels/attendance-core.js ──
 
         window.openRosterEdit=function(id){
             const r=rosterData.find(x=>x.id===id);if(!r)return;
@@ -1315,7 +1064,6 @@
         let unitCardData = {};
 
         let ucActiveTab = 'Battalion Command';
-
 
 
         function renderUnitCards() {
@@ -1499,7 +1247,6 @@
         // ── END UNIT CARDS ────────────────────────────────────────────────────
 
 
-
         function notify(m,err){const n=document.getElementById('notification');n.textContent=m;n.className='notification show'+(err?' error':'');setTimeout(()=>n.className='notification',3000);}
 
         // ── CORE UI ───────────────────────────────────────────────────────────
@@ -1544,81 +1291,9 @@
 
 
         // ── Snapshot current month manually ────────────────────────────────────
-        window.snapshotCurrentMonth = async function() {
-            const btn    = document.getElementById('attSnapshotBtn');
-            const status = document.getElementById('attSnapshotStatus');
-            if (btn) { btn.disabled = true; btn.textContent = 'SAVING...'; }
-            if (status) { status.style.color = 'var(--accent)'; status.textContent = 'SNAPSHOTTING...'; }
-            try {
-                const now = new Date();
-                const monthStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-                if (!allUsers.length) await loadAllUsers();
-                // Fetch all locked events once, pass them in — no compound query needed
-                const evSnap = await getDocs(query(collection(db, 'attendance_events'), where('locked','==',true)));
-                const allLocked = [];
-                evSnap.forEach(d => allLocked.push({id:d.id,...d.data()}));
-                const userDocs = allUsers.map(u => ({ id: u.id, data: () => u, ...u }));
-                await snapshotAttendanceHistory(monthStr, userDocs, allLocked);
-                if (status) { status.style.color = '#7FFF7F'; status.textContent = '\u2713 SNAPSHOT SAVED FOR ' + monthStr; }
-                notify('ATTENDANCE SNAPSHOT SAVED FOR ' + monthStr);
-                await loadAttendanceHistory(monthStr);
-            } catch(e) {
-                if (status) { status.style.color = '#FF4444'; status.textContent = 'FAILED: ' + e.message; }
-                notify('SNAPSHOT FAILED: ' + e.message, 1);
-            }
-            if (btn) { btn.disabled = false; btn.textContent = '\u25b2 SNAPSHOT CURRENT MONTH'; }
-        };
 
         // ── Backfill all missing months from existing attendance_events ───────
-        window.backfillAttendanceHistory = async function() {
-            if (!(await window.cfConfirm('BACKFILL ALL MISSING MONTHS?\n\nThis will scan all locked attendance events and build history records for every month that has no snapshot yet.\n\nSafe to run — will not overwrite existing snapshots.'))) return;
-            const btn    = document.getElementById('attBackfillBtn');
-            const status = document.getElementById('attSnapshotStatus');
-            if (btn) { btn.disabled = true; btn.textContent = 'BACKFILLING...'; }
-            if (status) { status.style.color = 'var(--accent)'; status.textContent = 'SCANNING EVENTS...'; }
-            try {
-                if (!allUsers.length) await loadAllUsers();
-                // Fetch ALL locked events once — no compound query, no index needed
-                const evSnap = await getDocs(query(collection(db, 'attendance_events'), where('locked', '==', true)));
-                if (evSnap.empty) { notify('NO LOCKED EVENTS FOUND TO BACKFILL', 1); return; }
-                const allLocked = [];
-                evSnap.forEach(d => allLocked.push({id:d.id,...d.data()}));
-                // Group by month
-                const byMonth = {};
-                allLocked.forEach(ev => {
-                    if (!ev.date) return;
-                    const month = ev.date.substring(0, 7);
-                    if (!byMonth[month]) byMonth[month] = [];
-                    byMonth[month].push(ev);
-                });
-                // Get already-existing snapshots
-                const existingSnap = await getDocs(collection(db, 'attendance_history'));
-                const existing = new Set();
-                existingSnap.forEach(d => existing.add(d.id));
-                const months = Object.keys(byMonth).sort();
-                const missing = months.filter(m => !existing.has(m));
-                if (!missing.length) { notify('ALL MONTHS ALREADY HAVE SNAPSHOTS — NOTHING TO BACKFILL'); if (status) { status.style.color = '#7FFF7F'; status.textContent = '\u2713 ALL UP TO DATE'; } return; }
-                if (status) status.textContent = 'BUILDING ' + missing.length + ' MONTH(S)...';
-                const userDocs = allUsers.map(u => ({ id: u.id, data: () => u, ...u }));
-                let done = 0;
-                for (const month of missing) {
-                    // Pass allLocked — snapshotAttendanceHistory filters by month internally
-                    await snapshotAttendanceHistory(month, userDocs, allLocked);
-                    done++;
-                    if (status) status.textContent = 'SAVED ' + done + ' / ' + missing.length + ' MONTHS...';
-                }
-                if (status) { status.style.color = '#7FFF7F'; status.textContent = '\u2713 BACKFILLED ' + done + ' MONTH(S)'; }
-                notify('BACKFILL COMPLETE — ' + done + ' MONTH(S) SAVED');
-                await loadAttendanceHistory();
-            } catch(e) {
-                if (status) { status.style.color = '#FF4444'; status.textContent = 'FAILED: ' + e.message; }
-                notify('BACKFILL FAILED: ' + e.message, 1);
-            }
-            if (btn) { btn.disabled = false; btn.textContent = '\u25ba BACKFILL ALL MISSING MONTHS'; }
-        };
 
-        // Replaced by /terminal-panels/attendance-history.js (v2). Kept as a no-op: the monthly reset still calls it.
-        window.loadAttendanceHistory = async function() {};
 
         // ── ATTENDANCE TRACKER — replaced by /terminal-panels/attendance-tracker.js (v3). ──
         // Kept: editAttMonthlyRate (rate correction window, used by v3 and the roster).
@@ -1893,8 +1568,6 @@
                 });
             } catch(e){ console.warn('Webhook fire failed ['+key+']:', e.message); }
         }
-
-
 
 
         // ── RECRUITMENT SOURCE ──────────────────────────────────────────────
@@ -2723,7 +2396,7 @@
             writeAuditLog('manpower','RIBBON AWARDED (BULK)', `${brSelectedRibbon} awarded to ${awarded} member(s)`);
             notify(`&#9644; RIBBON AWARDED TO ${awarded} MARINE${awarded!==1?'S':''}`);
             closeBulkRibbonModal();
-            renderRosterTable();
+            // (roster table is drawn by /terminal-panels/battalion-roster.js)
         };
 
         // ── BATTALION ROSTER CONTEXT MENU ──
@@ -3029,7 +2702,7 @@
                 }
 
                 closeQuickAction();
-                renderRosterTable();
+                // (roster table is drawn by /terminal-panels/battalion-roster.js)
             } catch(e) { notify('ERROR: '+e.message, 1); }
         };
 
@@ -4666,47 +4339,7 @@
                 
                 <div class="panel hidden" id="panel-discord"><!-- replaced by /terminal-panels (v2) --></div>
                 <div class="panel hidden" id="panel-aar"><!-- replaced by /terminal-panels/aar.js (v3) --></div>
-                <div class="panel hidden" id="panel-roster">
-                    <div class="panel-title">BATTALION ROSTER</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">NCO+ ACCESS // UNIT STRENGTH &bull; ATTENDANCE &bull; PROMOTION TRACKING</p>
-                    <div class="stats-row" style="margin-bottom:16px">
-                        <div class="stat-card"><div class="stat-number" id="rosterTotal">0</div><div class="stat-label">TOTAL ENTRIES</div></div>
-                        <div class="stat-card"><div class="stat-number" id="rosterActiveCount">0</div><div class="stat-label">ACTIVE</div></div>
-                        <div class="stat-card"><div class="stat-number" id="rosterReservesCount">0</div><div class="stat-label">RESERVES</div></div>
-                    </div>
-                    <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                        <button class="action-btn approve-btn" onclick="loadRosterPanel()" style="padding:4px 12px;font-size:10px;letter-spacing:2px">&#8635; REFRESH</button>
-                        <a href="resources-roster.html" target="_blank" class="action-btn approve-btn" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px">&#8599; VIEW ROSTER PAGE</a>
-                        <button id="forceResetBtn" class="action-btn" onclick="forceMonthlyReset()" style="border:1px solid rgba(255,200,0,.45);color:#FFD700;background:rgba(255,200,0,.07);font-family:Rajdhani,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 12px;cursor:pointer" title="Award +1 PT to all 3/3 members then wipe attendance — same as month-end auto-reset">&#9654; MONTH-END RESET</button>
-                        <button id="backfillPlatoonBtn" class="action-btn" onclick="openBackfillPlatoonModal()" style="display:none;border:1px solid rgba(0,217,255,.45);color:var(--accent);background:rgba(0,217,255,.07);font-family:Rajdhani,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 12px;cursor:pointer" title="Stamp Platoon Service date for members who have a platoon but no join date on file">&#9654; BACKFILL PLATOON DATES</button>
-                        <button class="action-btn" onclick="openBulkMedalModal()" style="border:1px solid rgba(185,150,50,.6);color:#C9A227;background:rgba(185,150,50,.07);font-family:Rajdhani,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 12px;cursor:pointer">&#9733; AWARD MEDAL</button>
-                        <button class="action-btn" onclick="openBulkRibbonModal()" style="border:1px solid rgba(45,212,191,.6);color:#2DD4BF;background:rgba(45,212,191,.07);font-family:Rajdhani,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:4px 12px;cursor:pointer">&#9644; AWARD RIBBON</button>
-                        <div style="display:flex;align-items:center;gap:6px;background:rgba(0,217,255,.05);border:1px solid rgba(0,217,255,.25);padding:4px 10px">
-                            <span style="color:#aaa;font-family:Rajdhani,sans-serif;font-size:10px;letter-spacing:2px;white-space:nowrap">&#9998; EDIT MEMBER:</span>
-                            <input id="rosterEditSearch" type="text" placeholder="TYPE TO FILTER..." autocomplete="off"
-                                oninput="filterRosterRows(this.value)"
-                                style="background:transparent;border:none;border-bottom:1px solid rgba(0,217,255,.3);color:var(--accent);font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;outline:none;cursor:text;min-width:160px;padding:2px 0">
-                            <span onclick="document.getElementById('rosterEditSearch').value='';filterRosterRows('')" style="color:#555;font-size:14px;cursor:pointer;line-height:1" title="Clear">&#10005;</span>
-                        </div>
-                        <div style="display:flex;gap:4px;margin-left:8px;align-items:center">
-                            <span style="color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;letter-spacing:2px;margin-right:4px">SORT:</span>
-                            <button class="roster-sort-btn" data-sort="name-asc" onclick="setRosterSort('name-asc')" style="background:rgba(0,217,255,.15);border:1px solid var(--accent);color:var(--accent);font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">NAME A→Z</button>
-                            <button class="roster-sort-btn" data-sort="name-desc" onclick="setRosterSort('name-desc')" style="background:transparent;border:1px solid rgba(0,217,255,.2);color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">NAME Z→A</button>
-                            <button class="roster-sort-btn" data-sort="joined" onclick="setRosterSort('joined')" style="background:transparent;border:1px solid rgba(0,217,255,.2);color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">JOINED</button>
-                            <button class="roster-sort-btn" data-sort="platoon-service" onclick="setRosterSort('platoon-service')" style="background:transparent;border:1px solid rgba(0,217,255,.2);color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">PLATOON SERVICE</button>
-                            <button class="roster-sort-btn" data-sort="time-in-unit" onclick="setRosterSort('time-in-unit')" style="background:transparent;border:1px solid rgba(0,217,255,.2);color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">TIME IN UNIT</button>
-                            <button class="roster-sort-btn" data-sort="rank-asc" onclick="setRosterSort('rank-asc')" style="background:transparent;border:1px solid rgba(0,217,255,.2);color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">RANK ↑</button>
-                            <button class="roster-sort-btn" data-sort="rank-desc" onclick="setRosterSort('rank-desc')" style="background:transparent;border:1px solid rgba(0,217,255,.2);color:#aaa;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;cursor:pointer">RANK ↓</button>
-                        </div>
-                        <span style="color:#ccc;font-family:Rajdhani,sans-serif;font-size:11px;font-weight:500;letter-spacing:2px;margin-left:8px">&#9998; CHECKBOX = +1 ATT &nbsp;|&nbsp; 3/3 = GLOWING PT — STAFF CLICKS +1 PT TO PROMOTE &nbsp;|&nbsp; RESETS MONTHLY &nbsp;|&nbsp; USE SELECTOR ABOVE TO EDIT A MEMBER</span>
-                    </div>
-                    <div class="roster-header">
-                        <div>NAME</div><div>PLATOON</div><div>JOINED</div><div>PLATOON SERVICE</div>
-                        <div>RANK / GRADE</div><div>GRADUATION</div><div>ATT.</div>
-                        <div>TIME IN UNIT</div><div>PT</div><div>RIBBONS</div>
-                    </div>
-                    <div id="rosterList"><div class="empty-state">LOADING...</div></div>
-                </div>
+                <div class="panel hidden" id="panel-roster"><!-- replaced by /terminal-panels/battalion-roster.js (v3) --></div>
                 <div class="panel hidden" id="panel-unitcards"><!-- replaced by /terminal-panels (v2) --></div>
                 <!-- DISCORD WEBHOOKS PANEL -->
                 <div class="panel hidden" id="panel-webhooks"><!-- replaced by /terminal-panels (v2) --></div>
@@ -4748,42 +4381,6 @@
             if (link && window.innerWidth <= 768) closeSidebar();
         });
 
-        // Roster scroll wrap — applied after renderRoster / loadAdminRoster
-        // Wraps BOTH .roster-header AND #rosterList inside a single
-        // horizontal-scroll container so columns stay aligned on mobile.
-        function applyRosterScrollWrap() {
-            if (window.innerWidth > 768) return;       // desktop — skip
-            const panel = document.getElementById('panel-roster');
-            if (!panel) return;
-            if (panel.querySelector('.roster-scroll-wrap')) return; // already wrapped
-            const header = panel.querySelector('.roster-header');
-            const list   = panel.querySelector('#rosterList');
-            if (!header || !list) return;
-            const wrap = document.createElement('div');
-            wrap.className = 'roster-scroll-wrap';
-            header.parentNode.insertBefore(wrap, header);
-            wrap.appendChild(header);
-            wrap.appendChild(list);
-        }
-        window.applyRosterScrollWrap = applyRosterScrollWrap;
-        // Observe the roster panel for content changes (belt)
-        const rosterPanelObs = new MutationObserver(applyRosterScrollWrap);
-        document.addEventListener('DOMContentLoaded', function() {
-            const rp = document.getElementById('panel-roster');
-            if (rp) rosterPanelObs.observe(rp, { childList: true, subtree: true });
-        });
-        // Also apply on resize in case user rotates device
-        window.addEventListener('resize', function() {
-            const wrap = document.querySelector('#panel-roster .roster-scroll-wrap');
-            if (window.innerWidth > 768 && wrap) {
-                // Unwrap on desktop so normal layout resumes
-                const parent = wrap.parentNode;
-                while (wrap.firstChild) parent.insertBefore(wrap.firstChild, wrap);
-                wrap.remove();
-            } else if (window.innerWidth <= 768 && !wrap) {
-                applyRosterScrollWrap();
-            }
-        });
     </script>
 
     <!-- Vercel Speed Insights -->
