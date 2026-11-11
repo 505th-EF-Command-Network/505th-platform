@@ -2,10 +2,10 @@ import * as Ably from "ably";
 
 /*
  * The 505th Net (Ably channel "505th-live") — the same live line the website Terminal and Cortana use.
- * The app only LISTENS, with a 1-hour listen-only token from /api/hub/realtime.
- * Each message is just a topic name (e.g. "users", "notifications", "community_events");
+ * Same method as the RCD Hub: the app only LISTENS, using a 1-hour token request from /api/hub/realtime
+ * (listen-only, can't publish). Each message is just a topic name ("users", "notifications"…);
  * the app then reloads that data through the website API. Never any data on the line itself.
- * No Ably / unreachable → the app keeps working with a 2-minute check.
+ * If Ably isn't set up or is unreachable, the app keeps working with a 2-minute check.
  */
 export type RealtimeState = "off" | "connecting" | "live";
 type Api = (path: string, init?: RequestInit) => Promise<Response>;
@@ -28,7 +28,7 @@ export function createRealtime(o: { api: Api; onTopic: (t: string) => void; onSt
       authCallback: (_p, cb) => {
         o.api("/api/hub/realtime")
           .then(async (res) => {
-            const b = (await res.json().catch(() => ({}))) as Ably.TokenDetails & { error?: string };
+            const b = (await res.json().catch(() => ({}))) as Ably.TokenRequest & { error?: string };
             if (!res.ok) throw new Error(b.error ?? `Website error ${res.status}`);
             cb(null, b);
           })
@@ -36,6 +36,7 @@ export function createRealtime(o: { api: Api; onTopic: (t: string) => void; onSt
       },
       autoConnect: true,
       echoMessages: false,
+      // Keep trying in the background; the 2-minute check covers any gaps.
       disconnectedRetryTimeout: 15_000,
       suspendedRetryTimeout: 60_000,
     });
@@ -43,6 +44,7 @@ export function createRealtime(o: { api: Api; onTopic: (t: string) => void; onSt
       if (c.current === "connected") setState("live");
       else if (c.current === "connecting" || c.current === "disconnected") setState("connecting");
       else setState("off", c.reason?.message ?? null);
+      if (c.reason) console.error("[505th net]", c.current, c.reason.message);
     });
     void client.channels.get(CHANNEL).subscribe((m) => { if (typeof m.name === "string") o.onTopic(m.name); });
   }
