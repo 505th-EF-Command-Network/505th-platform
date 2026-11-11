@@ -365,7 +365,8 @@ onReady(() => {
   addCss("workspaceV2", CSS);
 
   // Project tracker
-  const pr = mountPanel("panel-projects", "projV2", () => loadProjects().catch((e) => notify("PROJECTS LOAD FAILED: " + e.message, 1)));
+  // Project Tracker v2 (2026-11-11) lives in projects-v2.js — the old Kanban is no longer mounted.
+  const pr = null;
   if (pr) {
     pr.innerHTML = `<div class="bar"><div><div class="h1">PROJECT TRACKER</div><div class="sub" style="margin:4px 0 0">STAFF TASKS AND UNIT PROJECTS — DRAG A CARD TO MOVE IT, CLICK TO EDIT</div></div><span class="sp"></span>
       <label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-f="done" checked> SHOW DONE</label><button class="b gold" data-act="new">+ NEW TASK</button></div><div class="kan"><div class="empty">LOADING...</div></div>`;
