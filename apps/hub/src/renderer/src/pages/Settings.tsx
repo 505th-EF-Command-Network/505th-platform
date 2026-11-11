@@ -4,6 +4,7 @@ import { askBox } from "../components/Confirm";
 import { DEFAULT_KEYS, EVENTS, SHORTCUTS, comboOf, fire, playDing } from "../settings";
 import logo from "../../../../assets/logo.png";
 import rcd from "../../../../assets/rcd.png";
+import { UpdateCheck } from "../components/UpdateBanner";
 
 /**
  * H3 SETTINGS (approved mock 2026-11-11): My Settings · My Notifications · My Devices · My Shortcuts · About.
@@ -172,7 +173,7 @@ function About({ version, sum, net, onPage }: { version: string; sum: Summary; n
     <div className="mb-4 flex max-w-[860px] items-center gap-5 border border-cyan/15 px-5 py-4" style={{ background: "linear-gradient(90deg,rgba(0,217,255,.07),transparent)" }}>
       <img src={logo} alt="505th" className="h-[74px] w-[74px] object-contain" />
       <div className="flex-1"><h2 className="m-0 font-head text-[24px] font-bold tracking-[3px] text-white">505TH COMMAND NETWORK</h2><p className="m-0 text-[11px] tracking-[1px] text-dim">THE 505TH EXPEDITIONARY FORCE STAFF APP · HUB FOR WINDOWS</p>
-        <div className="mt-2 flex gap-2 text-[10.5px] tracking-[1.5px]"><span className="border border-cyan px-2 text-cyan">VERSION {version}</span><span className="border border-cyan/20 px-2 text-dim">UPDATES ARRIVE WITH THE INSTALLER (H5)</span></div></div></div>
+        <div className="mt-2 flex gap-2 text-[10.5px] tracking-[1.5px]"><span className="border border-cyan px-2 text-cyan">VERSION {version}</span><UpdateCheck /></div></div></div>
     <div className="grid max-w-[860px] gap-4 lg:grid-cols-2">
       <div><Group t="ABOUT THE 505TH"><p className="m-0 px-3.5 py-2.5 text-[12.5px] text-[#c6d0da]">The 505th Expeditionary Force is a UNSC-themed Arma 3 milsim unit. The Command Network links the website, the Hub and Cortana so staff run the unit from one place.</p>
           <Row t="Website" d="505expeditionaryforce.com">{link("OPEN", "https://www.505expeditionaryforce.com")}</Row></Group>

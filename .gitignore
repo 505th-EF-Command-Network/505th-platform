@@ -33,3 +33,6 @@ npm-debug.log*
 Thumbs.db
 .claude/
 .vercel/
+
+# Hub installer output (electron-builder) — never commit builds
+apps/hub/release/

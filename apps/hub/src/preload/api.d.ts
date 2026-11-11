@@ -101,6 +101,13 @@ export type HubAccessData = {
   people: { uid: string; name: string; role: string; photo: string | null; always: boolean; status: string; byName: string; atISO: string; reason: string; note: string; requestAtISO: string; devices: number; lastUsedISO: string }[];
   stats: { access: number; requests: number; online: number; revoked: number };
 };
+export type UpdateInfo = { available: boolean; latest: string; notes?: string[]; sizeMB?: number; sha256?: string; dateISO?: string; file?: string; url?: string | null };
+export type UpdateState =
+  | { state: "idle" | "checking"; checkedAt: string | null; latest: string | null }
+  | { state: "available"; info: UpdateInfo; checkedAt: string }
+  | { state: "downloading"; info: UpdateInfo; percent: number }
+  | { state: "installing"; info: UpdateInfo }
+  | { state: "error"; message: string; info?: UpdateInfo };
 declare global {
   interface Window {
     cn: {
@@ -119,6 +126,13 @@ declare global {
       };
       info(): Promise<{ version: string; packaged: boolean }>;
       app: { applySettings(s: { startup: boolean; closeToTray: boolean; zoom: number; toggleKey: string }): Promise<void>; quit(): Promise<void> };
+      update: {
+        get(): Promise<UpdateState>;
+        check(): Promise<UpdateState>;
+        install(): Promise<UpdateState>;
+        onState(cb: (s: UpdateState) => void): () => void;
+        onNew(cb: (i: UpdateInfo) => void): () => void;
+      };
       notify: {
         show(t: { id: string; title: string; body: string; icon?: string; color?: string; urgent?: boolean; actions?: { id: string; label: string }[] }, o: { popup: boolean; taskbar: boolean; edge: boolean }): Promise<void>;
         unread(n: number): Promise<void>;

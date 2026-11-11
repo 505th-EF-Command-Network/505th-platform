@@ -1,0 +1,44 @@
+# 505th Command Network — Windows installer (release v0.1, approved mock 2026-11-11).
+# Build on Windows:  npm run dist -w @505th/hub   → apps/hub/release/505th-Command-Network-Setup-<version>.exe
+# Nothing is uploaded automatically (publish: null). The Developer uploads it to a GitHub release tagged hub-v<version>.
+appId: com.505th.commandnetwork
+productName: 505th Command Network
+copyright: "© 2026 505th Expeditionary Force · Developed by Rev Creative Developer"
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - assets/**/*
+  - package.json
+npmRebuild: false
+asar: true
+protocols:
+  - name: 505th Command Network sign-in
+    schemes: [cn505]
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: 505th-Command-Network-Setup-${version}.${ext}
+  publisherName: Rev Creative Developer
+  legalTrademarks: "505th Expeditionary Force"
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  license: build/license.txt
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/uninstallerSidebar.bmp
+  installerHeader: build/installerHeader.bmp
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 505th Command Network
+  uninstallDisplayName: 505th Command Network
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+publish: null

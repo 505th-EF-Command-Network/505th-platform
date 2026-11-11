@@ -28,6 +28,13 @@ contextBridge.exposeInMainWorld("cn", {
     applySettings: (s: Record<string, unknown>) => ipcRenderer.invoke("app:settings", s),
     quit: () => ipcRenderer.invoke("app:quit"),
   },
+  update: {
+    get: () => ipcRenderer.invoke("update:get"),
+    check: () => ipcRenderer.invoke("update:check"),
+    install: () => ipcRenderer.invoke("update:install"),
+    onState: on("update:state"),
+    onNew: on("update:new"),
+  },
   notify: {
     show: (t: Record<string, unknown>, o: Record<string, unknown>) => ipcRenderer.invoke("notify:show", t, o),
     unread: (n: number) => ipcRenderer.invoke("notify:unread", n),

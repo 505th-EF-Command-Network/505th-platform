@@ -3,14 +3,15 @@
   "productName": "505th Command Network",
   "version": "0.1.0",
   "private": true,
-  "description": "505th Command Network \u2014 Windows desktop app. Talks to the website (API) and the 505th Net (Ably) like Cortana does.",
+  "description": "505th Command Network — Windows desktop app. Talks to the website (API) and the 505th Net (Ably) like Cortana does.",
   "author": "REV Creative Developer",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist": "electron-vite build && electron-builder --win --config electron-builder.yml"
   },
   "dependencies": {
     "@ably/pubsub-device": "3.1.0"
@@ -27,6 +28,7 @@
     "react-dom": "19.3.1",
     "tailwindcss": "4.3.5",
     "typescript": "5.9.3",
-    "vite": "8.3.6"
+    "vite": "8.3.6",
+    "electron-builder": "26.18.0"
   }
 }

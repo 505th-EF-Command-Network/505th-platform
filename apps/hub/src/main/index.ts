@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { release } from "node:os";
 import { PROTOCOL, createAuth, type AuthState } from "./auth";
 import { createNotifier, type NotifyOpts, type Toast } from "./notify";
+import { createUpdater } from "./updater";
 import { createRealtime, type RealtimeState } from "./realtime";
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -36,9 +37,16 @@ const realtime = createRealtime({
   onTopic: (t) => send("net:topic", t),
   onState: (s: RealtimeState, why) => send("net:state", { state: s, reason: why }),
 });
+const updater = createUpdater({
+  api: (p) => auth.api(p, { headers: { "X-CN-App": app.getVersion() } }),
+  send: (ch, v) => send(ch, v),
+  getWin: () => win,
+  signedIn: () => auth.getState().status === "signed-in",
+  onQuit: () => { quitting = true; app.quit(); },
+});
 const auth = createAuth((s: AuthState) => {
   send("auth:state", s);
-  if (s.status === "signed-in") realtime.start();
+  if (s.status === "signed-in") { realtime.start(); updater.start(); }
   if (s.status === "signed-out") realtime.stop();
 });
 
@@ -191,6 +199,9 @@ ipcMain.handle("notify:show", (e, t: unknown, o: unknown) => {
     { popup: y.popup === true, taskbar: y.taskbar === true, edge: y.edge === true });
 });
 ipcMain.handle("notify:unread", (e, n: unknown) => { if (fromMain(e)) notifier.setUnread(Number(n) || 0); });
+ipcMain.handle("update:get", (e) => (fromMain(e) ? updater.getState() : null));
+ipcMain.handle("update:check", (e) => (fromMain(e) ? updater.check(true) : null));
+ipcMain.handle("update:install", (e) => (fromMain(e) ? updater.install() : null));
 ipcMain.handle("app:quit", (e) => { if (fromMain(e)) { quitting = true; app.quit(); } });
 app.on("before-quit", () => { quitting = true; });
 app.on("will-quit", () => notifier.stop());

@@ -7,6 +7,7 @@ import { Settings } from "./pages/Settings";
 import { Messages } from "./pages/Messages";
 import { HubAccess } from "./pages/HubAccess";
 import { PolicyGate } from "./components/Policy";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { applySettings, isKey, mergeSettings } from "./settings";
 import { useNotifier } from "./useNotifier";
 import type { AppSettings } from "../../preload/api";
@@ -137,6 +138,7 @@ function Shell({ net }: { net: NetState }) {
   return (
     <div className="flex h-full flex-col">
       <Guard label="Top bar" small><TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} /></Guard>
+      <UpdateBanner />
       <div className="flex min-h-0 flex-1">
         <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
           onStatus={(s) => void setStatus(s)} onMyFile={() => setMyFile(true)} onSignOut={() => void window.cn.auth.logout()} version={version} />

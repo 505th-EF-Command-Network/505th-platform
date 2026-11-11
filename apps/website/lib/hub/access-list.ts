@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { HubSession, Member, TerminalDoc } from "@505th/db";
 import { roleLevel } from "@/lib/terminal/access";
 import { memberName, photoOf } from "@/lib/hub/members";
+import { latestRelease } from "@/lib/hub/release";
 
 /**
  * HUB ACCESS (release v0.1, approved mock 2026-11-11) — who may download and sign in to the Command Network app.
@@ -130,9 +131,11 @@ export async function changeAccess(w: Who, b: U) {
 /** Everyone in the Terminal: my download / request status. */
 export async function myAccess(uid: string, role: string) {
   const r = (await TerminalDoc.findById(`hub_access/${uid}`, { data: 1 }).lean())?.data as U | undefined;
-  const rel = (await TerminalDoc.findById("settings/hub_release", { data: 1 }).lean())?.data as U | undefined;
-  return { allowed: await hubAllowed(uid, role), status: ALWAYS(role) ? "always" : r?.status || "none", requestAtISO: r?.requestAtISO || "", reason: r?.status === "denied" ? r.reason || "" : "",
-    release: rel?.version ? { version: String(rel.version), sizeMB: Number(rel.sizeMB) || 0, sha256: String(rel.sha256 || ""), dateISO: String(rel.dateISO || ""), notes: Array.isArray(rel.notes) ? rel.notes.map(String).slice(0, 10) : [], file: String(rel.file || "") } : null };
+  const allowed = await hubAllowed(uid, role);
+  // Release details only for people who may download it.
+  const rel = allowed ? await latestRelease() : null;
+  return { allowed, status: ALWAYS(role) ? "always" : r?.status || "none", requestAtISO: r?.requestAtISO || "", reason: r?.status === "denied" ? r.reason || "" : "",
+    release: rel ? { version: rel.version, sizeMB: rel.sizeMB, sha256: rel.sha256, dateISO: rel.dateISO, notes: rel.notes, file: rel.file } : null };
 }
 
 export async function requestAccess(w: Who, note: unknown) {
