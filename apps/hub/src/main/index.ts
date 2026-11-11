@@ -85,6 +85,51 @@ ipcMain.handle("hub:roster-action", (e, body: unknown) => {
   if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
   return call("/api/hub/roster", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 });
+ipcMain.handle("hub:attendance", (e) => (fromMain(e) ? call("/api/hub/attendance") : null));
+ipcMain.handle("hub:attendance-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
+ipcMain.handle("hub:events", (e) => (fromMain(e) ? call("/api/hub/events") : null));
+ipcMain.handle("hub:events-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
+ipcMain.handle("hub:aars", (e) => (fromMain(e) ? call("/api/hub/aars") : null));
+ipcMain.handle("hub:aars-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/aars", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
+/** Image upload (AAR screenshots): the website signs it, the file goes straight to Cloudinary. Images only, max 10 MB. */
+ipcMain.handle("hub:upload", async (e, folder: unknown, name: unknown, type: unknown, bytes: unknown) => {
+  if (!fromMain(e) || folder !== "505th_aar" || typeof type !== "string" || !/^image\/(png|jpeg|webp|gif)$/.test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
+  const s = (await call("/api/hub/upload-sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) })) as Record<string, unknown>;
+  if (s.error) return { error: String(s.error) };
+  try {
+    const fd = new FormData();
+    fd.append("file", new Blob([new Uint8Array(bytes)], { type }), String(name || "image").slice(0, 100));
+    fd.append("api_key", String(s.apiKey)); fd.append("timestamp", String(s.timestamp)); fd.append("folder", String(s.folder)); fd.append("signature", String(s.signature));
+    const r = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(String(s.cloudName))}/image/upload`, { method: "POST", body: fd, signal: AbortSignal.timeout(60_000) });
+    const j = (await r.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } };
+    return r.ok && j.secure_url ? { url: j.secure_url } : { error: j.error?.message ?? `Upload failed (${r.status})` };
+  } catch (err) {
+    return { error: (err as Error).message };
+  }
+});
+ipcMain.handle("hub:bct", (e) => (fromMain(e) ? call("/api/hub/bct") : null));
+ipcMain.handle("hub:bct-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/bct", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
+ipcMain.handle("hub:overview", (e) => (fromMain(e) ? call("/api/hub/overview") : null));
+ipcMain.handle("hub:prefs", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/prefs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
+ipcMain.handle("hub:alerts-read", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 ipcMain.handle("hub:set-status", (e, s: unknown) => {
   if (!fromMain(e) || !s || typeof s !== "object") return { error: "Not allowed." };
   const { state, note, untilISO } = s as Record<string, unknown>;

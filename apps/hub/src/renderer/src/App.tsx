@@ -1,13 +1,16 @@
+import { Bct } from "./pages/Bct";
+import { Aars } from "./pages/Aars";
+import { Events } from "./pages/Events";
+import { Attendance } from "./pages/Attendance";
 import { Roster } from "./pages/Roster";
-import { useEffect, useState } from "react";
-import type { AuthState, NetState } from "../../preload/api";
-import { Dashboard } from "./components/Dashboard";
-import { RightBar } from "./components/RightBar";
-import { PAGES, SideNav } from "./components/SideNav";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { AuthState, HubPrefs, NetState, Overview } from "../../preload/api";
+import { DEFAULT_DASH, Dashboard, type Dash } from "./components/Dashboard";
+import { DEFAULT_NAV, PAGES, SideNav, type NavPrefs } from "./components/SideNav";
 import { TopBar } from "./components/TopBar";
 import type { StateKey } from "./ui";
 import { useSummary } from "./useSummary";
-import { Personnel } from "./pages/Personnel";
+import { FileWindow, Personnel } from "./pages/Personnel";
 import logo from "../../../assets/logo.png";
 
 /** Sign-in screens, then the app (H2: Dashboard + My Status + Staff Status). */
@@ -49,28 +52,64 @@ export function App() {
   return <Shell net={net} />;
 }
 
-/** Signed in: top bar · left nav · page · right sidebar (approved app layout). */
+/** Signed in: top bar · side nav (customisable, collapsible, signed-in card) · page. Layout saved to the account. */
 function Shell({ net }: { net: NetState }) {
   const { data, error, reload } = useSummary();
+  const [ov, setOv] = useState<Overview | null>(null);
   const [page, setPage] = useState("dashboard");
   const [toast, setToast] = useState<string | null>(null);
+  const [nav, setNav] = useState<NavPrefs | null>(null);
+  const [dash, setDash] = useState<Dash | null>(null);
+  const [myFile, setMyFile] = useState(false);
+  const [version, setVersion] = useState("");
+  const saveT = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pending = useRef<HubPrefs>({});
+  const loadOv = useCallback(async () => {
+    const r = await window.cn.hub.overview();
+    if (r && !("error" in r)) {
+      setOv(r);
+      setNav((n) => n ?? { ...DEFAULT_NAV, ...(r.prefs?.nav ?? {}) });
+      setDash((d) => d ?? (r.prefs?.dash?.length ? r.prefs.dash : DEFAULT_DASH));
+    }
+  }, []);
+  useEffect(() => {
+    void loadOv();
+    void window.cn.info().then((i) => i && setVersion(i.version));
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const off = window.cn.net.onTopic((x) => { if (["users", "attendance_events", "community_events", "tickets", "audit_logs", "bot_status"].includes(x)) { clearTimeout(t); t = setTimeout(() => void loadOv(), 600); } });
+    const timer = setInterval(() => void loadOv(), 60_000);
+    return () => { off(); clearTimeout(t); clearInterval(timer); };
+  }, [loadOv]);
+  /** Layout changes save to the account 800 ms after the last change. */
+  const save = (patch: HubPrefs) => {
+    pending.current = { ...pending.current, ...patch };
+    clearTimeout(saveT.current);
+    saveT.current = setTimeout(() => { const b = pending.current; pending.current = {}; void window.cn.hub.savePrefs(b).then((r) => r.error && setToast("Couldn't save layout: " + r.error)); }, 800);
+  };
   const setStatus = async (s: StateKey) => {
     const r = await window.cn.hub.setStatus({ state: s });
     if (r.error) setToast(r.error); else void reload();
   };
+  const refresh = () => { void reload(); void loadOv(); };
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
   if (!data) return <Screen icon={error ? "⚠" : "◷"} color={error ? "#f59e0b" : undefined} title={error ? "CAN'T LOAD" : "LOADING…"} text={error ?? undefined}>{error && <Btn onClick={() => void reload()}>⟳ TRY AGAIN</Btn>}</Screen>;
+  const navP = nav ?? DEFAULT_NAV;
   return (
     <div className="flex h-full flex-col">
-      <TopBar data={data} net={net} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onStatus={(s) => void setStatus(s)} onSignOut={() => void window.cn.auth.logout()} />
+      <TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} />
       <div className="flex min-h-0 flex-1">
-        <SideNav access={data.me.access} page={page} onPage={setPage} cortanaOk={data.system.cortana.online} />
-        {page === "dashboard" ? <Dashboard data={data} onStatus={(s) => void setStatus(s)} onPage={setPage} />
+        <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
+          onStatus={(s) => void setStatus(s)} onMyFile={() => setMyFile(true)} onSignOut={() => void window.cn.auth.logout()} version={version} />
+        {page === "dashboard" ? <Dashboard sum={data} ov={ov} net={net} dash={dash ?? DEFAULT_DASH} onDash={(d) => { setDash(d); save({ dash: d }); }} onPage={setPage} onRefresh={refresh} />
           : page === "panel-active" ? <Personnel me={data.me.role} />
           : page === "panel-roster" ? <Roster me={data.me.role} />
+          : page === "panel-attendance" ? <Attendance onPage={setPage} />
+          : page === "panel-events" ? <Events onPage={setPage} />
+          : page === "panel-aar" ? <Aars me={data.me.name} />
+          : page === "panel-register" ? <Bct />
           : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}
-        <RightBar staff={data.staff} myUid={data.me.uid} />
       </div>
+      {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}
       {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}
       {toast && <div role="alert" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-bad bg-panel px-4 py-2 text-[12px] text-bad">{toast}</div>}
     </div>

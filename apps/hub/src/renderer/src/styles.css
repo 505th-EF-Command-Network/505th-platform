@@ -52,3 +52,17 @@ body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 7
 .rrow:hover td { background: rgb(0 217 255 / .05); box-shadow: inset 0 1px 0 rgb(0 217 255 / .25), inset 0 -1px 0 rgb(0 217 255 / .25); }
 @keyframes sweep { from { left: -40%; } to { left: 140%; } }
 @media (prefers-reduced-motion: reduce) { .rise { opacity: 1; transform: none; } .ring { stroke-dashoffset: var(--o); } .tile, .tile:hover { transition: none; transform: none; } .tile:hover::after { animation: none; } }
+
+/* Command Network shell (approved mock 2026-11-11) */
+.topscan::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, transparent, #00d9ff, transparent) no-repeat; background-size: 40% 100%; opacity: .6; animation: scanx 6s linear infinite; pointer-events: none; }
+@keyframes scanx { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+.widget::after { content: ""; position: absolute; top: 0; bottom: 0; left: -40%; width: 35%; background: linear-gradient(90deg, transparent, rgb(0 217 255 / .06), transparent); transform: skewX(-20deg); animation: wsweep 7s 2s infinite; pointer-events: none; }
+@keyframes wsweep { 0% { left: -40%; } 25%, 100% { left: 140%; } }
+.wob { animation: wob .35s ease-in-out infinite alternate !important; }
+.wob:nth-child(2n) { animation-delay: .15s !important; }
+@keyframes wob { from { transform: rotate(-.25deg); } to { transform: rotate(.25deg); } }
+.grow-x { transform-origin: left; animation: growx 1s ease-out both; }
+.grow-y { transform-origin: bottom; animation: growy 1s ease-out both; }
+@keyframes growx { from { transform: scaleX(0); } }
+@keyframes growy { from { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) { .topscan::after, .widget::after, .wob, .grow-x, .grow-y { animation: none !important; } }

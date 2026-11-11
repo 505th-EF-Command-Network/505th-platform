@@ -27,6 +27,37 @@ export type MemberFile = Omit<MemberTile, "opsAttended" | "opsEligible"> & {
 };
 export type RosterRow = { id: string; firstName: string; lastName: string; callsign: string; rank: string; role: string; platoon: string; squad: string; billet: string; attendance: number; promotionTracker: number; opsAttended: number; opsEligible: number; ribbons: string[]; medals: number };
 export type Roster = { rows: RosterRow[]; canEdit: boolean; meta: { month: string; lastAttendanceReset: string; lastResetAt: string; lastResetBy: string; lastResetPromoted: number | null; running: { by?: string; done?: number; total?: number; startedAt?: string } | null }; medals: [string, string][]; ribbons: string[] };
+export type AttEvent = { id: string; title: string; date: string; type: string; locked: boolean; lockedBy: string; createdBy: string; attendees: string[]; excused: string[]; excusedReasons: Record<string, string>;
+  linked: { signups: { uid: string; label: string; going: boolean; waiting: boolean }[] } | null };
+export type AttRoll = { id: string; firstName: string; lastName: string; callsign: string; rank: string; platoon: string; squad: string; opsAttended: number; opsEligible: number; attendance: number };
+export type Attendance = { events: AttEvent[]; roll: AttRoll[]; online: string[]; discord: { id: string; title: string; startAtISO: string; date: string; type: string; going: number }[]; canEdit: boolean; canLock: boolean };
+export type EvButton = { key?: string; emoji: string; label: string; style: string; limit: number; attending: boolean };
+export type EvItem = { id: string; title: string; description: string; where: string; voiceChannel: string; location: string; date: string; startTime: string; endTime: string; startAtISO: string; endAtISO: string; opType: string;
+  repeat: string; banner: string; channel: string; buttons: (EvButton & { key: string })[]; signups: { uid: string; name: string; choice: string; waiting: boolean; atISO: string }[]; status: string;
+  discord: { status?: string; missing?: boolean; closedAtISO?: string; channelId?: string; scheduledEventId?: string; startSentISO?: string; error?: string }; attendanceEventId: string | null;
+  attendance: { locked: boolean; present: number } | null; createdByName: string; updatedByName: string; createdAtISO: string };
+export type EvData = { events: EvItem[]; canEdit: boolean; signupChannels: [string, string][]; voiceChannels: string[]; stageChannels: string[]; channelNames: Record<string, string>; cortanaOnline: boolean | null };
+export type Aar = Record<"title" | "commander" | "filedBy" | "author" | "location" | "mainObjective" | "commanderIntent" | "objectiveStandards" | "plannedExecution" | "unitsInvolved" | "enemyFaction" | "enemyCasualties" | "enemyTactics" | "enemyDisposition" | "successfulManeuvers" | "mistakes" | "unexpected" | "objectiveOutcome" | "lessonsLearned" | "recommended" | "miscComments" | "result" | "unit", string> & {
+  id: string; operationType: string; classification: string; summary: string; personnel: number | null; casualties: number; objectives: { text: string; done: boolean }[]; attachments: string[];
+  date: string; status: string; submittedByName: string; submittedAt: string; updatedAt: string; updatedByName: string };
+export type AarData = { reports: Aar[]; events: { id: string; title: string; date: string; type: string; attendees: number }[] };
+export type BctPerson = { id: string; fullName: string; name: string; pfcName: string; initials: string; discordUsername: string; email: string; rank: string; role: string; platoon: string; graduation: string; bctDate: string; bctInstructor: string;
+  recruitSource: string; timezone: string; registeredAt: string; approvedAt: string; approvedBy: string; deniedAt: string; deniedBy: string; denyReason: string };
+export type BctData = { pending: BctPerson[]; approved: BctPerson[]; denied: BctPerson[]; thisMonth: number; avg: string; instructors: string[]; platoons: string[]; sources: string[]; denyReasons: string[]; canAct: boolean };
+export type HubPrefs = { dash?: [string, number][]; nav?: { order: string[]; hidden: string[]; pins: string[]; closed: string[]; rail: boolean } };
+export type Overview = {
+  prefs: HubPrefs | null;
+  me: { name: string; rank: string; platoon: string; role: string; discordUsername: string; photo: string | null; ribbons: number; medals: number; warnings: number };
+  counts: { bct: number; tickets: number };
+  manpower: { active: number; reserves: number; bct: number; rate: number; at3: number; tickets: number };
+  trend: { label: string; title: string; pct: number }[];
+  recruitment: { count: number; avg: string; sources: [string, number][] } | null;
+  bctQueue: { id: string; name: string; days: number }[] | null;
+  week: { id: string; title: string; startAtISO: string; opType: string }[];
+  activity: { at: string; by: string; action: string; details: string }[] | null;
+  system: { cortana: { online: boolean; pingMs: number | null; cpu: number | null; startedAtISO: string | null; missingPerms: number; errors24h: number; jobsQueued: number }; dbMs: number; website: boolean; media: boolean; realtime: boolean };
+  at: string;
+};
 export type NetState = { state: "off" | "connecting" | "live"; reason: string | null };
 
 declare global {
@@ -53,6 +84,18 @@ declare global {
         memberAction(id: string, body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
         roster(): Promise<Roster | { error: string }>;
         rosterAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        attendance(): Promise<Attendance | { error: string }>;
+        attendanceAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
+        events(): Promise<EvData | { error: string }>;
+        eventsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
+        aars(): Promise<AarData | { error: string }>;
+        aarsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; status?: string; savedAt?: string; msg?: string; error?: string }>;
+        upload(folder: string, name: string, type: string, bytes: Uint8Array): Promise<{ url?: string; error?: string }>;
+        bct(): Promise<BctData | { error: string }>;
+        bctAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        overview(): Promise<Overview | { error: string }>;
+        savePrefs(body: HubPrefs): Promise<{ ok?: boolean; error?: string }>;
+        readAlerts(body: { ids?: string[]; all?: boolean }): Promise<{ ok?: boolean; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
     };
