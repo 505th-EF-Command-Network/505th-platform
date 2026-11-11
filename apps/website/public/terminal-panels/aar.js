@@ -16,6 +16,11 @@ const ROOT = "aarV2";
 const UNITS = { alpha: ["Alpha Company", "/images/logos/Alpha Company.png"], forcerecon: ["JTF-23 Force Recon", "/images/logos/Stalker_Patch.png"], corpsman: ["Hospital Corpsman", "/images/logos/Hospital_Corpsman.png"], airwing: ["54th Air Wing", "/images/logos/54th Air Wing.png"], combined: ["Combined Arms", "/images/logo.png"] };
 const RES = { success: ["MISSION SUCCESS", "#22e07a", "✓"], partial: ["PARTIAL SUCCESS", "#f5c518", "◐"], failure: ["MISSION FAILURE", "#ff4d4d", "✕"] };
 const OPS = { main_op: "Main Op", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
+function opName(t) {
+  if (!t) return "—";
+  const k = String(t).toLowerCase().trim().replace(/[\s-]+/g, "_");
+  return OPS[k] || OPS[{ mainop: "main_op", main: "main_op", funop: "fun_op", fun: "fun_op" }[k.replace(/_/g, "")]] || String(t);
+}
 const CLS = ["CL-5", "CL-4", "CL-3", "CL-2", "CL-1"];
 const ATT2OP = { main_op: "main_op", patrol: "patrol", training: "deployment", fun_op: "fun_op" };
 const SECTIONS = [
@@ -54,7 +59,7 @@ function bodyOf(root) {
 
 /* ───────── archive ───────── */
 function visible() {
-  return reports.filter((a) => (fDrafts ? isDraft(a) : !isDraft(a)) && (!fType || a.operationType === fType) && (!fUnit || a.unit === fUnit) && String(a.title || "").toLowerCase().includes(q.toLowerCase()));
+  return reports.filter((a) => (fDrafts ? isDraft(a) : !isDraft(a)) && (!fType || opName(a.operationType) === OPS[fType]) && (!fUnit || a.unit === fUnit) && String(a.title || "").toLowerCase().includes(q.toLowerCase()));
 }
 function render() {
   const root = document.getElementById(ROOT);
@@ -73,7 +78,7 @@ function render() {
 }
 function rowHtml(a) {
   const r = RES[a.result];
-  const sub = isDraft(a) ? `DRAFT · saved ${a.updatedAt ? ukDate(a.updatedAt) : "—"}${a.submittedByName ? " by " + esc(a.submittedByName) : ""}` : `${dateOf(a) ? esc(ukDate(dateOf(a)).toUpperCase()) : "—"} · ${esc((OPS[a.operationType] || "—").toUpperCase())} · ${esc(((UNITS[a.unit] || ["—"])[0]).split(" ")[0].toUpperCase())}${r ? ` · ${r[2]} ${r[0].split(" ").pop()}` : ""}`;
+  const sub = isDraft(a) ? `DRAFT · saved ${a.updatedAt ? ukDate(a.updatedAt) : "—"}${a.submittedByName ? " by " + esc(a.submittedByName) : ""}` : `${dateOf(a) ? esc(ukDate(dateOf(a)).toUpperCase()) : "—"} · ${esc((opName(a.operationType)).toUpperCase())} · ${esc(((UNITS[a.unit] || ["—"])[0]).split(" ")[0].toUpperCase())}${r ? ` · ${r[2]} ${r[0].replace("MISSION ", "")}` : ""}`;
   return `<button type="button" role="option" aria-selected="${a.id === sel}" class="it ${a.id === sel ? "on" : ""}" data-sel="${a.id}" style="--rc:${isDraft(a) ? "#7d8a99" : r?.[1] || "#7d8a99"}"><b>${esc(a.title || "Untitled")}</b><small>${sub}</small></button>`;
 }
 function readHtml(a) {
@@ -81,7 +86,7 @@ function readHtml(a) {
   const r = RES[a.result] || ["—", "#7d8a99", ""];
   const objs = Array.isArray(a.objectives) ? a.objectives : [];
   const sec = (t, rows) => { const x = rows.filter(([, v]) => filled(v)); return x.length ? `<h4>${t}</h4>${x.map(([k, v]) => `<div class="rf"><span>${k}</span><p>${esc(v)}</p></div>`).join("")}` : ""; };
-  return `<div class="tags"><span style="color:#00D9FF">${esc((OPS[a.operationType] || "—").toUpperCase())}</span><span style="color:${r[1]}">${r[2]} ${r[0]}</span><span style="color:#7d8a99">${esc(a.classification || "CL-5")}</span>${isDraft(a) ? '<span style="color:#ffd166">DRAFT — NOT PUBLISHED</span>' : ""}</div>
+  return `<div class="tags"><span style="color:#00D9FF">${esc((opName(a.operationType)).toUpperCase())}</span><span style="color:${r[1]}">${r[2]} ${r[0]}</span><span style="color:#7d8a99">${esc(a.classification || "CL-5")}</span>${isDraft(a) ? '<span style="color:#ffd166">DRAFT — NOT PUBLISHED</span>' : ""}</div>
     <h2>${esc(a.title || "Untitled")}</h2>
     <div class="k">${dateOf(a) ? esc(ukDate(dateOf(a)).toUpperCase()) : "—"} · ${esc(((UNITS[a.unit] || ["—"])[0]).toUpperCase())}${a.commander ? " · CO: " + esc(a.commander) : ""}${a.filedBy ? " · FILED BY " + esc(a.filedBy) : ""}${a.location ? " · 📍 " + esc(a.location) : ""}</div>
     <div class="stats"><div><b>${esc(a.personnel ?? "—")}</b><span>DEPLOYED</span></div><div><b>${esc(a.casualties ?? 0)}</b><span>FRIENDLY CAS</span></div><div><b>${esc(a.enemyCasualties || "—")}</b><span>ENEMY CAS</span></div><div><b>${objs.length ? `${objs.filter((o) => o.done).length}/${objs.length}` : "—"}</b><span>OBJECTIVES</span></div></div>
