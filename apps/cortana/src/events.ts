@@ -21,7 +21,8 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { noteError } from "./health.ts";
 import { PermanentJobError, registerJob } from "./worker.ts";
-import { allowed } from "./access.ts";
+import { allowed, uidAllowed } from "./access.ts";
+import { auditLog } from "./util.ts";
 
 type Btn = { key: string; emoji: string; label: string; style: string; limit: number; attending: boolean };
 type Signup = { uid?: string | null; discordId: string; name: string; choice: string; atISO: string; waiting?: boolean };
@@ -31,7 +32,8 @@ type Ev = {
   date: string; startTime: string; endTime: string; startAtISO: string; endAtISO: string; repeat?: string; banner?: string;
   channel?: string; buttons: Btn[]; signups?: Signup[]; status?: string; source?: string;
   discord?: { status?: string; scheduledEventId?: string; channelId?: string; messageId?: string; jumpUrl?: string; error?: string;
-    reminderSentISO?: string; reminderMessageId?: string; startSentISO?: string; startMessageId?: string; closedAtISO?: string };
+    reminderSentISO?: string; reminderMessageId?: string; startSentISO?: string; startMessageId?: string; closedAtISO?: string;
+    postedAtISO?: string; missing?: boolean; refreshedAtISO?: string };
 };
 
 const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
@@ -219,7 +221,8 @@ async function upsertScheduled(g: Guild, ev: Ev): Promise<string | null> {
 }
 
 /* ───────── jobs ───────── */
-async function publish(client: Client<true>, id: string) {
+async function publish(client: Client<true>, id: string, opts: { ping?: boolean } = {}) {
+  const doPing = opts.ping !== false;
   const r = await getEv(id);
   if (!r) throw new PermanentJobError("Event not found");
   const ev = r.ev;
@@ -244,10 +247,10 @@ async function publish(client: Client<true>, id: string) {
         if (old?.isTextBased()) await (await old.messages.fetch(ev.discord.messageId).catch(() => null))?.delete().catch(() => {});
       }
       if (!("send" in ch)) throw new PermanentJobError("Can't post in that channel");
-      const ping = await pingRoles(ch.id);
+      const ping = doPing ? await pingRoles(ch.id) : { everyone: false, roles: [] };
       msg = await ch.send({ ...post, content: await headline(ev, "", undefined, ping), allowedMentions: { roles: ping.roles, parse: ping.everyone ? ["everyone"] : [] } });
     }
-    await setDiscord(id, { status: "posted", scheduledEventId: sid, channelId: ch.id, messageId: msg.id, jumpUrl: msg.url, error: null, postedAtISO: nowISO() });
+    await setDiscord(id, { status: "posted", scheduledEventId: sid, channelId: ch.id, messageId: msg.id, jumpUrl: msg.url, error: null, missing: false, ...(ev.discord?.postedAtISO ? {} : { postedAtISO: nowISO() }), ...(opts.ping === false ? { refreshedAtISO: nowISO() } : {}) });
     void refreshList(client);
     return { messageId: msg.id, scheduledEventId: sid };
   } catch (e) {
@@ -664,6 +667,59 @@ async function retryUnposted(client: Client<true>) {
   }
 }
 
+
+/* ───────── refresh (approved mock 2026-11-11) ─────────
+ * ↻ REFRESH POST: post still there → edit it (counts, names, lock) · gone → post again in the same channel (no ping
+ * unless asked) · Discord calendar event missing → made again. Finished / cancelled events are left alone.
+ * Also runs by itself when Cortana starts (e.g. after the home server was down) and checks posts every 10 minutes.
+ */
+const openEv = (ev: Ev) => ev.status !== "cancelled" && ev.status !== "completed" && !ev.discord?.closedAtISO && Date.parse(ev.endAtISO) > Date.now();
+
+async function postExists(client: Client<true>, ev: Ev) {
+  if (!ev.discord?.channelId || !ev.discord.messageId) return false;
+  const ch = await client.channels.fetch(ev.discord.channelId).catch(() => null);
+  if (!ch?.isTextBased()) return false;
+  return !!(await ch.messages.fetch(ev.discord.messageId).catch(() => null));
+}
+
+async function refreshOne(client: Client<true>, id: string, ping = false) {
+  const r = await getEv(id);
+  if (!r) throw new PermanentJobError("Event not found");
+  if (!openEv(r.ev)) return { skipped: "finished" };
+  const had = r.ev.discord?.status === "posted" && (await postExists(client, r.ev));
+  await publish(client, id, { ping });
+  return { fixed: !had };
+}
+
+/** Upcoming / running events whose post is missing, failed or still waiting. `all` = every open event. */
+async function refreshAll(client: Client<true>, all: boolean) {
+  const docs = await TerminalDoc.find({ parent: "community_events", "data.status": { $nin: ["cancelled", "completed"] }, "data.discord.closedAtISO": { $exists: false }, "data.endAtISO": { $gt: nowISO() } }, { docId: 1, data: 1 }).lean();
+  let fixed = 0, updated = 0, failed = 0;
+  for (const d of docs) {
+    const ev = d.data as Ev;
+    const ok = ev.discord?.status === "posted" && (await postExists(client, ev));
+    if (ok && !all) continue;
+    try {
+      await publish(client, String(d.docId), { ping: false });
+      ok ? updated++ : fixed++;
+    } catch (e) {
+      failed++;
+      log.warn(`Refresh "${ev.title}" failed: ${(e as Error).message}`);
+    }
+  }
+  return { fixed, updated, failed };
+}
+
+/** Every 10 minutes: mark posts that were deleted in Discord (Events page shows ⚠ POST MISSING). */
+async function checkPosts(client: Client<true>) {
+  const docs = await TerminalDoc.find({ parent: "community_events", "data.status": { $nin: ["cancelled", "completed"] }, "data.discord.status": "posted", "data.discord.closedAtISO": { $exists: false }, "data.endAtISO": { $gt: nowISO() } }, { docId: 1, data: 1 }).lean();
+  for (const d of docs) {
+    const ev = d.data as Ev;
+    const missing = !(await postExists(client, ev));
+    if (missing !== !!ev.discord?.missing) await setDiscord(String(d.docId), { missing });
+  }
+}
+
 /* ───────── monthly clean-up ─────────
  * On the 1st of each month (UK), events from earlier months that are finished or cancelled
  * are removed from the Events page. Their sign-up details are copied onto the linked
@@ -719,10 +775,26 @@ export function startEvents(client: Client<true>) {
   registerJob("event.cancel", (job, c) => cancel(c, String(job.data.payload?.eventId ?? "")));
   registerJob("event.complete", async (job, c) => (await completeEvent(c, String(job.data.payload?.eventId ?? "")), {}));
   registerJob("event.remove", (job, c) => removeEvent(c, (job.data.payload ?? {}) as Record<string, any>));
+  registerJob("event.refresh", async (job, c) => {
+    if (!(await uidAllowed(String(job.data.requestedBy ?? ""), "ev")).ok) throw new PermanentJobError("No Events access");
+    return refreshOne(c, String(job.data.payload?.eventId ?? ""), job.data.payload?.ping === true);
+  });
+  registerJob("event.refreshAll", async (job, c) => {
+    if (!(await uidAllowed(String(job.data.requestedBy ?? ""), "ev")).ok) throw new PermanentJobError("No Events access");
+    return refreshAll(c, job.data.payload?.all === true);
+  });
+  // Back online (e.g. after the home server was down): fix every missing / waiting / failed post, no pings.
+  setTimeout(() => void refreshAll(client, false).then(async (r) => {
+    if (r.fixed || r.failed) {
+      log.info(`Events: back online — ${r.fixed} sign-up post(s) fixed${r.failed ? `, ${r.failed} failed` : ""}.`);
+      await auditLog("EVENTS CHECKED ON START", `Cortana back online — ${r.fixed} sign-up post${r.fixed === 1 ? "" : "s"} fixed${r.failed ? ` · ${r.failed} failed` : ""}`, "Cortana", "discord").catch(() => {});
+    }
+  }).catch((e) => log.error("Events start-up refresh failed", e)), 15_000);
   let n = 0;
   const run = () => {
     tick(client).catch((e) => log.error("Event scheduler failed", e));
     if (n % 60 === 0) retryUnposted(client).catch((e) => log.error("Retry failed", e));
+    if (n % 10 === 5) checkPosts(client).catch((e) => log.warn(`Post check failed: ${(e as Error).message}`));
     if (n++ % 60 === 0) monthlyCleanup(client).catch((e) => log.error("Monthly clean-up failed", e)); // checks hourly, runs once a month
   };
   void run();

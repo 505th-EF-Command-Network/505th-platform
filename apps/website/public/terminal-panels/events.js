@@ -15,6 +15,7 @@ import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, server
 import { onAccess } from "./nav-v2.js";
 import { addCss, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, onReady, openModal, rankOrder } from "./_common.js";
 import { ask, tell } from "./_common.js";
+import { cortanaJob } from "./discord-common.js";
 
 /* Sign-up channels come from COMMAND → Cortana Setup (settings/cortana.signupChannels, IDs).
  * Until that is saved, the 6 official 505th channels are matched by name (emoji / dashes ignored). */
@@ -74,6 +75,8 @@ async function load() {
   const [evSnap, atSnap, us] = await Promise.all([getDocs(collection(db, "community_events")), getDocs(collection(db, "attendance_events")), members.length ? null : getUsers()]);
   discordChans = (await getDocs(collection(db, "discord_channels")).catch(() => null))?.docs.map((d) => ({ id: d.id, ...d.data() })) ?? discordChans;
   cortanaCfg = (await getDoc(doc(db, "settings", "cortana")).catch(() => null))?.data?.() || {};
+  const hb = (await getDoc(doc(db, "bot_status", "cortana")).catch(() => null))?.data?.();
+  cortanaOnline = hb?.lastHeartbeatISO ? Date.now() - Date.parse(hb.lastHeartbeatISO) < 3 * 60000 : null;
   if (us) members = us.filter(isMember).sort((a, b) => rankOrder(a.rank) - rankOrder(b.rank) || memberName(a).localeCompare(memberName(b)));
   events = evSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
   attById = new Map(atSnap.docs.filter((d) => d.data().linkedEventId).map((d) => [d.id, { id: d.id, ...d.data() }]));
@@ -92,7 +95,12 @@ function attChip(e) {
   }
   return '<span class="ch ac">▣ ATTENDANCE LINKED</span>';
 }
-const discordChip = (e) => e.status === "completed" ? '<span class="ch ok">✓ Completed</span>' : (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
+/* Refresh + Live Status (approved mock 2026-11-11) */
+const isOpen = (e) => e.status !== "cancelled" && e.status !== "completed" && !e.discord?.closedAtISO && Date.parse(e.endAtISO) > Date.now();
+const needsFix = (e) => isOpen(e) && (e.discord?.status === "failed" || e.discord?.status === "queued" || !e.discord?.status || (e.discord?.status === "posted" && e.discord?.missing));
+let evTab = "details";
+let cortanaOnline = null; // from bot_status/cortana heartbeat (null = unknown)
+const discordChip = (e) => e.status === "completed" ? '<span class="ch ok">✓ Completed</span>' : (e.discord?.status === "posted" ? (e.discord?.closedAtISO ? '<span class="ch">🚪 Sign-ups closed</span>' : e.discord?.missing ? '<span class="ch wt">⚠ POST MISSING</span>' : '<span class="ch ok">● Live in Discord</span>') : e.discord?.status === "failed" ? '<span class="ch er">Discord error</span>' : '<span class="ch wt">◷ WAITING FOR CORTANA v2</span>');
 const signedUpUids = (e) => {
   const att = new Set((e.buttons || []).filter((b) => b.attending).map((b) => b.key));
   return [...new Set((e.signups || []).filter((s) => att.has(s.choice) && s.uid).map((s) => s.uid))];
@@ -112,7 +120,9 @@ function renderList() {
   const live = events.filter((e) => e.status !== "cancelled" && Date.parse(e.startAtISO) <= now && Date.parse(e.endAtISO) > now);
   const up = events.filter((e) => e.status !== "cancelled" && Date.parse(e.startAtISO) > now).sort((a, b) => a.startAtISO.localeCompare(b.startAtISO));
   const past = events.filter((e) => !(e.status !== "cancelled" && Date.parse(e.endAtISO) > now)).sort((a, b) => b.startAtISO.localeCompare(a.startAtISO)).slice(0, 30);
+  const fix = events.filter(needsFix);
   root.querySelector(".list").innerHTML = `
+    ${fix.length && acc.ev !== false ? `<div class="ev-warn" role="status">⚠ <span>${fix.length} EVENT${fix.length === 1 ? "" : "S"} NEED${fix.length === 1 ? "S" : ""} A REFRESH — ${fix.map((e) => esc(e.title)).slice(0, 3).join(", ")}${fix.length > 3 ? "…" : ""}. Cortana also fixes these by itself when it starts.</span><button class="b" data-act="fixall">↻ FIX NOW</button></div>` : ""}
     ${live.length ? `<h3 class="evh live">● HAPPENING NOW</h3>${live.map(row).join("")}` : ""}
     <h3 class="evh">UPCOMING</h3>${up.length ? up.map(row).join("") : '<div class="empty">NO UPCOMING EVENTS</div>'}
     <h3 class="evh">PAST AND CANCELLED</h3>${past.length ? past.map(row).join("") : '<div class="empty">NOTHING YET</div>'}`;
@@ -389,6 +399,79 @@ async function endEvent(e) {
 }
 
 /* ───────────────────────────── event detail ───────────────────────────── */
+async function refreshAll(all) {
+  if (acc.ev === false) return notify("YOU DON'T HAVE EVENTS ACCESS", 1);
+  notify(all ? "↻ REFRESHING ALL SIGN-UP POSTS…" : "↻ FIXING SIGN-UP POSTS…");
+  try {
+    const r = await cortanaJob("event.refreshAll", { all }, { ms: 60000 });
+    if (!r) return notify("◷ CORTANA IS OFFLINE — IT FIXES THEM BY ITSELF WHEN IT'S BACK", 1);
+    const x = r.result || {};
+    notify(`✓ ${x.fixed || 0} RE-POSTED · ${x.updated || 0} UPDATED${x.failed ? ` · ${x.failed} FAILED` : ""}`, !!x.failed);
+    audit("discord", "EVENT POSTS REFRESHED", `${x.fixed || 0} re-posted · ${x.updated || 0} updated`);
+  } catch (err) { notify("REFRESH FAILED: " + err.message, 1); }
+}
+async function refreshOne(e, ping) {
+  notify(ping ? "↻ RE-POSTING WITH PING…" : "↻ REFRESHING POST…");
+  try {
+    const r = await cortanaJob("event.refresh", { eventId: e.id, ping: !!ping }, { ms: 45000 });
+    if (!r) return notify("◷ CORTANA IS OFFLINE — IT FIXES THIS BY ITSELF WHEN IT'S BACK", 1);
+    const x = r.result || {};
+    notify(x.skipped ? "THIS EVENT IS FINISHED — NOTHING TO REFRESH" : x.fixed ? "✓ SIGN-UP POST RE-POSTED" : "✓ SIGN-UP POST UPDATED");
+    if (!x.skipped) audit("discord", "EVENT POST REFRESHED", `${e.title}${x.fixed ? " · re-posted" : " · updated"}${ping ? " · with ping" : ""}`);
+  } catch (err) { notify("REFRESH FAILED: " + err.message, 1); }
+}
+
+/** LIVE STATUS tab: timeline, numbers, sign-ups, system check, activity. */
+function liveHtml(e) {
+  const d = e.discord || {}, now = Date.now(), start = Date.parse(e.startAtISO), end = Date.parse(e.endAtISO);
+  const closeAt = Math.min(start + 30 * 60000, end);
+  const going = (e.signups || []).filter((x) => !x.waiting && (e.buttons || []).find((b) => b.key === x.choice)?.attending).length;
+  const t = (iso) => (iso ? esc(ukFmt(iso, { weekday: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()) : "");
+  const steps = [
+    ["POSTED", d.postedAtISO || (d.status === "posted" ? e.createdAtISO : null), d.status === "posted"],
+    ["REMINDER", d.reminderSentISO, !!d.reminderSentISO],
+    [`STARTED${d.startSentISO ? ` · PINGED ${going}` : ""}`, d.startSentISO || e.startAtISO, !!d.startSentISO],
+    ["LOCKED", d.lockedISO || d.startSentISO, !!(d.lockedISO || d.startSentISO)],
+    ["CLOSES", d.closedAtISO || new Date(closeAt).toISOString(), !!d.closedAtISO],
+    ["MISSION LOG", d.closedAtISO || null, !!d.closedAtISO],
+  ];
+  const cur = e.status === "cancelled" ? -1 : steps.findIndex((x) => !x[2]);
+  const running = e.status !== "cancelled" && now >= start && now < end && !d.closedAtISO && e.status !== "completed";
+  const sys = [
+    ["Cortana", cortanaOnline === false ? ["er", "● OFFLINE — FIXES ITSELF WHEN BACK"] : cortanaOnline ? ["ok", "● ONLINE"] : ["", "— UNKNOWN"]],
+    ["Sign-up post", d.closedAtISO ? ["", "CLOSED · REMOVED"] : d.status !== "posted" ? [d.status === "failed" ? "er" : "wt", d.status === "failed" ? `✕ FAILED${d.error ? " — " + esc(d.error) : ""}` : "◷ WAITING TO POST"] : d.missing ? ["wt", "⚠ MISSING IN DISCORD"] : ["ok", `✓ IN #${esc(chanLabel(d.channelId || e.channel))}${d.startSentISO ? " · 🔒 LOCKED" : ""}`]],
+    ["Discord event (calendar)", d.scheduledEventId ? ["ok", "✓ MADE"] : ["", "— NOT MADE"]],
+    ["Start ping", d.startSentISO ? ["ok", `✓ SENT ${t(d.startSentISO)} (${going} ${going === 1 ? "PERSON" : "PEOPLE"})`] : ["", now < start ? `◷ AT ${t(e.startAtISO)}` : "— NOT SENT"]],
+    ["Attendance record", e.attendanceEventId ? ["ok", "✓ LINKED"] : ["", "— NOT LINKED"]],
+  ];
+  const bad = isOpen(e) && (d.status !== "posted" || d.missing);
+  const feed = [
+    ...(e.signups || []).filter((x) => x.atISO).map((x) => [x.atISO, `${esc(x.name)} chose ${esc((e.buttons || []).find((b) => b.key === x.choice)?.emoji || "")} ${esc((e.buttons || []).find((b) => b.key === x.choice)?.label || x.choice)}`]),
+    d.postedAtISO && [d.postedAtISO, "Cortana posted the sign-up"],
+    d.refreshedAtISO && [d.refreshedAtISO, "Sign-up post refreshed"],
+    d.reminderSentISO && [d.reminderSentISO, "Reminder posted"],
+    d.startSentISO && [d.startSentISO, `Cortana pinged ${going} · post locked 🔒`],
+    d.closedAtISO && [d.closedAtISO, "Sign-ups closed · logged to #mission-log"],
+    e.createdAtISO && [e.createdAtISO, `Created by ${esc(e.createdByName || "—")}`],
+  ].filter(Boolean).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 12);
+  const cnt = counts(e);
+  const slots = cnt.filter(([b]) => b.limit);
+  return `${running ? `<div class="lv-live"><i></i>LIVE · STARTED ${esc(String(Math.max(0, Math.round((now - start) / 60000))))} MIN AGO</div>` : ""}
+    <div class="lv-tl">${steps.map(([l, iso, done], i) => `<div class="${done ? "d" : i === cur ? "n" : ""}"><i></i><b>${l}</b>${done || i === cur ? t(iso) : ""}</div>`).join("")}</div>
+    <div class="lv-g"><div>
+      <div class="lv-tiles">${cnt.map(([b, n]) => `<div><b>${n}${b.limit ? "/" + b.limit : ""}</b><span>${esc(b.emoji)} ${esc(b.label.toUpperCase())}</span></div>`).join("")}${slots.length ? `<div><b>${slots.reduce((a, [, n]) => a + n, 0)}/${slots.reduce((a, [b]) => a + b.limit, 0)}</b><span>SLOTS FILLED</span></div>` : ""}</div>
+      <span class="lbl">SIGN-UPS</span>
+      <table class="lv-t"><thead><tr><th>MEMBER</th><th>CHOICE</th><th>WHEN</th></tr></thead><tbody>${(e.signups || []).slice().sort((a, b) => String(a.atISO).localeCompare(String(b.atISO))).map((x) => { const b = (e.buttons || []).find((y) => y.key === x.choice); return `<tr><td>${esc(x.name)}</td><td>${esc(b?.emoji || "")} ${esc(b?.label || x.choice)}${x.waiting ? ' <span class="dim">· WAITING LIST</span>' : ""}</td><td class="dim">${x.atISO ? esc(ago2(x.atISO)) : "—"}</td></tr>`; }).join("") || '<tr><td colspan="3" class="dim">No sign-ups yet.</td></tr>'}</tbody></table>
+    </div><div>
+      <span class="lbl">SYSTEM CHECK</span>
+      <ul class="lv-sys">${sys.map(([k, [c, v]]) => `<li><span>${k}</span><span class="${c}">${v}</span></li>`).join("")}</ul>
+      ${bad && acc.ev !== false ? `<div class="lv-fix">⚠ Something is out of sync. <button class="b" data-x="refresh">↻ FIX</button><button class="b" data-x="repostping">↻ REPOST WITH PING</button></div>` : ""}
+      <span class="lbl" style="margin-top:14px">ACTIVITY</span>
+      <ul class="lv-feed">${feed.map(([iso, txt]) => `<li><time>${esc(ago2(iso))}</time>${txt}</li>`).join("") || '<li class="dim">Nothing yet.</li>'}</ul>
+    </div></div>`;
+}
+const ago2 = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? "now" : m < 60 ? `${m} min ago` : m < 1440 ? ukFmt(iso, { hour: "2-digit", minute: "2-digit" }) : ukFmt(iso, { weekday: "short", day: "2-digit", month: "short" }); };
+
 function openEvent(id) {
   const e = events.find((x) => x.id === id);
   if (!e) return;
@@ -396,7 +479,8 @@ function openEvent(id) {
   const a = e.attendanceEventId && attById.get(e.attendanceEventId);
   openModal(
     `<div class="hd"><div><h2>${esc(e.title.toUpperCase())}</h2><small>${esc(ukFmt(e.startAtISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase())} · ${esc(e.startTime)}–${esc(e.endTime)} UK · ${esc(whereLabel(e))}</small></div><button class="xx" data-close aria-label="Close">✕</button></div>
-    <div class="bd">
+    <div class="ev-tabs" role="tablist"><button role="tab" data-evtab="details" class="${evTab === "details" ? "on" : ""}" aria-selected="${evTab === "details"}">DETAILS</button><button role="tab" data-evtab="live" class="${evTab === "live" ? "on" : ""}" aria-selected="${evTab === "live"}">● LIVE STATUS</button></div>
+    <div class="bd">${evTab === "live" ? liveHtml(e) : `
       <div class="chips" style="margin-bottom:12px">${e.status === "cancelled" ? '<span class="ch er">Cancelled</span>' : discordChip(e)}${e.repeat !== "none" ? `<span class="ch rp">↻ ${REPEAT[e.repeat]}</span>` : ""}${attChip(e)}</div>
       ${e.description ? `<p style="white-space:pre-wrap;margin:0 0 12px;line-height:1.6">${esc(e.description)}</p>` : ""}
       <span class="lbl">SIGN-UPS · POSTED IN #${esc(chanLabel(e.channel))}</span>
@@ -404,14 +488,21 @@ function openEvent(id) {
         .map(([b, n]) => `<div><b>${esc(b.emoji)} ${esc(b.label)} <span>${n}${b.limit ? "/" + b.limit : ""}</span></b><small>${(e.signups || []).filter((s) => s.choice === b.key).map((s) => esc(s.name)).join(", ") || "—"}</small></div>`)
         .join("")}</div>
       ${e.discord?.status !== "posted" ? '<p class="hint">Sign-ups arrive from the Discord buttons once Cortana v2 posts this event.</p>' : ""}
-      <div class="hint">CREATED BY ${esc(e.createdByName || "—")}${e.updatedByName ? ` · LAST EDIT ${esc(e.updatedByName)}` : ""}</div>
+      <div class="hint">CREATED BY ${esc(e.createdByName || "—")}${e.updatedByName ? ` · LAST EDIT ${esc(e.updatedByName)}` : ""}</div>`}
     </div>
     <div class="ft"><div style="display:flex;gap:8px">${e.status !== "cancelled" && e.status !== "completed" && acc.ev ? '<button class="b red" data-x="cancel">CANCEL EVENT</button>' : ""}${acc.ev ? '<button class="b red" data-x="delete">🗑 DELETE</button>' : ""}</div>
-      <div style="display:flex;gap:8px">${e.status !== "cancelled" && e.status !== "completed" && acc.ev && Date.parse(e.startAtISO) <= Date.now() ? '<button class="b" data-x="end" style="border-color:#22e07a;color:#22e07a">✓ END EVENT</button>' : ""}${a && acc.att ? '<button class="b" data-x="check">▣ ATTENDANCE CHECK</button>' : ""}${e.status !== "cancelled" && e.status !== "completed" && acc.ev ? '<button class="b gold" data-x="edit">EDIT</button>' : ""}</div></div>`,
+      <div style="display:flex;gap:8px">${isOpen(e) && acc.ev ? '<button class="b" data-x="refresh" title="Update the Discord sign-up post — re-posts it (no ping) if it was deleted">↻ REFRESH POST</button>' : ""}${e.status !== "cancelled" && e.status !== "completed" && acc.ev && Date.parse(e.startAtISO) <= Date.now() ? '<button class="b" data-x="end" style="border-color:#22e07a;color:#22e07a">✓ END EVENT</button>' : ""}${a && acc.att ? '<button class="b" data-x="check">▣ ATTENDANCE CHECK</button>' : ""}${e.status !== "cancelled" && e.status !== "completed" && acc.ev ? '<button class="b gold" data-x="edit">EDIT</button>' : ""}</div></div>`,
     { width: 720 },
   );
   document.getElementById("v2Modal").addEventListener("click", async (ev) => {
+    const tb = ev.target.closest("[data-evtab]");
+    if (tb) { evTab = tb.dataset.evtab; return openEvent(e.id); }
     const x = ev.target.closest("[data-x]")?.dataset.x;
+    if (x === "refresh") return refreshOne(e, false);
+    if (x === "repostping") {
+      if (!(await ask({ kind: "warn", title: "REPOST WITH PING?", body: "The sign-up post is posted again and the usual roles are pinged.", item: e.title, go: "REPOST + PING", cancel: "NO" }))) return;
+      return refreshOne(e, true);
+    }
     if (x === "edit") {
       closeModal();
       startWizard(e);
@@ -548,6 +639,20 @@ function onCheckChange(ev) {
 
 /* ─────────────────────────────────── CSS ─────────────────────────────────── */
 const CSS = `
+#${ROOT} .ev-warn{display:flex;gap:10px;align-items:center;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.07);color:#f59e0b;padding:10px 12px;margin:0 0 12px;font-size:11px;letter-spacing:1px}#${ROOT} .ev-warn span{flex:1}#${ROOT} .ev-warn .b{border-color:#f59e0b;color:#f59e0b}
+#v2Modal .ev-tabs{display:flex;border-bottom:1px solid rgba(0,217,255,.18);padding:0 16px}#v2Modal .ev-tabs button{all:unset;cursor:pointer;padding:9px 14px;font:11px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;border-bottom:2px solid transparent}#v2Modal .ev-tabs button.on{color:#fff;border-bottom-color:#00D9FF}#v2Modal .ev-tabs button:focus-visible{outline:2px solid #00D9FF}
+#v2Modal .lv-live{display:flex;align-items:center;gap:6px;color:#ff4d4d;font:11px "Share Tech Mono",monospace;letter-spacing:2px;margin-bottom:10px}#v2Modal .lv-live i{width:9px;height:9px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 8px #ff4d4d;animation:lvp 1.4s infinite}@keyframes lvp{50%{opacity:.3}}@media (prefers-reduced-motion:reduce){#v2Modal .lv-live i{animation:none}}
+#v2Modal .lv-tl{display:grid;grid-template-columns:repeat(6,1fr);margin:4px 0 16px}#v2Modal .lv-tl>div{position:relative;text-align:center;padding-top:22px;font:9.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
+#v2Modal .lv-tl>div:before{content:"";position:absolute;top:8px;left:0;right:0;height:2px;background:#1c2a30}#v2Modal .lv-tl>div:first-child:before{left:50%}#v2Modal .lv-tl>div:last-child:before{right:50%}#v2Modal .lv-tl>div.d:before{background:#22e07a}
+#v2Modal .lv-tl i{position:absolute;top:2px;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:#1c2a30;border:2px solid #0b0f15}#v2Modal .lv-tl .d i{background:#22e07a}#v2Modal .lv-tl .n i{background:#00D9FF;box-shadow:0 0 10px #00D9FF}
+#v2Modal .lv-tl b{display:block;color:#e8eef2;font-weight:400}#v2Modal .lv-tl .n b{color:#00D9FF}
+#v2Modal .lv-g{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+#v2Modal .lv-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-bottom:12px}#v2Modal .lv-tiles>div{border:1px solid rgba(0,217,255,.18);padding:10px;text-align:center}#v2Modal .lv-tiles b{display:block;font:700 20px "Share Tech Mono",monospace;color:#fff}#v2Modal .lv-tiles span{font:9.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
+#v2Modal .lv-t{width:100%;border-collapse:collapse}#v2Modal .lv-t td,#v2Modal .lv-t th{padding:6px 8px;border-bottom:1px solid rgba(0,217,255,.07);text-align:left;font-size:12px}#v2Modal .lv-t th{font:10px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;font-weight:400}
+#v2Modal .lv-sys,#v2Modal .lv-feed{list-style:none;margin:0;padding:0}#v2Modal .lv-sys li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(0,217,255,.07);font-size:12px}#v2Modal .lv-sys .ok{color:#22e07a}#v2Modal .lv-sys .wt{color:#f59e0b}#v2Modal .lv-sys .er{color:#ff4d4d}
+#v2Modal .lv-fix{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding:8px 10px;border:1px solid rgba(245,158,11,.45);color:#f59e0b;font-size:12px}
+#v2Modal .lv-feed li{padding:5px 0;border-bottom:1px solid rgba(0,217,255,.06);font-size:12px}#v2Modal .lv-feed time{color:#7d8a99;margin-right:8px;font:11px "Share Tech Mono",monospace}
+@media (max-width:720px){#v2Modal .lv-g{grid-template-columns:1fr}#v2Modal .lv-tl{grid-template-columns:repeat(3,1fr);row-gap:10px}}
 #evV2 .ch.ok{color:#22e07a;border-color:rgba(34,224,122,.45)}
 #evV2 .live-flash{animation:evFlash 1.6s ease-out}@keyframes evFlash{0%{box-shadow:0 0 0 2px #22e07a;background:rgba(34,224,122,.1)}100%{box-shadow:0 0 0 0 transparent}}
 @media(prefers-reduced-motion:reduce){#evV2 .live-flash{animation:none;outline:1px solid #22e07a}}
@@ -629,17 +734,22 @@ function startLive() {
 }
 
 onReady(() => {
-  const root = mountPanel("panel-events", ROOT, () => !w && load().then(startLive).catch((e) => notify("EVENTS LOAD FAILED: " + e.message, 1)));
+  const root = mountPanel("panel-events", ROOT, () => !w && load().then(startLive).then(() => {
+    // Dashboard "OPEN LIVE STATUS" → open that event on the Live Status tab.
+    let id = null;
+    try { id = sessionStorage.getItem("evOpenLive"); sessionStorage.removeItem("evOpenLive"); } catch { /* blocked */ }
+    if (id && events.some((x) => x.id === id)) { evTab = "live"; openEvent(id); }
+  }).catch((e) => notify("EVENTS LOAD FAILED: " + e.message, 1)));
   if (!root) return;
   addCss(ROOT, CSS);
   root.innerHTML = `
-    <div class="list-wrap"><div class="bar"><div><div class="h1">EVENTS</div><div class="sub" style="margin:4px 0 0">EVENTS WITH YOUR OWN SIGN-UP BUTTONS IN DISCORD — CAN REPEAT EVERY WEEK OR EVERY 2 WEEKS</div></div><span class="sp"></span><button class="b gold" data-act="new">📅 CREATE EVENT</button></div>
+    <div class="list-wrap"><div class="bar"><div><div class="h1">EVENTS</div><div class="sub" style="margin:4px 0 0">EVENTS WITH YOUR OWN SIGN-UP BUTTONS IN DISCORD — CAN REPEAT EVERY WEEK OR EVERY 2 WEEKS</div></div><span class="sp"></span><button class="b" data-act="refreshall" title="Update every upcoming sign-up post in Discord (no pings)">↻ REFRESH ALL POSTS</button><button class="b gold" data-act="new">📅 CREATE EVENT</button></div>
     <div class="list"><div class="empty">LOADING...</div></div></div>
     <div class="wiz" hidden><div><div class="bar"><div class="h1">${"CREATE EVENT"}</div><span class="sp"></span><button class="b" data-act="list">← ALL EVENTS</button></div><div class="wiz-form" style="margin-top:12px"></div></div><aside class="wiz-pv"></aside></div>`;
 
   root.addEventListener("click", (e) => {
     const o = e.target.closest("[data-open]");
-    if (o) return openEvent(o.dataset.open);
+    if (o) { evTab = "details"; return openEvent(o.dataset.open); }
     const g = e.target.closest("[data-go]");
     if (g) return go(+g.dataset.go);
     const ot = e.target.closest("[data-optype]");
@@ -679,6 +789,7 @@ onReady(() => {
       return drawWizard();
     }
     if (act === "create") return create();
+    if (act === "refreshall" || act === "fixall") return refreshAll(act === "refreshall");
   });
   root.addEventListener("input", (e) => {
     if (!w) return;

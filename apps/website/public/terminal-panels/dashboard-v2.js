@@ -40,6 +40,7 @@ addCss("dash2", `
 .d2-ub{display:flex;gap:2px;height:16px}.d2-ub i{flex:1;background:#22e07a;opacity:.8}.d2-ub i.uw{background:#f59e0b}.d2-ub i.ur{background:#ff4d4d}.d2-ub i.uo{background:#26303b;opacity:1}
 .d2-sys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.d2-sy{border:1px solid rgba(0,217,255,.18);border-left:3px solid var(--sc);padding:10px}.d2-sy.ok{--sc:#22e07a}.d2-sy.warn{--sc:#f59e0b}.d2-sy.bad{--sc:#ff4d4d}.d2-sy.off{--sc:#4b5765}.d2-sy b{display:block;font-family:Rajdhani,sans-serif;letter-spacing:2px;color:#fff;font-size:14px}.d2-sy span{font-size:9.5px;letter-spacing:1.5px;color:var(--sc)}.d2-sy.off span{color:#7d8a99}.d2-sy small{display:block;font-size:9.5px;color:#7d8a99;margin-top:4px}
 .d2-ch{display:flex;align-items:flex-end;gap:3px;height:60px;margin-top:6px}.d2-ch i{flex:1;background:linear-gradient(#00D9FF,rgba(0,217,255,.3));min-height:2px}.d2-ch i.off{background:#26303b}
+.d2-liveop{display:flex;align-items:center;gap:14px;border-color:rgba(255,77,77,.4)!important}.d2-liveop>div{flex:1}.d2-liveop b{display:block;color:#fff;font:700 17px Rajdhani,sans-serif;letter-spacing:1px}.d2-lv{display:inline-flex;align-items:center;gap:6px;color:#ff4d4d;font-size:10px;letter-spacing:2px}.d2-lv i{width:8px;height:8px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 8px #ff4d4d}.d2-lvbar{height:5px;background:#1c2a30;margin:6px 0 4px;max-width:320px}.d2-lvbar i{display:block;height:100%;background:#22e07a}
 .d2-stf.off{opacity:.5}.d2-sav{position:relative;display:inline-block}.d2-sd{position:absolute;right:-2px;bottom:-1px;width:11px;height:11px;border-radius:50%;border:2px solid #0b0f15;background:#5b6570}.d2-leg .d2-sd{position:static;display:inline-block;width:8px;height:8px;border:0;margin-right:4px}.d2-sd.online{background:#22e07a}.d2-sd.idle{background:#f0b232}.d2-sd.dnd{background:#f23f43}.d2-sd.offline{background:#5b6570}
 .d2-chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.d2-chip{font-size:9.5px;letter-spacing:1px;padding:2px 6px;border:1px solid rgba(0,217,255,.35);color:#00D9FF;white-space:nowrap}.d2-chip.v{border-color:rgba(167,139,250,.5);color:#a78bfa}
 .d2-leg{display:flex;gap:12px;font-size:9.5px;letter-spacing:1px;color:#7d8a99;margin-top:6px}.d2-leg span{display:flex;align-items:center}
@@ -305,10 +306,23 @@ async function save() {
     notify("COULD NOT SAVE YOUR LAYOUT", true);
   }
 }
+/** Live op card (approved mock 2026-11-11): shown at the top while an op is running. */
+function liveOpHtml() {
+  const now = Date.now();
+  const lv = (D.events || []).filter((e) => e.status !== "cancelled" && e.status !== "completed" && !e.discord?.closedAtISO && Date.parse(e.startAtISO) <= now && Date.parse(e.endAtISO) > now);
+  return lv.map((e) => {
+    const cnt = (e.buttons || []).map((b) => [b, (e.signups || []).filter((x) => !x.waiting && x.choice === b.key).length]);
+    const going = cnt.filter(([b]) => b.attending).reduce((a, [, n]) => a + n, 0);
+    const close = Math.min(Date.parse(e.startAtISO) + 30 * 60000, Date.parse(e.endAtISO));
+    const pct = Math.max(0, Math.min(100, ((now - Date.parse(e.startAtISO)) / (Date.parse(e.endAtISO) - Date.parse(e.startAtISO))) * 100));
+    return `<section class="d2-w wide d2-liveop" aria-label="Live operation"><div><span class="d2-lv"><i></i>LIVE</span><b>${esc(e.title || "Op")}</b><div class="d2-lvbar" aria-hidden="true"><i style="width:${pct}%"></i></div><small class="dim">${cnt.map(([b, n]) => `${n} ${esc(b.label.toLowerCase())}`).join(" · ")}${now < close ? ` · locks ${new Date(close).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}` : ""}${going ? "" : ""}</small></div><button class="b" data-liveop="${esc(e.id)}">OPEN LIVE STATUS ▸</button></section>`;
+  }).join("");
+}
+
 function drawW() {
   const g = document.getElementById("d2Grid");
   const shown = L.filter(allowed);
-  g.innerHTML = shown.map((k) => {
+  g.innerHTML = liveOpHtml() + shown.map((k) => {
     const w = WID[k];
     let body = "";
     try { body = w.b(); } catch (e) { body = empty("NOT AVAILABLE."); }
@@ -348,7 +362,7 @@ async function load() {
       const role = D.me?.role || "";
       D.fragos = s.docs.map((d) => d.data()).find((f) => !(f.visibility === "commander_only" && !["commander", "developer"].includes(role)) && !(f.visibility === "officers_only" && !["commander", "developer", "officer"].includes(role))) || null;
     }),
-    safe(getDocs(collection(db, "community_events")), (s) => (D.events = s.docs.map((d) => d.data()))),
+    safe(getDocs(collection(db, "community_events")), (s) => (D.events = s.docs.map((d) => ({ id: d.id, ...d.data() })))),
     acc.att ? safe(getDocs(collection(db, "attendance_events")), (s) => (D.att = s.docs.map((d) => d.data()))) : null,
     acc.proj ? safe(getDocs(collection(db, "projects")), (s) => (D.tasks = s.docs.map((d) => ({ id: d.id, ...d.data() })))) : null,
     acc.notes ? safe(fetch("/api/terminal/notes", { cache: "no-store" }).then((r) => r.json()), (j) => (D.notes = j.notes || [])) : null,
@@ -412,6 +426,8 @@ function mount() {
   g.addEventListener("click", (e) => {
     const nt = e.target.closest("[data-note]"), tk = e.target.closest("[data-task]");
     if (!editing && (nt || tk)) return window.dispatchEvent(new CustomEvent("ws:open", { detail: nt ? { kind: "note", id: nt.dataset.note } : { kind: "task", id: tk.dataset.task } }));
+    const lo = e.target.closest("[data-liveop]");
+    if (lo && !editing) { try { sessionStorage.setItem("evOpenLive", lo.dataset.liveop); } catch { /* blocked */ } return go("panel-events"); }
     const go1 = e.target.closest("[data-go]");
     if (go1 && !editing) return go(go1.dataset.go);
     const b = e.target.closest(".d2-wt button[data-a]");
@@ -469,6 +485,7 @@ onReady(() => {
         seen = now;
         if (!editing) drawW();
       }, () => {});
+      onSnapshot(collection(db, "community_events"), (s) => { D.events = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!editing) drawW(); }, () => {});
       onSnapshot(doc(db, "bot_status", "staff_presence"), (s) => { D.sp = s.data() || null; if (!editing) drawW(); }, () => {});
       onSnapshot(doc(db, "bot_status", "discord_live"), (s) => { D.dl = s.data() || null; if (!editing) drawW(); }, () => {});
     });
