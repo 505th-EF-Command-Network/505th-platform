@@ -42,6 +42,7 @@ export async function GET(req: Request) {
   const a = await getHubActor(req);
   if (!a) return hubJson({ error: "unauthenticated" }, 401);
   if (!can(a.role, a.access, "ev")) return hubJson({ error: "You don't have Events access." }, 403);
+  const meD = ((await TerminalDoc.findById(`users/${a.uid}`, { data: 1 }).lean())?.data ?? {}) as U;
   const [evs, atts, chans, cfg, hb] = await Promise.all([
     TerminalDoc.find({ parent: "community_events" }, { docId: 1, data: 1 }).lean(),
     TerminalDoc.find({ parent: "attendance_events" }, { docId: 1, data: 1 }).lean(),
@@ -64,14 +65,14 @@ export async function GET(req: Request) {
     return {
       id: d.docId, title: e.title || "Untitled", description: e.description || "", where: e.where || "voice", voiceChannel: e.voiceChannel || "", location: e.location || "",
       date: e.date || "", startTime: e.startTime || "", endTime: e.endTime || "", startAtISO: e.startAtISO || "", endAtISO: e.endAtISO || "", opType: e.opType || at?.type || "main_op",
-      repeat: e.repeat || "none", banner: e.banner || "", channel: e.channel || "", buttons: e.buttons || [], signups: (e.signups || []).map((s: U) => ({ uid: s.uid || "", name: s.name || "?", choice: s.choice, waiting: !!s.waiting, atISO: s.atISO || "" })),
+      repeat: e.repeat || "none", banner: e.banner || "", channel: e.channel || "", buttons: e.buttons || [], signups: (e.signups || []).map((s: U) => ({ uid: s.uid || "", discordId: s.discordId || "", name: s.name || "?", choice: s.choice, waiting: !!s.waiting, atISO: s.atISO || "" })),
       status: e.status || "scheduled", discord: e.discord || {}, attendanceEventId: e.attendanceEventId || null,
       attendance: at ? { locked: !!at.locked, present: (at.attendees || []).length } : null,
       createdByName: e.createdByName || "", updatedByName: e.updatedByName || "", createdAtISO: e.createdAtISO || "",
     };
   });
   return hubJson({
-    events, canEdit: can(a.role, a.access, "ev"), signupChannels: signup, voiceChannels: vc("voiceChannels"), stageChannels: vc("stageChannels"),
+    events, me: { uid: a.uid, discordId: /^\d{17,20}$/.test(String(meD.discordId || "")) ? String(meD.discordId) : "" }, canEdit: can(a.role, a.access, "ev"), signupChannels: signup, voiceChannels: vc("voiceChannels"), stageChannels: vc("stageChannels"),
     channelNames: Object.fromEntries(channels.map((x) => [x.id, x.name])),
     cortanaOnline: hbd.lastHeartbeatISO ? Date.now() - Date.parse(hbd.lastHeartbeatISO) < 3 * 60000 : null,
   });

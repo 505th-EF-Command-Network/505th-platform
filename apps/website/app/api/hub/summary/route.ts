@@ -68,8 +68,14 @@ export async function GET(req: Request) {
     .slice(0, 3)
     .map((e) => {
       const su = (e.signups || []) as U[];
-      const mine = su.find((s) => s.uid === a.uid);
-      return { id: e.id, title: String(e.title || "Op"), startAtISO: e.startAtISO, signedUp: su.length, mine: mine ? String(mine.choice || "signed") : null };
+      const myDiscord = String(meDoc.discordId || "");
+      const mine = su.find((s) => s.uid === a.uid || (myDiscord && s.discordId === myDiscord));
+      const buttons = ((e.buttons || []) as U[]).map((b) => ({ key: String(b.key), emoji: String(b.emoji || ""), label: String(b.label || ""), style: String(b.style || "grey"), limit: Number(b.limit) || 0,
+        count: su.filter((s) => s.choice === b.key && !s.waiting).length, waiting: su.filter((s) => s.choice === b.key && s.waiting).length }));
+      const btn = mine ? buttons.find((b) => b.key === mine.choice) : null;
+      return { id: e.id, title: String(e.title || "Op"), startAtISO: e.startAtISO, opType: e.opType || "main_op", signedUp: su.filter((s) => !s.waiting).length,
+        mine: mine ? (btn ? `${btn.emoji} ${btn.label}`.trim() : "signed") : null, myChoice: mine ? String(mine.choice) : null, myWaiting: !!mine?.waiting, buttons,
+        open: e.status !== "cancelled" && e.status !== "completed" && !e.discord?.closedAtISO && !e.discord?.startSentISO, linked: !!myDiscord };
     });
 
   const b = (bot?.data ?? {}) as U;

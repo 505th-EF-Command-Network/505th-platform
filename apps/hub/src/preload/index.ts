@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld("cn", {
     attendanceAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:attendance-action", body),
     events: () => ipcRenderer.invoke("hub:events"),
     eventsAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:events-action", body),
+    rsvp: (eventId: string, key: string) => ipcRenderer.invoke("hub:rsvp", eventId, key),
     overview: () => ipcRenderer.invoke("hub:overview"),
     savePrefs: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:prefs", body),
     readAlerts: (body: { ids?: string[]; all?: boolean }) => ipcRenderer.invoke("hub:alerts-read", body),

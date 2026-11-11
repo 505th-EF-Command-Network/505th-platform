@@ -1,3 +1,4 @@
+import { Guard } from "./components/Guard";
 import { Bct } from "./pages/Bct";
 import { Aars } from "./pages/Aars";
 import { Events } from "./pages/Events";
@@ -96,18 +97,18 @@ function Shell({ net }: { net: NetState }) {
   const navP = nav ?? DEFAULT_NAV;
   return (
     <div className="flex h-full flex-col">
-      <TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} />
+      <Guard label="Top bar" small><TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} /></Guard>
       <div className="flex min-h-0 flex-1">
         <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
           onStatus={(s) => void setStatus(s)} onMyFile={() => setMyFile(true)} onSignOut={() => void window.cn.auth.logout()} version={version} />
-        {page === "dashboard" ? <Dashboard sum={data} ov={ov} net={net} dash={dash ?? DEFAULT_DASH} onDash={(d) => { setDash(d); save({ dash: d }); }} onPage={setPage} onRefresh={refresh} />
+        <Guard key={page} label={page === "dashboard" ? "Dashboard" : PAGES[page] ?? "This page"}>{page === "dashboard" ? <Dashboard sum={data} ov={ov} net={net} dash={dash ?? DEFAULT_DASH} onDash={(d) => { setDash(d); save({ dash: d }); }} onPage={setPage} onRefresh={refresh} />
           : page === "panel-active" ? <Personnel me={data.me.role} />
           : page === "panel-roster" ? <Roster me={data.me.role} />
           : page === "panel-attendance" ? <Attendance onPage={setPage} />
           : page === "panel-events" ? <Events onPage={setPage} />
           : page === "panel-aar" ? <Aars me={data.me.name} />
           : page === "panel-register" ? <Bct />
-          : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}
+          : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
       </div>
       {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}
       {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}

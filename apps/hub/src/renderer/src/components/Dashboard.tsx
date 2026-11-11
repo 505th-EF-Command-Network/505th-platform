@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import type { NetState, Overview, Summary } from "../../../preload/api";
 import { STATE, countdown, pageName, ukTime } from "../ui";
+import { Rsvp } from "./Rsvp";
+import { Guard } from "./Guard";
+const Body = ({ f, p }: { f: (p: P) => React.ReactNode; p: P }) => <>{f(p)}</>;
 
 /**
  * App Dashboard (approved mock 2026-11-11 — app only, better than the website):
@@ -27,7 +30,7 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       [m?.bct ?? "—", "WAITING BCT", m?.bct ? "#f59e0b" : "#fff", "panel-register"], [m?.tickets ?? "—", "TICKETS WAITING", m?.tickets ? "#ff4d4d" : "#fff", "panel-tickets"]] as [string | number, string, string, string][]).map(([v, l, c, pg]) => (
       <button key={l} type="button" onClick={() => onPage(pg)} className="flex flex-col justify-between border border-cyan/10 p-2.5 text-left hover:border-cyan/40"><span className="text-[10px] tracking-[2px] text-dim">{l}</span>
         <b className="font-head text-[34px] leading-none" style={{ color: c }}>{v}</b>{l === "ACTIVE" && m ? <small className="text-[10.5px] text-dim">{m.reserves} reserves · {m.at3} at 3/3</small> : <small /> }</button>))}</div>; } },
-  next: { title: "NEXT OPERATION", desc: "Live countdown, sign-ups, your choice", size: 3, page: "panel-events", live: true, body: ({ sum, now, onPage }) => {
+  next: { title: "NEXT OPERATION", desc: "Live countdown + change your sign-up (updates Discord)", size: 3, page: "panel-events", live: true, body: ({ sum, now, onRefresh }) => {
     const op = sum.ops[0];
     if (!op) return <Empty t="NO OPS SCHEDULED" />;
     const ms = Date.parse(op.startAtISO) - now;
@@ -35,9 +38,10 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       <div className="text-[10px] tracking-[2px] text-dim">{op.title.toUpperCase()} · {ukTime(op.startAtISO, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()} UK</div>
       <div className="my-2 font-head text-[38px] font-bold tracking-[2px] text-white">{ms <= 0 ? <span className="text-ok">● LIVE NOW</span> : countdown(ms)}</div>
       <Bar pct={op.signedUp * 4} c="#22e07a" />
-      <div className="mt-2 text-[12px]"><span className="text-ok">{op.signedUp} signed up</span> · <span className="text-dim">You: </span>{op.mine ? <span className="text-ok">✓ {op.mine}</span> : <span className="text-amber">not signed up</span>}</div>
+      <div className="mb-2 mt-2 text-[12px]"><span className="text-ok">{op.signedUp} signed up</span> · <span className="text-dim">You: </span>{op.mine ? <span className="text-ok">{op.mine}</span> : <span className="text-amber">not signed up</span>}</div>
+      <Rsvp eventId={op.id} buttons={op.buttons ?? []} myChoice={op.myChoice ?? null} myWaiting={!!op.myWaiting} open={op.open ?? false} linked={op.linked ?? false} onDone={onRefresh} />
       {sum.ops.slice(1).map((o) => <div key={o.id} className="mt-1.5 flex text-[11.5px] text-dim"><span className="text-[#c6d0da]">{o.title}</span><span className="ml-auto">{ukTime(o.startAtISO, { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span></div>)}
-      <button type="button" onClick={() => onPage("panel-events")} className="mt-2.5 border border-cyan/30 px-3 py-1 text-[11px] tracking-[1.5px] text-cyan hover:bg-cyan/10">OPEN EVENTS →</button></>; } },
+      </>; } },
   me: { title: "MY SERVICE", desc: "Your attendance ring, this month, PT, awards", size: 2, body: ({ sum, ov }) => {
     const me = sum.me, pct = me.opsEligible ? Math.round((me.opsAttended / me.opsEligible) * 100) : null;
     return <>
@@ -147,7 +151,7 @@ export function Dashboard(p: { sum: Summary; ov: Overview | null; net: NetState;
               <button type="button" aria-label={`Remove ${w.title}`} onClick={() => p.onDash(dash.filter((_, j) => j !== i))} className="border border-amber bg-black/80 px-1.5 text-[10px] text-amber">✕</button></div>}
             <h3 className="m-0 flex items-center gap-2 border-b border-cyan/[.12] px-3 py-2.5 text-[11px] font-normal tracking-[3px] text-cyan">{w.title}
               {!edit && (w.live ? <em className="ml-auto animate-pulse text-[10px] not-italic text-ok">● LIVE</em> : w.page ? <button type="button" onClick={() => p.onPage(w.page!)} className="ml-auto text-[11px] text-dim hover:text-cyan" aria-label={`Open ${w.title}`}>↗</button> : null)}</h3>
-            <div className="min-h-0 flex-1 overflow-hidden p-3">{w.body(props)}</div>
+            <div className="min-h-0 flex-1 overflow-hidden p-3"><Guard small label={w.title}><Body f={w.body} p={props} /></Guard></div>
           </section>); })}
         {!dash.length && <div className="col-span-12 row-span-2 grid place-items-center border border-dashed border-cyan/20 text-[12px] tracking-[2px] text-dim">NO WIDGETS — ✎ CUSTOMISE → ＋ ADD WIDGET</div>}
       </div>

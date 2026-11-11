@@ -9,7 +9,8 @@ export type MyStatus = { state: "online" | "dnd" | "invisible" | "offline"; note
 export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; note: string; until: string | null; photo: string | null };
 export type Summary = {
   me: { uid: string; name: string; role: string; rank: string; platoon: string; attendance: number; pt: number; opsAttended: number; opsEligible: number; status: MyStatus; access: Record<string, boolean> };
-  ops: { id: string; title: string; startAtISO: string; signedUp: number; mine: string | null }[];
+  ops: { id: string; title: string; startAtISO: string; opType: string; signedUp: number; mine: string | null; myChoice: string | null; myWaiting: boolean; open: boolean; linked: boolean;
+    buttons: { key: string; emoji: string; label: string; style: string; limit: number; count: number; waiting: number }[] }[];
   alerts: { id: string; type: string; title: string; body: string; read: boolean; at: unknown }[];
   staff: StaffRow[];
   system: { cortana: { online: boolean; pingMs: number | null }; website: boolean };
@@ -33,10 +34,10 @@ export type AttRoll = { id: string; firstName: string; lastName: string; callsig
 export type Attendance = { events: AttEvent[]; roll: AttRoll[]; online: string[]; discord: { id: string; title: string; startAtISO: string; date: string; type: string; going: number }[]; canEdit: boolean; canLock: boolean };
 export type EvButton = { key?: string; emoji: string; label: string; style: string; limit: number; attending: boolean };
 export type EvItem = { id: string; title: string; description: string; where: string; voiceChannel: string; location: string; date: string; startTime: string; endTime: string; startAtISO: string; endAtISO: string; opType: string;
-  repeat: string; banner: string; channel: string; buttons: (EvButton & { key: string })[]; signups: { uid: string; name: string; choice: string; waiting: boolean; atISO: string }[]; status: string;
+  repeat: string; banner: string; channel: string; buttons: (EvButton & { key: string })[]; signups: { uid: string; discordId: string; name: string; choice: string; waiting: boolean; atISO: string }[]; status: string;
   discord: { status?: string; missing?: boolean; closedAtISO?: string; channelId?: string; scheduledEventId?: string; startSentISO?: string; error?: string }; attendanceEventId: string | null;
   attendance: { locked: boolean; present: number } | null; createdByName: string; updatedByName: string; createdAtISO: string };
-export type EvData = { events: EvItem[]; canEdit: boolean; signupChannels: [string, string][]; voiceChannels: string[]; stageChannels: string[]; channelNames: Record<string, string>; cortanaOnline: boolean | null };
+export type EvData = { events: EvItem[]; me: { uid: string; discordId: string }; canEdit: boolean; signupChannels: [string, string][]; voiceChannels: string[]; stageChannels: string[]; channelNames: Record<string, string>; cortanaOnline: boolean | null };
 export type Aar = Record<"title" | "commander" | "filedBy" | "author" | "location" | "mainObjective" | "commanderIntent" | "objectiveStandards" | "plannedExecution" | "unitsInvolved" | "enemyFaction" | "enemyCasualties" | "enemyTactics" | "enemyDisposition" | "successfulManeuvers" | "mistakes" | "unexpected" | "objectiveOutcome" | "lessonsLearned" | "recommended" | "miscComments" | "result" | "unit", string> & {
   id: string; operationType: string; classification: string; summary: string; personnel: number | null; casualties: number; objectives: { text: string; done: boolean }[]; attachments: string[];
   date: string; status: string; submittedByName: string; submittedAt: string; updatedAt: string; updatedByName: string };
@@ -96,6 +97,7 @@ declare global {
         overview(): Promise<Overview | { error: string }>;
         savePrefs(body: HubPrefs): Promise<{ ok?: boolean; error?: string }>;
         readAlerts(body: { ids?: string[]; all?: boolean }): Promise<{ ok?: boolean; error?: string }>;
+        rsvp(eventId: string, key: string): Promise<{ ok?: boolean; msg?: string; waiting?: boolean; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
     };

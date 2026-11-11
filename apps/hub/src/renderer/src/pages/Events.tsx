@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EvButton, EvData, EvItem } from "../../../preload/api";
+import { Rsvp } from "../components/Rsvp";
 
 /**
  * EVENTS in the app — same data, wizard and actions as the Terminal's events.js, plus the approved month CALENDAR.
@@ -135,7 +136,7 @@ export function Events(p: { onPage: (id: string) => void }) {
         </aside>
       </div>
 
-      {ev && <Detail e={ev} d={d} busy={busy} onClose={() => setOpen(null)} onEdit={() => startWizard(undefined, ev)} onAtt={() => p.onPage("panel-attendance")}
+      {ev && <Detail e={ev} d={d} busy={busy} onReload={() => void load()} onClose={() => setOpen(null)} onEdit={() => startWizard(undefined, ev)} onAtt={() => p.onPage("panel-attendance")}
         onAct={(action, extra) => void run({ action, id: ev.id, ...extra }, action).then((r) => { if (r.ok && (action === "delete" || action === "cancel" || action === "end")) setOpen(null); })} />}
       {wiz && <Wizard d={d} w={wiz} setW={setWiz} busy={busy === "save"} onSave={async () => { const r = await run({ action: "save", id: wiz.editId ?? undefined, v: wiz.v }, "save"); if (r.ok) setWiz(null); else setWiz((o) => o && { ...o, err: r.error ?? null }); }} />}
       {toast && <div role="status" className={`fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 border bg-panel px-4 py-2 text-[12px] tracking-[1.5px] ${toast[1] ? "border-ok text-ok" : "border-bad text-bad"}`}>{toast[1] ? "✓ " : "⚠ "}{toast[0]}</div>}
@@ -170,7 +171,7 @@ function Row({ e, onOpen }: { e: EvItem; onOpen: (id: string) => void }) {
   );
 }
 
-function Detail(p: { e: EvItem; d: EvData; busy: string | null; onClose: () => void; onEdit: () => void; onAtt: () => void; onAct: (a: string, extra?: Record<string, unknown>) => void }) {
+function Detail(p: { e: EvItem; d: EvData; busy: string | null; onReload: () => void; onClose: () => void; onEdit: () => void; onAtt: () => void; onAct: (a: string, extra?: Record<string, unknown>) => void }) {
   const { e, d } = p;
   const [tab, setTab] = useState<"details" | "live">("details");
   const [t, c] = discordChip(e);
@@ -207,6 +208,11 @@ function Detail(p: { e: EvItem; d: EvData; busy: string | null; onClose: () => v
               {e.attendance && <span className="border border-cyan/30 px-1.5 text-cyan">{e.attendance.locked ? `🔒 CHECKED — ${e.attendance.present} ATTENDED` : "▣ ATTENDANCE LINKED"}</span>}
             </div>
             {e.description && <p className="mb-3 mt-0 whitespace-pre-wrap leading-relaxed text-[#c6d0da]">{e.description}</p>}
+            {(() => { const mine = e.signups.find((x) => x.uid === d.me?.uid || (!!d.me?.discordId && x.discordId === d.me?.discordId)); return (
+              <div className="mb-3 border border-cyan/15 bg-[#0e151a] p-2.5"><span className="mb-1.5 block text-[10px] tracking-[2px] text-cyan">MY SIGN-UP</span>
+                <Rsvp eventId={e.id} myChoice={mine?.choice ?? null} myWaiting={!!mine?.waiting} linked={!!d.me?.discordId} onDone={p.onReload}
+                  open={e.status !== "cancelled" && e.status !== "completed" && !ds.closedAtISO && !ds.startSentISO}
+                  buttons={e.buttons.map((b) => ({ key: b.key, emoji: b.emoji, label: b.label, style: b.style, limit: b.limit, count: e.signups.filter((x) => x.choice === b.key && !x.waiting).length, waiting: e.signups.filter((x) => x.choice === b.key && x.waiting).length }))} /></div>); })()}
             <span className="mb-1.5 block text-[10px] tracking-[2px] text-dim">SIGN-UPS · POSTED IN #{chan(e.channel)}</span>
             <div className="grid grid-cols-2 gap-2">
               {e.buttons.map((b) => { const l = e.signups.filter((s) => s.choice === b.key); return (

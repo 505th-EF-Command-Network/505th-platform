@@ -130,6 +130,10 @@ ipcMain.handle("hub:alerts-read", (e, body: unknown) => {
   if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
   return call("/api/hub/alerts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 });
+ipcMain.handle("hub:rsvp", (e, eventId: unknown, key: unknown) => {
+  if (!fromMain(e) || typeof eventId !== "string" || typeof key !== "string") return { error: "Not allowed." };
+  return call("/api/hub/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, key }) });
+});
 ipcMain.handle("hub:set-status", (e, s: unknown) => {
   if (!fromMain(e) || !s || typeof s !== "object") return { error: "Not allowed." };
   const { state, note, untilISO } = s as Record<string, unknown>;
