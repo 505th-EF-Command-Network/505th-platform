@@ -328,12 +328,12 @@ export function ask(o = {}) {
     ov.className = "cf-ov";
     ov.innerHTML = `<div class="cf" role="alertdialog" aria-modal="true" aria-labelledby="cfT" aria-describedby="cfB" style="--c:${c}">
       <div class="cf-h"><span class="cf-ic" aria-hidden="true">${o.icon || icon}</span><h3 id="cfT">${esc(o.title || "ARE YOU SURE?")}</h3></div>
-      <div class="cf-b" id="cfB">${o.bodyHtml ?? esc(o.body || "")}${o.item ? `<div class="cf-item">${esc(o.item)}</div>` : ""}${kind === "reason" ? `<label class="cf-lb" for="cfR">${esc(o.label || "REASON (REQUIRED)")}</label><textarea class="cf-in" id="cfR" maxlength="300"></textarea>` : ""}${typeWord ? `<label class="cf-lb" for="cfY">TYPE <b style="color:${c}">${esc(typeWord)}</b> TO CONFIRM</label><input class="cf-in" id="cfY" autocomplete="off">` : ""}${o.warn ? `<div class="cf-warn">${esc(o.warn)}</div>` : ""}</div>
+      <div class="cf-b" id="cfB">${o.bodyHtml ?? esc(o.body || "")}${o.item ? `<div class="cf-item">${esc(o.item)}</div>` : ""}${kind === "reason" ? `<label class="cf-lb" for="cfR">${esc(o.label || (o.optional ? "REASON (OPTIONAL)" : "REASON (REQUIRED)"))}</label><textarea class="cf-in" id="cfR" maxlength="300"></textarea>` : ""}${typeWord ? `<label class="cf-lb" for="cfY">TYPE <b style="color:${c}">${esc(typeWord)}</b> TO CONFIRM</label><input class="cf-in" id="cfY" autocomplete="off">` : ""}${o.warn ? `<div class="cf-warn">${esc(o.warn)}</div>` : ""}</div>
       <div class="cf-f"><span class="cf-key">ENTER = ${one ? "OK" : "CONFIRM"} · ESC = ${one ? "CLOSE" : "CANCEL"}</span>${one ? "" : `<button class="cf-btn" data-cf="no">${esc(o.cancel || "CANCEL")}</button>`}<button class="cf-btn go" data-cf="go">${esc(o.go || (one ? "OK" : "CONFIRM"))}</button></div></div>`;
     document.body.appendChild(ov);
     const go = ov.querySelector('[data-cf="go"]'), no = ov.querySelector('[data-cf="no"]');
     const r = ov.querySelector("#cfR"), y = ov.querySelector("#cfY");
-    const check = () => (go.disabled = (r && r.value.trim().length < 3) || (y && y.value.trim().toUpperCase() !== typeWord));
+    const check = () => (go.disabled = (r && !o.optional && r.value.trim().length < 3) || (y && y.value.trim().toUpperCase() !== typeWord));
     check();
     const done = (val) => {
       document.removeEventListener("keydown", key, true);

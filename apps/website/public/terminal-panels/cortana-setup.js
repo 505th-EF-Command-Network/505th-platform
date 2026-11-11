@@ -35,6 +35,7 @@ function blank() {
     announce: { channelId: "", ping: "everyone", minRole: "officer" },
     aux: { channelId: "", pingRoleId: "", template: "📦 Aux Mod {version} is out!\n{changes}\nUpdate via the launcher: {link}" },
     logs: { modLogId: "", joinLeaveId: "", messageLogId: "", auditId: "" },
+    tickets: { open: true, logChannelId: "", transcriptChannelId: "", maxOpen: "1", maxPerHour: "3", autoCloseDays: "0", deleteAfterH: "0" },
   };
 }
 /** Fill empty settings by matching channel / role names. Returns [found, tried]. */
@@ -72,7 +73,8 @@ async function cleanTest() {
     <div class="cl-g"><b>EVENTS · ${events.length}</b><span><button class="b" data-cl="all">TICK ALL</button> <button class="b" data-cl="none">NONE</button></span></div>
     <div class="cl-list">${events.map((e) => `<label class="cl-r"><input type="checkbox" data-ev="${esc(e.id)}"><span><b>${esc(e.title || "(no title)")}</b><small>${esc(day(e.startAtISO))} · ${esc(String(e.status || "upcoming").toUpperCase())} · ${(e.signups || []).length} sign-ups</small></span></label>`).join("") || '<p class="cl-n">No events.</p>'}</div>
     <div class="cl-g"><b>EVERYTHING IN</b></div>
-    <label class="cl-r"><input type="checkbox" data-k="tickets" checked><span><b>Tickets · ${n(tks)}</b><small>All ticket records + chats (ticket types stay)</small></span></label>
+    <label class="cl-r"><input type="checkbox" data-k="tickets" checked><span><b>Tickets · ${n(tks)}</b><small>All ticket records + chats + transcripts (ticket types stay)</small></span></label>
+    <label class="cl-r"><input type="checkbox" data-k="ticketChannels" checked><span><b>Also delete their channels in Discord · ${(tks || []).filter((t) => !t.channelDeleted).length} still exist</b><small>${esc((tks || []).filter((t) => !t.channelDeleted).map((t) => `#${t.status === "open" ? "ticket" : "closed"}-${String(t.number).padStart(4, "0")}`).join(" · ") || "none")}</small></span></label>
     <label class="cl-r"><input type="checkbox" data-k="cases" checked><span><b>Moderation cases · ${n(cs)}</b><small>All warnings / timeouts / kicks / bans on record</small></span></label>
     <label class="cl-r"><input type="checkbox" data-k="messages" checked><span><b>Sent messages list · ${n(ms)}</b><small>Send Message → Recently sent (the Discord messages stay)</small></span></label>
     <label class="cl-r"><input type="checkbox" data-k="counters" checked><span><b>Reset numbers</b><small>Next ticket = #0001 · next case = #1</small></span></label>
@@ -87,7 +89,7 @@ async function cleanTest() {
     if (b.dataset.cl === "all" || b.dataset.cl === "none") return ov.querySelectorAll("[data-ev]").forEach((c) => (c.checked = b.dataset.cl === "all"));
     const eventIds = [...ov.querySelectorAll("[data-ev]:checked")].map((c) => c.dataset.ev);
     const k = Object.fromEntries([...ov.querySelectorAll("[data-k]")].map((c) => [c.dataset.k, c.checked]));
-    const parts = [eventIds.length ? `${eventIds.length} events` : "", k.tickets ? `${n(tks)} tickets` : "", k.cases ? `${n(cs)} cases` : "", k.messages ? `${n(ms)} sent messages` : "", k.counters ? "reset numbers" : ""].filter(Boolean);
+    const parts = [eventIds.length ? `${eventIds.length} events` : "", k.tickets ? `${n(tks)} tickets` : "", k.ticketChannels ? "their Discord channels" : "", k.cases ? `${n(cs)} cases` : "", k.messages ? `${n(ms)} sent messages` : "", k.counters ? "reset numbers" : ""].filter(Boolean);
     if (!parts.length) return notify("NOTHING TICKED", 1);
     closeModal();
     if (!(await ask({ kind: "big", title: "CLEAN TEST DATA?", body: `Removes: ${parts.join(" · ")}.`, warn: "THIS CANNOT BE UNDONE.", go: "CLEAN" }))) return;
@@ -115,7 +117,7 @@ function tabState(t) {
     case "aux": return chk(cfg.aux.channelId);
     case "logs": return w(chk(cfg.logs.modLogId, false), chk(cfg.logs.joinLeaveId, false), chk(cfg.logs.messageLogId, false), chk(cfg.logs.auditId, false));
     case "info": return posts.length ? w(...posts.map((p) => (p.discord?.missing ? "bad" : p.channelId ? chk(p.channelId) : "warn"))) : "warn";
-    case "tickets": return ttypes.length ? w(...ttypes.map((t) => (!t.panel?.messageId ? "warn" : chk(t.channelId)))) : "warn";
+    case "tickets": return ttypes.length ? w(...ttypes.map((t) => (!t.panel?.messageId ? "warn" : chk(t.channelId))), chk(cfg.tickets.logChannelId, false), chk(cfg.tickets.transcriptChannelId, false)) : "warn";
     default: return "ok";
   }
 }
@@ -223,7 +225,15 @@ function body() {
   }
   if (tab === "tickets") return `<h2>TICKETS</h2><p class="sub">Each ticket type has its own channel with an "open ticket" button. Set up on DISCORD → Tickets.</p><div class="cs-card">
       ${ttypes.length ? ttypes.sort((a, b) => String(a.name).localeCompare(b.name)).map((t) => { const st = t.panel?.messageId ? ["POSTED", chk(t.channelId)] : ["NOT POSTED", "warn"]; return row(`${esc(t.emoji || "")} ${esc(t.name)}`, `<span>#${esc(chan(t.channelId)?.name || "—")}</span> <b style="color:${MARK[st[1]][1]}">${MARK[st[1]][0]} ${st[0]}</b>`); }).join("") : '<p class="cs-n">No ticket types yet. Add Recruitment and Tech Support on the Tickets page.</p>'}
-      <div style="margin-top:12px"><button class="b" data-go="panel-tickets">OPEN TICKETS →</button></div></div>`;
+      <div style="margin-top:12px"><button class="b" data-go="panel-tickets">OPEN TICKETS →</button></div></div>
+      <div class="cs-card"><h3>SETTINGS · ALL TICKET TYPES</h3>
+      ${row("TICKETS OPEN", tog("tickets.open", c.tickets.open), "off = the buttons say “closed right now” (staff can still open)")}
+      ${row("TICKET LOG", sel("tickets.logChannelId", chanOptions(c.tickets.logChannelId, undefined, "— off —")) + note(c.tickets.logChannelId), "new / closed / reopened / deleted")}
+      ${row("TRANSCRIPT CHANNEL", sel("tickets.transcriptChannelId", chanOptions(c.tickets.transcriptChannelId, undefined, "— use the ticket log —")) + note(c.tickets.transcriptChannelId), "HTML transcript files go here")}
+      ${row("OPEN TICKETS PER MEMBER", sel("tickets.maxOpen", ["1", "2", "3", "5"].map((n) => `<option value="${n}" ${String(c.tickets.maxOpen) === n ? "selected" : ""}>${n}</option>`).join(""), 'style="max-width:120px"'), "staff skip the limits")}
+      ${row("MAX NEW PER HOUR", sel("tickets.maxPerHour", ["1", "2", "3", "5", "10"].map((n) => `<option value="${n}" ${String(c.tickets.maxPerHour) === n ? "selected" : ""}>${n}</option>`).join(""), 'style="max-width:120px"'), "stops spam")}
+      ${row("AUTO-CLOSE", sel("tickets.autoCloseDays", [["0", "Off"], ["3", "3 days"], ["7", "7 days"], ["14", "14 days"], ["30", "30 days"]].map(([v, l]) => `<option value="${v}" ${String(c.tickets.autoCloseDays) === v ? "selected" : ""}>${l}</option>`).join(""), 'style="max-width:200px"'), "no messages for…")}
+      ${row("DELETE CLOSED CHANNELS", sel("tickets.deleteAfterH", [["0", "Never (staff choose)"], ["24", "After 24 hours"], ["168", "After 7 days"]].map(([v, l]) => `<option value="${v}" ${String(c.tickets.deleteAfterH) === v ? "selected" : ""}>${l}</option>`).join(""), 'style="max-width:260px"'), "transcript is saved first")}</div>`;
   return `<h2>LOGS</h2><p class="sub">Where Cortana writes its logs. Leave empty to turn a log off.</p><div class="cs-card">
     ${row("MODERATION LOG", sel("logs.modLogId", chanOptions(c.logs.modLogId, undefined, "— off —")) + note(c.logs.modLogId))}
     ${row("JOIN / LEAVE LOG", sel("logs.joinLeaveId", chanOptions(c.logs.joinLeaveId, undefined, "— off —")) + note(c.logs.joinLeaveId))}
@@ -257,7 +267,7 @@ async function load() {
   roles = rs.docs.map((d) => ({ id: d.id, ...d.data() }));
   const b = blank();
   const d = s.exists() ? s.data() : null;
-  cfg = d ? { ...b, ...d, welcome: { ...b.welcome, ...d.welcome }, announce: { ...b.announce, ...d.announce }, aux: { ...b.aux, ...d.aux }, logs: { ...b.logs, ...d.logs }, channelPings: { ...(d.channelPings || {}) } } : b;
+  cfg = d ? { ...b, ...d, welcome: { ...b.welcome, ...d.welcome }, announce: { ...b.announce, ...d.announce }, aux: { ...b.aux, ...d.aux }, logs: { ...b.logs, ...d.logs }, tickets: { ...b.tickets, ...d.tickets }, channelPings: { ...(d.channelPings || {}) } } : b;
   saved = d ? JSON.stringify(cfg) : "";
   // A role that no longer exists in Discord = no role. Clear it (shows as unsaved so SAVE fixes Cortana too).
   if (roles.length) {

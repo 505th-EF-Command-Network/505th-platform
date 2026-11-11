@@ -48,7 +48,7 @@ const H = {
       { sel: "#evV2 .h1", h: "DONE ✓", p: "Press <b>?</b> on any page for its help and tour again." },
     ] },
   "panel-tickets": { g: "DISCORD", t: "Tickets", who: "Recruiter+", key: "tk", s: "Answer Recruitment and Tech Support tickets from members.",
-    how: ["Pick a ticket on the left (NEW = nobody has answered).", "Type a reply — Cortana sends it into the Discord ticket, signed with your name.", "🔒 STAFF NOTE = only staff see it.", "✋ CLAIM it, ⇄ move it, or 🔒 CLOSE it (the channel is deleted after 24 h; the chat stays here)."],
+    how: ["Pick a ticket on the left (NEW = nobody has answered).", "Type a reply — Cortana sends it into the Discord ticket, signed with your name.", "🔒 STAFF NOTE = only staff see it.", "✋ CLAIM it, ⇄ move it, ➕ add a person, or 🔒 CLOSE it (with an optional reason). Closed tickets get 📑 Transcript · 🔓 Reopen · ⛔ Delete; the chat always stays here."],
     tour: [
       { sel: "#ticketsV2 .tk-kpi", h: "AT A GLANCE", p: "Open tickets, how many wait on staff, average first reply and closed this month." },
       { sel: "#ticketsV2 .tk-list", h: "TICKET LIST", p: "Filter by type or closed. NEW = nobody has answered yet." },

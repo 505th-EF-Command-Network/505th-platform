@@ -92,6 +92,11 @@ const panelName = (p) => {
 };
 const ub = (pcts) => `<div class="d2-ub">${pcts.map((v) => `<i class="${v == null ? "uo" : v < 95 ? "ur" : v < 99.9 ? "uw" : ""}"></i>`).join("")}</div>`;
 const NO_HISTORY = Array(30).fill(null);
+/** Website / database uptime from Cortana's 1-minute checks (bot_status/monitors): % of checks that passed per UK day. */
+const monDays = (m) => Array.from({ length: 30 }, (_, i) => {
+  const d = m?.days?.[new Date(Date.now() - (29 - i) * 864e5).toLocaleDateString("en-CA", { timeZone: "Europe/London" })];
+  return d && d.n ? Math.round((d.ok / d.n) * 1000) / 10 : null;
+});
 function monthAtt(offset) {
   const n = new Date();
   const d = new Date(n.getFullYear(), n.getMonth() - offset, 1);
@@ -138,7 +143,7 @@ const WID = {
     const up = uptimeDays(c);
     const pct = (a) => { const v = a.filter((x) => x != null); return v.length ? (v.reduce((x, y) => x + y, 0) / v.length).toFixed(2) + "%" : "—"; };
     return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", cortOk, cortSub)}${tile("DISCORD API", c.online ? c.pingMs < 1000 : null, c.online ? "CHECKED BY CORTANA" : "NEEDS CORTANA")}${tile("CLOUDINARY", p.cdn != null ? true : p.cdnErr ? false : null, p.cdn != null ? `IMAGES · ${p.cdn} MS` : p.cdnErr ? "CAN'T REACH IMAGES" : "CHECKING…")}${tile("505TH HUB", null, "NOT BUILT YET")}</div>
-      <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${[["WEBSITE", NO_HISTORY], ["DATABASE", NO_HISTORY], ["CORTANA", up], ["505TH HUB", NO_HISTORY]].map(([n, a]) => `<div class="d2-hbar"><span>${n}</span>${ub(a)}<b>${pct(a)}</b></div>`).join("")}<small class="dim">CORTANA UPTIME IS RECORDED EVERY 30 SECONDS. WEBSITE / HUB HISTORY COMES LATER.</small>`;
+      <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${[["WEBSITE", monDays(D.mon?.web)], ["DATABASE", monDays(D.mon?.db)], ["CORTANA", up], ["505TH HUB", NO_HISTORY]].map(([n, a]) => `<div class="d2-hbar"><span>${n}</span>${ub(a)}<b>${pct(a)}</b></div>`).join("")}<small class="dim">CORTANA CHECKS THE WEBSITE AND DATABASE EVERY MINUTE AND POSTS AN ALERT IN DISCORD IF ONE IS DOWN FOR 3 MINUTES. HUB: NOT BUILT YET.</small>`;
   } },
   cortana: { t: "◈ CORTANA HEALTH", d: "Bot status, ping, memory, queued jobs, errors", ico: "◈", g: "STATUS", acc: "bot", accL: "BOT SERVER", b: () => {
     const c = D.cortana;
@@ -183,7 +188,13 @@ const WID = {
     const ts = D.tasks.filter((x) => x.assignee === uid && x.status !== "done");
     return ts.length ? ts.slice(0, 6).map((x) => `<div class="d2-todo ${x.priority === "high" ? "am" : ""}"><span>${esc(x.title)}</span><span class="dim">${x.due ? "DUE " + ukDay(x.due) : "NO DATE"}</span></div>`).join("") : empty("NO OPEN TASKS FOR YOU.");
   } },
-  tickets: { t: "🎫 OPEN TICKETS", d: "Tickets waiting for a reply (Cortana v2)", ico: "🎫", g: "WORK", acc: "tk", accL: "TICKETS", b: () => empty("OPEN TICKETS SHOW HERE ONCE CORTANA v2 IS RUNNING.") },
+  tickets: { t: "🎫 OPEN TICKETS", d: "Tickets waiting for a reply (Cortana v2)", ico: "🎫", g: "WORK", acc: "tk", accL: "TICKETS", b: () => {
+    const open = (D.tickets || []).filter((t) => t.status === "open").sort((a, b) => String(a.openedAtISO).localeCompare(String(b.openedAtISO)));
+    const wait = open.filter((t) => t.waiting !== "member").length;
+    const ago = (iso) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 60 ? `${m} MIN` : m < 1440 ? `${Math.round(m / 60)} H` : `${Math.round(m / 1440)} D`; };
+    return (open.length ? open.slice(0, 6).map((t) => `<div class="d2-todo ${t.waiting !== "member" ? "am" : ""}"><span>#${String(t.number).padStart(4, "0")} · ${esc(t.typeEmoji || "")} ${esc(t.openerName || "")}</span><span class="dim">${t.waiting !== "member" ? "NEEDS REPLY" : "WAITING ON MEMBER"} · ${ago(t.lastActivityISO || t.openedAtISO)}</span></div>`).join("") : empty("NO OPEN TICKETS."))
+      + `<div class="d2-foot"><small class="dim">${open.length} OPEN · ${wait} NEED A REPLY</small><button class="lnk" data-go="panel-tickets">OPEN TICKETS ▸</button></div>`;
+  } },
   strength: { t: "▤ ROSTER STRENGTH", d: "Active members by platoon", ico: "▤", g: "UNIT", acc: "roster", accL: "ROSTER", b: () => {
     const c = {};
     active().forEach((u) => { const p = u.platoon || "Unassigned"; c[p] = (c[p] || 0) + 1; });
@@ -303,6 +314,8 @@ async function load() {
     safe(getDocs(collection(db, "presence_sessions")), (s) => (D.pres = s.docs.map((d) => d.data()))),
     safe(getDoc(doc(db, "unit_config", "status")), (s) => (D.status = s.data() || {})),
     safe(cortanaStatus(), (c) => (D.cortana = c)),
+    safe(getDoc(doc(db, "bot_status", "monitors")), (s) => (D.mon = s.data() || null)),
+    acc.tk ? safe(getDocs(collection(db, "tickets")), (s) => (D.tickets = s.docs.map((d) => { const x = d.data(); return { number: x.number, status: x.status, typeEmoji: x.typeEmoji, openerName: x.openerName, waiting: x.waiting, openedAtISO: x.openedAtISO, lastActivityISO: x.lastActivityISO }; }))) : null,
   ]);
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
   D.ping.db = await timed(() => getDoc(doc(db, "unit_config", "status"))).catch(() => ((D.ping.dbErr = 1), null));

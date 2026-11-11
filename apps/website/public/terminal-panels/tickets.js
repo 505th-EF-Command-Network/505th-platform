@@ -10,6 +10,7 @@ import { addCss, ask, audit, db, esc, memberName, mountPanel, notify, onReady } 
 import { ago, chanOptions, cortanaJob, loadDiscord, roleOptions, ukTime } from "./discord-common.js";
 
 let tickets = [], types = [], chans = [], roles = [], users = [], cases = [], acc = {}, root = null;
+let who = "";
 let filter = "open", typeFilter = "", sel = null, draft = "", note = false, editType = null, busy = false, subs = [];
 const pad = (n) => String(n).padStart(4, "0");
 const typeOf = (id) => types.find((t) => t.id === id);
@@ -34,11 +35,22 @@ function chatHtml() {
   const t = tickets.find((x) => x.id === sel);
   if (!t) return '<div class="tk-card empty">Pick a ticket on the left.</div>';
   const open = t.status === "open";
-  return `<div class="tk-card"><div class="tk-hd"><div><b>#${pad(t.number)} · ${esc(t.typeName.toUpperCase())}</b><small>OPENED ${esc(ukTime(t.openedAtISO))} · ${esc(t.openerName)}${t.claimedByName ? " · CLAIMED BY " + esc(t.claimedByName) : ""}${open ? "" : " · CLOSED " + esc(ukTime(t.closedAtISO))}</small></div>
-    ${open ? `<div style="display:flex;gap:6px">${t.claimedByName ? "" : '<button class="b" data-x="claim">✋ CLAIM</button>'}<button class="b red" data-x="close">🔒 CLOSE</button></div>` : ""}</div>
+  return `<div class="tk-card"><div class="tk-hd"><div><b>#${pad(t.number)} · ${esc(t.typeName.toUpperCase())}</b><small>OPENED ${esc(ukTime(t.openedAtISO))} · ${esc(t.openerName)}${t.claimedByName ? " · CLAIMED BY " + esc(t.claimedByName) : ""}${open ? "" : " · CLOSED " + esc(ukTime(t.closedAtISO)) + (t.closedByName ? " BY " + esc(t.closedByName) : "") + (t.closeReason ? " — “" + esc(t.closeReason) + "”" : "")}${t.channelDeleted ? " · CHANNEL DELETED" : ""}</small></div>
+    ${acc.tk ? `<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${open ? `${t.claimedByName ? "" : '<button class="b" data-x="claim">✋ CLAIM</button>'}<button class="b red" data-x="close">🔒 CLOSE</button>`
+      : `<button class="b" data-x="transcript">📑 TRANSCRIPT</button><button class="b" data-x="download">⤓ HTML</button>${t.channelDeleted ? "" : '<button class="b" data-x="reopen">🔓 REOPEN</button><button class="b red" data-x="delete">⛔ DELETE CHANNEL</button>'}`}</div>` : ""}</div>
     <div class="tk-chat" id="tkChat">${(t.transcript || []).map((m) => `<div class="msg ${m.staff ? "staff" : ""} ${m.note ? "note" : ""}"><i>${esc((m.who || "?").slice(0, 2).toUpperCase())}</i><div class="w"><b>${esc(m.who)}</b><small>${esc(ukTime(m.atISO, { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" }))}${m.note ? " · STAFF NOTE — ONLY STAFF SEE THIS" : ""}</small><div>${esc(m.text).replace(/\n/g, "<br>")}</div>${(m.images || []).map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Attached image" loading="lazy"></a>`).join("")}</div></div>`).join("")}</div>
     ${open && acc.tk ? `<textarea class="fld" id="tkReply" rows="3" maxlength="1900" placeholder="${note ? "Staff note — only staff see it" : `Reply to ${esc(t.openerName)}… (sent into the Discord ticket as Cortana, signed with your name)`}">${esc(draft)}</textarea>
       <div class="tk-ft"><button class="ch ${note ? "on" : ""}" data-x="note" aria-pressed="${note}">🔒 STAFF NOTE</button><button class="b gold" data-x="send" ${busy ? "disabled" : ""}>${busy ? "SENDING…" : note ? "SAVE NOTE" : "SEND REPLY"}</button></div>` : ""}</div>`;
+}
+/** Same HTML transcript Cortana posts, made in the browser (works even after the channel is deleted). */
+function downloadHtml(t) {
+  if (!t) return;
+  const d = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
+  const rows = (t.transcript || []).map((l) => `<div class="m${l.note ? " n" : ""}"><div class="w"><b>${esc(l.who)}</b>${l.staff ? "<em>STAFF</em>" : ""}${l.note ? '<em class="nt">STAFF NOTE</em>' : ""}<small>${esc(d(l.atISO))}</small></div><div>${esc(l.text).replace(/\n/g, "<br>")}${(l.images || []).map((u) => `<br><a href="${esc(u)}">📎 image</a>`).join("")}</div></div>`).join("");
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Ticket #${pad(t.number)}</title><style>body{margin:0;background:#0a0e12;color:#dbe7ee;font:14px/1.5 "Segoe UI",Arial,sans-serif}.w0{max-width:860px;margin:0 auto;padding:24px}h1{color:#00d9ff;font-size:20px;margin:0}.meta{color:#8aa0ab;font-size:13px;margin:6px 0 18px}.m{border-top:1px solid #1d2a31;padding:10px 0}.m.n{background:#1a1505}.w b{color:#fff}.w em{font-style:normal;font-size:10px;letter-spacing:1px;padding:1px 6px;margin-left:6px;border:1px solid #00d9ff;color:#00d9ff}.w em.nt{border-color:#f59e0b;color:#f59e0b}.w small{color:#6f8a96;margin-left:8px;font-size:11px}a{color:#00a8fc}</style></head><body><div class="w0"><h1>505th · Ticket #${pad(t.number)} · ${esc(t.typeName)}</h1><div class="meta">Opened by <b>${esc(t.openerName)}</b> · ${esc(d(t.openedAtISO))}${t.closedAtISO ? ` · closed ${esc(d(t.closedAtISO))} by ${esc(t.closedByName || "")} — “${esc(t.closeReason || "")}”` : ""}</div>${rows}</div></body></html>`;
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob([html], { type: "text/html" })), download: `transcript-ticket-${pad(t.number)}.html` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 function sideHtml() {
   const t = tickets.find((x) => x.id === sel);
@@ -50,7 +62,9 @@ function sideHtml() {
     <div class="row"><span>WEBSITE</span>${u ? `<span>${esc(memberName(u))}</span>` : '<span class="pill wr">NOT LINKED</span>'}</div>
 <div class="row"><span>PAST TICKETS</span><span>${past}</span></div><div class="row"><span>ACTIVE WARNINGS</span><span>${warns}</span></div>
     ${t.status === "open" && acc.tk ? `<b class="tk-h" style="margin-top:14px">MOVE TO</b><select class="fld" data-x="move"><option value="">— another type —</option>${types.filter((x) => x.id !== t.typeId).map((x) => `<option value="${x.id}">${esc(x.emoji || "")} ${esc(x.name)}</option>`).join("")}</select>` : ""}
-    <p class="tk-sub" style="margin-top:12px">CLOSING LOCKS THE DISCORD CHANNEL · IT'S DELETED AFTER 24 H · THE CHAT STAYS HERE</p></div>`;
+    ${!t.channelDeleted && acc.tk ? `<b class="tk-h" style="margin-top:14px">ADD / REMOVE PERSON</b><select class="fld" data-x="who" aria-label="Member"><option value="">— pick a member —</option>${users.filter((x) => /^\d{17,20}$/.test(String(x.discordId || "")) && x.discordId !== t.openerId).map((x) => `<option value="${x.discordId}" ${x.discordId === who ? "selected" : ""}>${esc(memberName(x))}</option>`).join("")}</select>
+      <div style="display:flex;gap:6px;margin-top:6px"><button class="b" data-x="padd" ${who ? "" : "disabled"}>➕ ADD</button><button class="b" data-x="prem" ${who ? "" : "disabled"}>➖ REMOVE</button></div>` : ""}
+    <p class="tk-sub" style="margin-top:12px">CLOSING REMOVES THE MEMBER AND RENAMES IT CLOSED-${pad(t.number)} · STAFF THEN USE TRANSCRIPT / REOPEN / DELETE · THE CHAT STAYS HERE</p></div>`;
 }
 function typesHtml() {
   const canTypes = acc.tkrep || acc.set;
@@ -115,6 +129,7 @@ function wire() {
   root.addEventListener("change", async (e) => {
     const t = e.target;
     if (t.dataset.t && editType) { editType.v[t.dataset.t] = t.value; if (/^(btn|emoji|name)/.test(t.dataset.t)) draw(); return; }
+    if (t.dataset.x === "who") { who = t.value; return draw(); }
     if (t.dataset.x === "troleadd" && t.value) { editType.v.staffRoleIds.push(t.value); return draw(); }
     if (t.dataset.x === "move" && t.value) {
       const to = typeOf(t.value);
@@ -141,7 +156,21 @@ function wire() {
       case "claim": return run("ticket.claim", { ticketId: sel }, "✓ CLAIMED");
       case "close": {
         const t = tickets.find((x) => x.id === sel);
-        if (await ask({ kind: "warn", title: `CLOSE #${pad(t.number)}?`, body: "The Discord channel is locked and deleted after 24 hours. The chat stays here.", go: "CLOSE TICKET", cancel: "KEEP OPEN" })) await run("ticket.close", { ticketId: sel }, "✓ TICKET CLOSED");
+        const reason = await ask({ kind: "reason", title: `CLOSE #${pad(t.number)}?`, body: "The member loses access and the channel becomes closed-" + pad(t.number) + ". Staff then get Transcript / Reopen / Delete.", placeholder: "Reason (optional)", optional: true, go: "CLOSE TICKET", cancel: "KEEP OPEN" });
+        if (reason !== null && reason !== false) await run("ticket.close", { ticketId: sel, reason: typeof reason === "string" ? reason : "" }, "✓ TICKET CLOSED");
+        return;
+      }
+      case "reopen": return run("ticket.reopen", { ticketId: sel }, "✓ REOPENED");
+      case "transcript": return run("ticket.transcript", { ticketId: sel }, "✓ TRANSCRIPT POSTED");
+      case "download": return downloadHtml(tickets.find((x) => x.id === sel));
+      case "delete": {
+        const t = tickets.find((x) => x.id === sel);
+        if (await ask({ kind: "danger", title: `DELETE #closed-${pad(t.number)}?`, body: "Cortana saves the transcript first, then deletes the Discord channel. The record and chat stay here.", go: "DELETE CHANNEL", cancel: "KEEP" })) await run("ticket.delete", { ticketId: sel }, "✓ CHANNEL DELETED");
+        return;
+      }
+      case "padd": case "prem": {
+        if (!who) return;
+        if (await run(d.x === "padd" ? "ticket.add" : "ticket.remove", { ticketId: sel, userId: who }, d.x === "padd" ? "✓ ADDED" : "✓ REMOVED")) { who = ""; draw(); }
         return;
       }
       case "tnew": editType = { id: null, v: blankType() }; return draw();

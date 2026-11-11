@@ -8,6 +8,7 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { checkGuilds, isAuthorisedGuild } from "./guard.ts";
 import { markOffline, noteError, startHeartbeat } from "./health.ts";
+import { startMonitors } from "./monitors.ts";
 import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
 import { onDbChange, startLive } from "./live.ts";
@@ -16,7 +17,7 @@ import { onMemberUpdate, onUserDocChange, startRoleSync } from "./rolesync.ts";
 import { startMessages } from "./messages.ts";
 import { startQuickUpload } from "./quick-upload.ts";
 import { handleInfoButton, handleInfoMenu, startInfoPosts } from "./info-posts.ts";
-import { handleTicketButton, onTicketMessage, startTickets } from "./tickets.ts";
+import { handleTicketButton, handleTicketModal, onTicketMessage, startTickets } from "./tickets.ts";
 import { startModeration } from "./moderation.ts";
 import { startModlist } from "./modlist.ts";
 import { startLegacyImport } from "./legacy-import.ts";
@@ -51,6 +52,7 @@ client.once(Events.ClientReady, async (ready) => {
   checkGuilds(ready);
   await ready.guilds.cache.get(env.AUTHORISED_GUILD_ID)?.members.fetch().catch(() => {});
   heartbeat = startHeartbeat(ready);
+  startMonitors(ready);
   await syncGuild(ready).catch((e) => log.error("First sync failed", e));
   await registerCommands().catch((e) => log.error("Command registration failed", e));
   registerJob("sync.now", async (_j, c) => (await syncGuild(c), { at: new Date().toISOString() })); // Cortana Setup "RE-SYNC"
@@ -119,7 +121,7 @@ client.on(Events.InteractionCreate, async (i) => {
     return;
   }
   if (i.isModalSubmit() && isAuthorisedGuild(i.guildId)) {
-    try { await handleCommandModal(i); } catch (e) { noteError(); log.error("Form failed", e); if (!i.replied) await i.reply({ content: "⚠️ Something went wrong — it has been logged.", flags: MessageFlags.Ephemeral }).catch(() => {}); }
+    try { (await handleTicketModal(i)) || (await handleCommandModal(i)); } catch (e) { noteError(); log.error("Form failed", e); if (!i.replied) await i.reply({ content: "⚠️ Something went wrong — it has been logged.", flags: MessageFlags.Ephemeral }).catch(() => {}); }
     return;
   }
   if (!i.isChatInputCommand()) return;

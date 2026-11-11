@@ -42,7 +42,9 @@ function draw() {
   if (!acc.net) { root.innerHTML = '<div class="panel-title">NETWORK STATUS</div><div class="empty">You don\'t have Network Status access.</div>'; return; }
   const s = state();
   const L = { ok: ["● ALL SYSTEMS OPERATIONAL", "#22e07a"], slow: ["▲ DEGRADED", "#f59e0b"], down: ["✕ OUTAGE", "#ff4d4d"] }[s.level];
-  document.title = s.level === "ok" ? baseTitle : `${s.level === "down" ? "⚠ OUTAGE" : "▲ DEGRADED"} · ${baseTitle}`;
+  // Tab title warning only while this page is open, and only once Cortana's status has loaded.
+  const shown = !document.getElementById("panel-network")?.classList.contains("hidden");
+  document.title = !shown || !bs.lastHeartbeatISO || s.level === "ok" ? baseTitle : `${s.level === "down" ? "⚠ OUTAGE" : "▲ DEGRADED"} · ${baseTitle}`;
   const hours = Array.from({ length: 24 }, (_, i) => new Date(Date.now() - (23 - i) * 3600_000).toISOString().slice(0, 13)).map((h) => bs.pingByHour?.[h] ?? 0);
   const days = Object.values(bs.uptimeMinutes || {});
   const uptime30 = days.length ? Math.min(100, (days.reduce((a, b) => a + b, 0) / (days.length * 1440)) * 100).toFixed(2) : null;
@@ -137,6 +139,9 @@ onReady(() => {
   addCss("net-v2", CSS);
   onAccess((me) => { acc = me?.access || {}; if (root) draw(); });
   root = mountPanel("panel-network", "netV2", start);
+  // Leaving the page puts the normal tab title back.
+  const pn = document.getElementById("panel-network");
+  if (pn) new MutationObserver(() => { if (pn.classList.contains("hidden")) document.title = baseTitle; }).observe(pn, { attributes: true, attributeFilter: ["class"] });
   if (root) {
     root.addEventListener("click", (e) => { const b = e.target.closest("[data-x]"); if (!b) return; if (b.dataset.x === "check") return check(); control(b.dataset.x); });
     setInterval(() => { if (root.closest(".panel") && !root.closest(".panel").classList.contains("hidden")) draw(); }, 5000); // keep "x s ago" + offline detection fresh

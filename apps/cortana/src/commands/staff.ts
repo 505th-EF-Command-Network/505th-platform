@@ -15,6 +15,7 @@ import { allowed, websiteAccess } from "../access.ts";
 import { doAction, type ModBy } from "../moderation.ts";
 import { parsePreset, postModlist, type Mod } from "../modlist.ts";
 import { markOffline } from "../health.ts";
+import { addPerson, close as closeTicket, isTicketStaff, ticketIdForChannel } from "../tickets.ts";
 import { log } from "../log.ts";
 import { LOGO, auditLog, cortanaSettings } from "../util.ts";
 
@@ -223,6 +224,7 @@ const help: Cmd = {
     const site = "https://www.505expeditionaryforce.com";
     const fields = [
       { name: "🌐 Everyone", value: "`/modlist` current modlist + preset file\n`/coinflip` heads or tails\n`/help` this list" },
+      { name: "🎫 Tickets", value: "`/ticket close` close your ticket" + (mw || sd || bt || st ? "\n`/ticket add` `/ticket remove` give / take access (staff)" : "") },
       mw || mk ? { name: "🛡 Moderation", value: [mw ? "`/warn` warn a member (case + DM)\n`/timeout` time someone out\n`/purge` delete recent messages" : "", mk ? "`/kick` `/ban` (asks you to confirm)" : ""].filter(Boolean).join("\n") } : null,
       sd || ev ? { name: "📣 Posting", value: [sd ? "`/announce` 505th announcement (a form opens)\n`/say` Cortana says something" : "", ev ? "`/poll` start a Discord poll" : ""].filter(Boolean).join("\n") } : null,
       bt || st ? { name: "⚙ Developers / Command", value: [bt ? "`/auxmod` Aux Mod update (Added / Changed / Fixed / Removed)\n`/restart` restart Cortana (confirm first)" : "", st ? "`/modlist` with a preset, or add / remove mods" : ""].filter(Boolean).join("\n") } : null,
@@ -239,6 +241,34 @@ const help: Cmd = {
     await i.reply({ embeds: [e], components: [row], ...eph });
   },
 };
+const ticket: Cmd = {
+  key: null, // checked per sub-command: staff of that ticket, or the opener for close
+  data: new SlashCommandBuilder().setName("ticket").setDescription("Manage this ticket (use it inside a ticket channel).")
+    .addSubcommand((c) => c.setName("add").setDescription("Give someone access to this ticket (staff)").addUserOption((o) => o.setName("user").setDescription("Who to add").setRequired(true)))
+    .addSubcommand((c) => c.setName("remove").setDescription("Take someone's access away (staff)").addUserOption((o) => o.setName("user").setDescription("Who to remove").setRequired(true)))
+    .addSubcommand((c) => c.setName("close").setDescription("Close this ticket").addStringOption((o) => o.setName("reason").setDescription("Why it's being closed").setMaxLength(500))),
+  async run(i) {
+    const id = await ticketIdForChannel(i.channelId);
+    if (!id) return void (await i.reply({ content: "Use this inside a ticket channel.", ...eph }));
+    const m = i.member as GuildMember;
+    const staff = await isTicketStaff(m, id);
+    const sub = i.options.getSubcommand();
+    if (sub === "close") {
+      const tk = (await TerminalDoc.findById(`tickets/${id}`, { "data.openerId": 1, "data.status": 1 }).lean())?.data as { openerId?: string; status?: string } | undefined;
+      if (!staff && tk?.openerId !== i.user.id) return void (await i.reply({ content: "⛔ Only staff or the person who opened it can close this.", ...eph }));
+      if (tk?.status !== "open") return void (await i.reply({ content: "This ticket is already closed.", ...eph }));
+      await i.reply({ content: "🔒 Closing…", ...eph });
+      await closeTicket(i.client, id, m.displayName, i.options.getString("reason") ?? "");
+      return;
+    }
+    if (!staff) return void (await i.reply({ content: "⛔ Only staff can add or remove people.", ...eph }));
+    const u = i.options.getUser("user", true);
+    if (u.bot) return void (await i.reply({ content: "Pick a person, not a bot.", ...eph }));
+    await i.deferReply(eph);
+    try { await addPerson(i.client, id, u.id, m.displayName, sub === "add"); await i.editReply(`✅ ${sub === "add" ? "Added" : "Removed"} <@${u.id}>.`); }
+    catch (e) { await i.editReply(`⚠️ ${(e as Error).message}`); }
+  },
+};
 const coinflip: Cmd = {
   key: null,
   data: new SlashCommandBuilder().setName("coinflip").setDescription("Heads or tails 🪙"),
@@ -247,7 +277,7 @@ const coinflip: Cmd = {
   },
 };
 
-export const staffCommands: Cmd[] = [warn, timeout, kickOrBan("kick"), kickOrBan("ban"), purge, announce, say, poll, auxmod, modlist, help, coinflip, restart];
+export const staffCommands: Cmd[] = [warn, timeout, kickOrBan("kick"), kickOrBan("ban"), purge, announce, say, poll, auxmod, modlist, ticket, help, coinflip, restart];
 
 /* ───────── follow-ups: confirm buttons + forms ───────── */
 export async function handleCommandButton(i: ButtonInteraction): Promise<boolean> {
