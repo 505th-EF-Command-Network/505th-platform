@@ -2,57 +2,83 @@
 
 The digital command network for the **505th Expeditionary Force**, a UNSC / Halo-themed Arma 3 military simulation unit.
 
-One monorepo for three connected systems that share a single database and sign-in:
+One monorepo for the systems that share one database (MongoDB Atlas) and one sign-in (Discord):
 
-| System | What it is |
-|---|---|
-| **505th Website** | Public site + member portal + Command Terminal (admin). Looks exactly like [505expeditionaryforce.com](https://www.505expeditionaryforce.com). |
-| **505th Hub** | Windows desktop app for members and staff — same Command Terminal tools, quicker to reach. |
-| **Cortana v2.0** | Discord bot — events, sign-ups, role sync, logging, announcements. |
+| System | What it is | Status |
+|---|---|---|
+| **505th Website** | Public site, member profile and the **Command Terminal** (staff admin). | ✅ Live on Vercel — www.505expeditionaryforce.com |
+| **Cortana v2** | Discord bot — events and sign-ups, tickets, moderation, role sync, info posts, logs, uptime monitor. | ✅ Live on the home server (PM2: `Cortana_V2`) |
+| **505th Hub** | Windows desktop app — the same Terminal tools, plus tray and desktop alerts. | ⏳ Planned (Phase 6) |
 
-## Tech stack
-
-- **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS
-- **Backend:** Node.js, TypeScript, Zod validation
-- **Database:** MongoDB Atlas (migrated from Firebase)
-- **Sign-in:** Discord OAuth2 with role-based permissions
-- **Discord:** discord.js (TypeScript)
-- **Hosting:** Vercel
-
-## Repository layout (planned)
+## Folders
 
 ```
 apps/
-  website/     Next.js website + Command Terminal
-  hub/         505th Hub desktop app
-  cortana/     Cortana v2.0 Discord bot
+  website/            Next.js website + Command Terminal
+    app/              pages and API routes
+    components/       React components
+    lib/              server code (data, access rules, auth)
+    legacy/           the original Command Terminal page (being replaced page by page)
+    public/
+      terminal-panels/  the new Terminal pages (one file per page)
+      terminal-shim/    makes the old Terminal code talk to MongoDB instead of Firebase
+    styles/           per-page stylesheets
+  cortana/            Cortana v2 Discord bot (TypeScript, discord.js)
+  hub/                505th Hub — placeholder
 packages/
-  db/          MongoDB models + Firebase migration scripts
-  auth/        Discord OAuth2 + permissions
-  ui/          Shared Command Terminal components
+  db/                 MongoDB models shared by the website and Cortana
+  auth/               placeholder (shared access rules will move here)
+  ui/                 placeholder
+tools/
+  migrate-firebase/   one-off Firebase → MongoDB migration (kept as a record)
+scripts/
+  dev-all.mjs         run the website and Cortana together locally
 ```
+
+## Run it locally
+
+Requires Node 20+.
+
+```bash
+npm install                 # once, from the repo root
+npm run dev:all             # website (http://localhost:3000) + Cortana
+```
+
+Secrets live only in `.env.local` files (never committed):
+- `apps/website/.env.local` — see `.env.example` for the key names
+- `apps/cortana/.env.local` — see `apps/cortana/.env.example`
+
+Optional Cortana switch: `PRESENCE_INTENT=true` — only after Presence Intent is ON in the Discord Developer Portal (staff Discord status on the Dashboard).
+
+## Deploying
+
+- **Website:** push to GitHub → Vercel builds and deploys automatically.
+- **Cortana:** on the home server, pull with GitHub Desktop, then `pm2 restart Cortana_V2`.
+
+## Command Terminal access
+
+Every page has an access key (e.g. `ev` = Events, `modw` = Warn / Timeout).
+- **Role defaults** — Officer Management → *Role Access* (Developers / Command edit).
+- **Per person** — Officer Management → *Members* (wins over the role).
+- The Commander always has everything; Bot Server, Settings and Overall Status stay Developer + Commander only.
+
+The same rules are checked by the website server and by Cortana.
+
+## Rules for this repo
+
+- Never commit secrets, member data or backups (`.gitignore` covers `.env*`, `backups/`, `*.ndjson`).
+- Keep the public website's look the same as the original 505th site.
+- New Terminal pages go in `apps/website/public/terminal-panels/`, one file per page.
 
 ## Roadmap
 
-- [x] **Phase 0** — Firebase backup and audit (verified 2026-11-08: 785 records, 32 accounts, 25/25 active members linked to a Discord ID)
-- [ ] **Phase 1** — MongoDB Atlas design and migration testing
-- [ ] **Phase 2** — Repository structure and shared services
-- [ ] **Phase 3** — Website rebuild (exact visual match)
-- [ ] **Phase 4** — Discord OAuth2 sign-in
-- [ ] **Phase 5** — Cortana v2.0
-- [ ] **Phase 6** — 505th Hub
-- [ ] **Phase 7** — Integration, testing and security review
-- [ ] **Phase 8** — Production migration
-- [ ] **Phase 9** — Mobile apps and advanced automation
-
-The current Firebase website stays live until the new platform is tested and approved.
-
-## Security
-
-- Never commit `.env` files, Discord bot tokens, database connection strings or Firebase keys.
-- Secrets live in Vercel environment variables only.
-- Member data and backups are never stored in this repository.
-
-## Credits
-
-Built by **REV Creative Developer** for the 505th Expeditionary Force.
+- [x] Phase 0 — Firebase backup and audit
+- [x] Phase 1 — MongoDB Atlas migration
+- [x] Phase 2 — Monorepo and shared database models
+- [x] Phase 3 — Website rebuild (live)
+- [x] Phase 4 — Discord sign-in and access control
+- [x] Phase 5 — Cortana v2 (live)
+- [ ] Phase 6 — 505th Hub desktop app
+- [ ] Phase 7 — Replace the rest of the original Terminal page; move shared access rules to `packages/auth`
+- [ ] Phase 8 — Firebase switched off (after sign-off)
+- [ ] Phase 9 — Mobile apps

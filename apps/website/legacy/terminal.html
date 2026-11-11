@@ -1478,29 +1478,7 @@
 
         let ucActiveTab = 'Battalion Command';
 
-        window.setUcTab = function(tabKey) {
-            ucActiveTab = tabKey;
-            document.querySelectorAll('.uc-tab').forEach(btn => {
-                const isActive = btn.dataset.ucTab === tabKey;
-                btn.style.background  = isActive ? 'rgba(0,217,255,.12)' : 'transparent';
-                btn.style.color       = isActive ? 'var(--accent)' : '#888';
-                btn.style.borderColor = isActive ? 'rgba(0,217,255,.35)' : 'rgba(0,217,255,.15)';
-            });
-            renderUnitCards();
-        };
 
-        async function loadUnitCards() {
-            const c = document.getElementById('unitCardsList');
-            if(c) c.innerHTML = '<div class="empty-state">LOADING...</div>';
-            // Ensure allUsers loaded for personnel dropdown
-            if(!allUsers.length) await loadAllUsers();
-            try {
-                const snap = await getDoc(doc(db,'settings','unit_cards'));
-                unitCardData = snap.exists() ? snap.data() : {};
-            window._ucSnapshot = JSON.parse(JSON.stringify(unitCardData)); // baseline for audit diff
-            } catch(e) { unitCardData = {}; }
-            renderUnitCards();
-        }
 
         function renderUnitCards() {
             const c = document.getElementById('unitCardsList');
@@ -1680,41 +1658,6 @@
             if(btn){ btn.textContent='SAVE CHANGES ●'; btn.style.borderColor='#FFD700'; btn.style.color='#FFD700'; }
         };
 
-        window.saveAllCards = async function() {
-            const btn = document.getElementById('ucSaveBtn');
-            if(btn) { btn.disabled=true; btn.textContent='SAVING...'; }
-            try {
-                await setDoc(doc(db,'settings','unit_cards'), unitCardData);
-                // Diff unitCardData vs saved snapshot to log exactly what changed
-                const _changes = [];
-                if(window._ucSnapshot) {
-                    for(const key of Object.keys(unitCardData||{})) {
-                        const newVal = JSON.stringify(unitCardData[key]||{});
-                        const oldVal = JSON.stringify(window._ucSnapshot[key]||{});
-                        if(newVal !== oldVal) {
-                            const parts = key.split('__');
-                            const page = parts[0]||key;
-                            const slot = parts[1]||'';
-                            const nd = unitCardData[key]||{};
-                            const od = window._ucSnapshot[key]||{};
-                            if(nd.name !== od.name) _changes.push(`${page}/${slot}: ${od.name||'empty'} → ${nd.name||'empty'}`);
-                            else if(nd.status !== od.status) _changes.push(`${page}/${slot}: status ${od.status||'?'} → ${nd.status||'?'}`);
-                            else _changes.push(`${page}/${slot} updated`);
-                        }
-                    }
-                }
-                const _auditDetail = _changes.length ? _changes.join(' | ') : 'Unit cards saved';
-                writeAuditLog('public_comms','UNIT CARDS SAVED',_auditDetail);
-                window._ucSnapshot = JSON.parse(JSON.stringify(unitCardData||{}));
-                notify('UNIT CARDS SAVED — CAREER PATH PAGES WILL SHOW UPDATED DATA ON REFRESH');
-                if(btn) { btn.textContent='SAVED ✓'; btn.style.borderColor='var(--success)'; btn.style.color='var(--success)'; }
-                setTimeout(()=>{ if(btn){btn.textContent='SAVE CHANGES';btn.style.borderColor='';btn.style.color='';btn.disabled=false;} }, 3000);
-                renderUnitCards();
-            } catch(e) {
-                notify('SAVE FAILED: '+e.message, 1);
-                if(btn){btn.textContent='SAVE FAILED';btn.disabled=false;}
-            }
-        };
         // ── END UNIT CARDS ────────────────────────────────────────────────────
 
 
@@ -1738,13 +1681,10 @@
             if (id==='panel-dashboard')   { loadDashboard(); dashPresJoin(); }
             if (id==='panel-gallery')     loadMedia('image');
             if (id==='panel-videos')      loadMedia('video');
-            if (id==='panel-comms-library') loadCommsLibrary();
             if (id==='panel-aar')         loadAARPanel();
             if (id==='panel-roster')      loadRosterPanel();
             if (id==='panel-attendance')  loadAttendancePanel();
-            if (id==='panel-unitcards')   loadUnitCards();
             if (id==='panel-webhooks')    loadWebhooksPanel();
-            if (id==='panel-recruit-source') loadRecruitSourcePanel();
             if (id==='panel-discord-tracking') loadDiscordTracking();
             if (id.startsWith('panel-page-')) {
                 // Resolve actual pageId from the container's data-page attribute
@@ -1754,7 +1694,6 @@
                 loadPageContent(resolvedPageId);
             }
             if (id==='panel-promote') loadPromotePanel();
-            if (id==='panel-att-history')      loadAttendanceHistory();
             if (id==='panel-audit-manpower')  loadAuditLog('manpower');
             if (id==='panel-audit-battalion') loadAuditLog('battalion_ops');
             if (id==='panel-audit-comms')     loadAuditLog('public_comms');
@@ -2085,94 +2024,8 @@
             if (btn) { btn.disabled = false; btn.textContent = '\u25ba BACKFILL ALL MISSING MONTHS'; }
         };
 
-        window.loadAttendanceHistory = async function(selectedMonth) {
-            const c = document.getElementById('attHistoryContent');
-            if (!c) return;
-            c.innerHTML = '<div class="empty-state">LOADING...</div>';
-
-            try {
-                // Load available months
-                const allSnaps = await getDocs(collection(db,'attendance_history'));
-                const months = [];
-                allSnaps.forEach(d => months.push(d.id));
-                months.sort((a,b) => b.localeCompare(a));
-
-                if (!months.length) { c.innerHTML = '<div class="empty-state">NO HISTORY YET — HISTORY IS SAVED ON MONTH-END RESET</div>'; return; }
-
-                const activeMonth = selectedMonth || months[0];
-
-                // Month picker
-                const pickerHtml = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-                    <div style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent)">SELECT MONTH:</div>
-                    <select onchange="loadAttendanceHistory(this.value)" style="background:rgba(0,0,0,.6);border:1px solid rgba(0,217,255,.3);color:#e0e0e0;font-family:Rajdhani,sans-serif;font-size:12px;font-weight:700;padding:6px 12px;letter-spacing:1px;cursor:pointer;outline:none">
-                        ${months.map(m => `<option value="${m}" ${m===activeMonth?'selected':''}>${m}</option>`).join('')}
-                    </select>
-                </div>`;
-
-                // Load selected month data
-                const snap = await getDoc(doc(db,'attendance_history',activeMonth));
-                if (!snap.exists()) { c.innerHTML = pickerHtml + '<div class="empty-state">NO DATA FOR THIS MONTH</div>'; return; }
-
-                const data = snap.data();
-                const members = data.members || [];
-                const totalOps = data.totalOps || 0;
-                const attended100 = members.filter(m=>m.rate===100).length;
-                const attended0   = members.filter(m=>m.attended===0).length;
-                const avgRate     = members.length ? Math.round(members.reduce((s,m)=>s+m.rate,0)/members.length) : 0;
-                const unitColor   = avgRate>=75?'#7FFF7F':avgRate>=50?'#FFD700':'#FF4444';
-
-                const summaryHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px">
-                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:12px;text-align:center">
-                        <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:var(--accent)">${totalOps}</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">TOTAL OPS</div>
-                    </div>
-                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:12px;text-align:center">
-                        <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:${unitColor}">${avgRate}%</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">UNIT AVG RATE</div>
-                    </div>
-                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:12px;text-align:center">
-                        <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:#7FFF7F">${attended100}</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">FULL ATTEND</div>
-                    </div>
-                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:12px;text-align:center">
-                        <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:#FF4444">${attended0}</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">ZERO ATTEND</div>
-                    </div>
-                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(0,217,255,.15);padding:12px;text-align:center">
-                        <div style="font-family:Rajdhani,sans-serif;font-size:28px;font-weight:700;color:#e0e0e0">${members.length}</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:#888;margin-top:4px">TOTAL MEMBERS</div>
-                    </div>
-                </div>`;
-
-                // Member table
-                const tableHtml = `<div style="background:rgba(0,0,0,.3);border:1px solid rgba(0,217,255,.15)">
-                    <div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;gap:8px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(0,217,255,.05)">
-                        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700">NAME</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700">PLATOON</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;text-align:center">ATTENDED</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;text-align:center">MISSED</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;text-align:center">TOTAL OPS</div>
-                        <div style="font-size:9px;letter-spacing:2px;color:var(--accent);font-weight:700;text-align:center">RATE</div>
-                    </div>
-                    ${members.map(m => {
-                        const rateColor = m.rate===100?'#7FFF7F':m.rate>=50?'#FFD700':'#FF4444';
-                        const rowBg = m.attended===0?'rgba(255,68,68,.04)':m.rate<50?'rgba(255,212,0,.02)':'transparent';
-                        const zeroTag = m.attended===0?'<span style="font-size:8px;background:rgba(255,68,68,.2);color:#FF4444;padding:1px 5px;border-radius:2px;margin-left:6px;letter-spacing:1px">NO SHOW</span>':'';
-                        return `<div style="display:grid;grid-template-columns:1fr 140px 80px 80px 80px 80px;gap:8px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);background:${rowBg};align-items:center">
-                            <div style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;color:#e0e0e0">${esc(m.name)}${zeroTag}</div>
-                            <div style="font-size:10px;color:#aaa">${esc(m.platoon)}</div>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;color:#7FFF7F;text-align:center">${m.attended}</div>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;color:${m.missed>0?'#FF4444':'#555'};text-align:center">${m.missed}</div>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;color:#888;text-align:center">${m.eligible}</div>
-                            <div style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;color:${rateColor};text-align:center">${m.rate}%</div>
-                        </div>`;
-                    }).join('')}
-                </div>`;
-
-                c.innerHTML = pickerHtml + summaryHtml + tableHtml;
-
-            } catch(e) { c.innerHTML = `<div class="empty-state">ERROR: ${esc(e.message)}</div>`; }
-        };
+        // Replaced by /terminal-panels/attendance-history.js (v2). Kept as a no-op: the monthly reset still calls it.
+        window.loadAttendanceHistory = async function() {};
 
         // ── ATTENDANCE TRACKER ────────────────────────────────────────────────
         let attEventData = null;   // current event (local mirror)
@@ -3241,59 +3094,6 @@
         // ── RECRUITMENT SOURCE ──────────────────────────────────────────────
         const RECRUIT_SOURCES = ['Reddit','Steam Community','Disboard','Discord','Word of Mouth','Other'];
 
-        window.loadRecruitSourcePanel = async function() {
-            const c = document.getElementById('recruitSourceChart'); if(!c) return;
-            c.innerHTML = '<div class="empty-state">LOADING...</div>';
-            try {
-                const snap = await getDocs(collection(db,'users'));
-                const counts = {}; const recentBySource = {};
-                RECRUIT_SOURCES.forEach(s=>{ counts[s]=0; recentBySource[s]=[]; });
-                let total = 0;
-                snap.forEach(d=>{
-                    const u={id:d.id,...d.data()};
-                    if(u.status==='pending'||u.status==='denied') return;
-                    const src = u.recruitSource||'Unknown';
-                    counts[src] = (counts[src]||0)+1;
-                    if(!recentBySource[src]) recentBySource[src]=[];
-                    recentBySource[src].push(u);
-                    total++;
-                });
-                if(!total){ c.innerHTML='<div class="empty-state">NO SOURCE DATA YET — TAG SOURCES WHEN APPROVING RECRUITS</div>'; return; }
-                const max = Math.max(...Object.values(counts),1);
-                const sourceColors={'Reddit':'#FF4500','Steam Community':'#1b2838','Disboard':'#5865F2','Discord':'#5865F2','Word of Mouth':'#7FFF7F','Other':'#aaa','Unknown':'#555'};
-                c.innerHTML = Object.entries(counts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).map(([src,cnt])=>{
-                    const pct = Math.round((cnt/total)*100);
-                    const barPct = Math.round((cnt/max)*100);
-                    const col = sourceColors[src]||'var(--accent)';
-                    return `<div style="margin-bottom:14px">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-                            <span style="font-family:Rajdhani,sans-serif;font-size:14px;font-weight:700;color:#e0e0e0;letter-spacing:1px">${esc(src)}</span>
-                            <div style="display:flex;align-items:center;gap:10px">
-                                <span style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;color:${col}">${pct}%</span>
-                                <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#666">${cnt} recruit${cnt!==1?'s':''}</span>
-                            </div>
-                        </div>
-                        <div style="height:8px;background:rgba(255,255,255,.06);width:100%;position:relative">
-                            <div style="height:100%;width:${barPct}%;background:${col};transition:width .5s;opacity:.85"></div>
-                        </div>
-                    </div>`;
-                }).join('');
-
-                // Recent recruits table
-                const tbl = document.getElementById('recruitSourceTable');
-                if(tbl){
-                    const allWithSource = [];
-                    snap.forEach(d=>{ const u={id:d.id,...d.data()}; if(u.status!=='pending'&&u.status!=='denied'&&u.recruitSource) allWithSource.push(u); });
-                    allWithSource.sort((a,b)=>(b.joinedAt||'').localeCompare(a.joinedAt||''));
-                    tbl.innerHTML = allWithSource.slice(0,20).map(u=>`
-                        <div style="display:grid;grid-template-columns:1fr 160px 120px;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);align-items:center">
-                            <div style="font-family:Rajdhani,sans-serif;font-size:13px;font-weight:700;color:#e0e0e0">${esc(formatMemberName(u)||u.callsign)}</div>
-                            <div style="font-size:10px;letter-spacing:1px;color:${sourceColors[u.recruitSource]||'#aaa'}">${esc(u.recruitSource)}</div>
-                            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#555">${u.joinedAt?new Date(u.joinedAt).toLocaleDateString('en-US'):'—'}</div>
-                        </div>`).join('') || '<div class="empty-state">NO TAGGED RECRUITS YET</div>';
-                }
-            } catch(e){ c.innerHTML='<div class="empty-state">ERROR: '+e.message+'</div>'; }
-        };
 
         // ── APPROVE WITH SOURCE TAGGING ──────────────────────────────────────
         window.approveUser = async function(uid, callsign) {
@@ -4667,43 +4467,6 @@
             } catch(e) { grid.innerHTML=`<div class="empty-state">ERROR: ${esc(e.message)}</div>`; }
         };
 
-        window.commsLibHandleUpload = async function() {
-            const input = document.getElementById('commsLibUploadFile');
-            const nameInput = document.getElementById('commsLibUploadName');
-            const statusEl = document.getElementById('commsLibUploadStatus');
-            const btn = document.getElementById('commsLibUploadBtn');
-            if(!input.files.length) { notify('SELECT AT LEAST ONE IMAGE',1); return; }
-            btn.disabled = true;
-            const files = Array.from(input.files);
-            let done = 0;
-            for(const file of files) {
-                if(statusEl) statusEl.textContent = `UPLOADING ${done+1}/${files.length} — ${file.name}`;
-                try {
-                    const fd = new FormData();
-                    fd.append('file', file);
-                    fd.append('upload_preset', UPLOAD_PRESET);
-                    fd.append('cloud_name', CLOUD_NAME);
-                    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {method:'POST',body:fd});
-                    const data = await res.json();
-                    if(!data.secure_url) throw new Error(data.error?.message||'Upload failed');
-                    const label = files.length===1 && nameInput.value.trim() ? nameInput.value.trim() : file.name.replace(/\.[^.]+$/,'');
-                    await addDoc(collection(db,'comms_media'),{
-                        url: data.secure_url, name: label,
-                        uploadedAt: new Date().toISOString(),
-                        uploadedBy: currentUserData?.callsign||'unknown'
-                    });
-                    done++;
-                } catch(e) {
-                    notify('FAILED: '+file.name+' — '+e.message, 1);
-                }
-            }
-            if(statusEl) statusEl.textContent = done+' IMAGE(S) UPLOADED ✓';
-            setTimeout(()=>{ if(statusEl) statusEl.textContent=''; }, 3000);
-            input.value=''; nameInput.value='';
-            btn.disabled = false;
-            notify('COMMS LIBRARY: '+done+' IMAGE(S) UPLOADED');
-            loadCommsLibrary();
-        };
 
         window.commsLibCopyUrl = function(url) {
             navigator.clipboard.writeText(url).then(()=>notify('URL COPIED TO CLIPBOARD')).catch(()=>notify('COPY FAILED',1));
@@ -6322,24 +6085,7 @@
                 <div class="panel hidden" id="panel-page-corpsman"><div class="panel-title">HOSPITAL CORPSMAN</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 EQUIPMENT CARDS</p><div class="page-editor-container" data-page="about-corpsman"></div></div>
                 <div class="panel hidden" id="panel-page-54th"><div class="panel-title">54TH AIR WING</div><p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">SLIDER HEADER + PHOTO SLIDER (3) + CARDS HEADER + 3 AIR ASSET CARDS</p><div class="page-editor-container" data-page="about-54th"></div></div>
 
-                <div class="panel hidden" id="panel-comms-library">
-                    <div class="panel-title">COMMS MEDIA LIBRARY</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">PUBLIC COMMS IMAGE STORAGE</p>
-                    <div class="upload-area" style="margin-bottom:16px">
-                        <div style="color:rgba(0,217,255,.5);font-size:9px;letter-spacing:3px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(0,217,255,.08)">UPLOAD NEW IMAGE</div>
-                        <div class="upload-row">
-                            <div class="upload-field"><label>SELECT IMAGE FROM COMPUTER</label><input type="file" id="commsLibUploadFile" multiple accept="image/*"></div>
-                            <div class="upload-field" style="max-width:220px"><label>LABEL (optional)</label><input type="text" id="commsLibUploadName" placeholder="e.g. Alpha Company Slider 1"></div>
-                            <button class="upload-btn" id="commsLibUploadBtn" onclick="commsLibHandleUpload()">UPLOAD</button>
-                        </div>
-                        <div id="commsLibUploadStatus" style="margin-top:8px;font-size:9px;letter-spacing:2px;color:var(--accent)"></div>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                        <div style="color:#aaa;font-size:10px;letter-spacing:2px"><span id="commsLibCount" style="color:var(--accent)">0</span> IMAGES</div>
-                        <button class="action-btn approve-btn" onclick="loadCommsLibrary()">&#8635; REFRESH</button>
-                    </div>
-                    <div class="media-grid-v2" id="commsLibGrid"><div class="empty-state">LOADING...</div></div>
-                </div>
+                <div class="panel hidden" id="panel-comms-library"><!-- replaced by /terminal-panels (v2) --></div>
                 
                 <div class="panel hidden" id="panel-discord"><div class="panel-title">DISCORD INVITE LINK</div><div class="upload-area"><p style="color:#ccc;font-family:Rajdhani,sans-serif;font-size:14px;font-weight:500;letter-spacing:1px;margin-bottom:12px">CHANGE ONCE — ALL PAGES UPDATE AUTOMATICALLY</p><div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap"><div style="color:#bbb;font-family:Rajdhani,sans-serif;font-size:14px;font-weight:600;letter-spacing:2px">CURRENT: <a id="currentDiscordLink" href="#" target="_blank" style="color:#FF6B6B;text-decoration:none;letter-spacing:2px">NOT SET</a></div><span id="discordStatusBadge" style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:3px 10px;border:1px solid #555;color:#555;display:none"></span><button onclick="checkDiscordInvite(document.getElementById('discordLinkInput').value)" style="background:none;border:1px solid rgba(0,217,255,.35);color:rgba(0,217,255,.7);font-family:Rajdhani,sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;padding:3px 10px;cursor:pointer" id="discordCheckBtn">↺ RE-CHECK</button></div><div class="upload-row"><div class="upload-field"><input type="url" id="discordLinkInput" placeholder="https://discord.gg/XXXXXXXX"></div><button class="upload-btn" onclick="saveDiscordLink()">SAVE LINK</button></div></div></div>
                 <div class="panel hidden" id="panel-aar">
@@ -6511,24 +6257,7 @@
                     </div>
                     <div id="rosterList"><div class="empty-state">LOADING...</div></div>
                 </div>
-                <div class="panel hidden" id="panel-unitcards">
-                    <div class="panel-title">UNIT CARDS</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">MANAGE POSITION SLOTS — OPEN / CLOSED / FILLED WITH NAME // DISPLAYS ON ORDER OF BATTLE PAGE</p>
-                    <div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                        <button id="ucSaveBtn" class="upload-btn" onclick="saveAllCards()" style="font-size:10px;letter-spacing:2px">SAVE CHANGES</button>
-                        <button class="action-btn approve-btn" onclick="loadUnitCards()">&#8635; REFRESH</button>
-                        <span style="color:#bbb;font-size:9px;letter-spacing:2px">&#9432; SET STATUS TO FILLED → SELECT PERSONNEL FROM DROPDOWN → HIT SAVE → CLICK REFRESH TO CONFIRM</span>
-                    </div>
-                    <!-- Unit Cards Tabs -->
-                    <div id="ucTabBar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid rgba(0,217,255,.15);padding-bottom:8px">
-                        <button class="uc-tab active" data-uc-tab="Battalion Command"   onclick="setUcTab('Battalion Command')"   style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:6px 14px;border:1px solid rgba(0,217,255,.35);background:rgba(0,217,255,.12);color:var(--accent);cursor:pointer;transition:all .15s">COMMAND</button>
-                        <button class="uc-tab"        data-uc-tab="Alpha Company"       onclick="setUcTab('Alpha Company')"       style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:6px 14px;border:1px solid rgba(0,217,255,.15);background:transparent;color:#888;cursor:pointer;transition:all .15s">ALPHA COMPANY</button>
-                        <button class="uc-tab"        data-uc-tab="JSOTF-23"            onclick="setUcTab('JSOTF-23')"            style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:6px 14px;border:1px solid rgba(0,217,255,.15);background:transparent;color:#888;cursor:pointer;transition:all .15s">JTF-23 FORCE RECON</button>
-                        <button class="uc-tab"        data-uc-tab="Support Company"     onclick="setUcTab('Support Company')"     style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:6px 14px;border:1px solid rgba(0,217,255,.15);background:transparent;color:#888;cursor:pointer;transition:all .15s">HOSPITAL CORPSMAN</button>
-                        <button class="uc-tab"        data-uc-tab="54th Air Wing"       onclick="setUcTab('54th Air Wing')"       style="font-family:Rajdhani,sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;padding:6px 14px;border:1px solid rgba(0,217,255,.15);background:transparent;color:#888;cursor:pointer;transition:all .15s">54TH AIR WING</button>
-                    </div>
-                    <div id="unitCardsList"><div class="empty-state">LOADING...</div></div>
-                </div>
+                <div class="panel hidden" id="panel-unitcards"><!-- replaced by /terminal-panels (v2) --></div>
                 <!-- DISCORD WEBHOOKS PANEL -->
                 <div class="panel hidden" id="panel-webhooks">
                     <div class="panel-title">DISCORD WEBHOOKS</div>
@@ -6582,26 +6311,7 @@
                 </div>
 
                 <!-- RECRUITMENT SOURCE TRACKER PANEL -->
-                <div class="panel hidden" id="panel-recruit-source">
-                    <div class="panel-title">RECRUITMENT SOURCE TRACKER</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:20px">WHERE ARE NEW RECRUITS HEARING ABOUT THE 505TH — TAGGED AT ENLISTMENT APPROVAL</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
-                        <div class="dash-section">
-                            <div class="dash-section-title">SOURCE BREAKDOWN</div>
-                            <div id="recruitSourceChart"><div class="empty-state">LOADING...</div></div>
-                            <div style="margin-top:12px">
-                                <button class="action-btn approve-btn" onclick="loadRecruitSourcePanel()" style="font-size:10px;padding:5px 12px">&#8635; REFRESH</button>
-                            </div>
-                        </div>
-                        <div class="dash-section">
-                            <div class="dash-section-title">RECENT RECRUITS BY SOURCE</div>
-                            <div style="margin-bottom:8px;font-size:8px;letter-spacing:2px;color:rgba(0,217,255,.4);display:grid;grid-template-columns:1fr 160px 120px;gap:8px;padding:0 12px">
-                                <div>NAME</div><div>SOURCE</div><div>JOINED</div>
-                            </div>
-                            <div id="recruitSourceTable"><div class="empty-state">LOADING...</div></div>
-                        </div>
-                    </div>
-                </div>
+                <div class="panel hidden" id="panel-recruit-source"><!-- replaced by /terminal-panels (v2) --></div>
 
                 <div class="panel hidden" id="panel-discord-tracking">
                     <div class="panel-title">DISCORD TRACKING</div>
@@ -6629,17 +6339,7 @@
             
 
                 <!-- BATTALION ATTENDANCE HISTORY PANEL -->
-                <div class="panel hidden" id="panel-att-history">
-                    <div class="panel-title">BATTALION ATTENDANCE HISTORY</div>
-                    <p style="color:#aaa;font-size:10px;letter-spacing:2px;margin-bottom:16px">MONTHLY ATTENDANCE RECORDS — SNAPSHOT CURRENT MONTH MANUALLY OR LET MONTH-END RESET DO IT AUTOMATICALLY</p>
-                    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-                        <button class="action-btn approve-btn" onclick="loadAttendanceHistory()" style="padding:6px 16px;font-size:10px;letter-spacing:2px">&#8635; REFRESH</button>
-                        <button id="attSnapshotBtn" class="action-btn" onclick="snapshotCurrentMonth()" style="padding:6px 16px;font-size:10px;letter-spacing:2px;border-color:rgba(255,212,0,.6);color:#FFD700">&#9650; SNAPSHOT CURRENT MONTH</button>
-                        <button id="attBackfillBtn" class="action-btn" onclick="backfillAttendanceHistory()" style="padding:6px 16px;font-size:10px;letter-spacing:2px;border-color:rgba(167,139,250,.6);color:#a78bfa">&#9654; BACKFILL ALL MISSING MONTHS</button>
-                        <span id="attSnapshotStatus" style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:#aaa"></span>
-                    </div>
-                    <div id="attHistoryContent"><div class="empty-state">LOADING...</div></div>
-                </div>
+                <div class="panel hidden" id="panel-att-history"><!-- replaced by /terminal-panels (v2) --></div>
 
                 <!-- AUDIT LOG PANELS -->
                 <div class="panel hidden" id="panel-audit-manpower">

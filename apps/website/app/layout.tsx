@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
-// No global CSS: each page imports its own stylesheet bundle (styles/pages/<page>.css),
+// No global CSS: each page imports its own stylesheet (styles/tw/<page>.css),
 // exactly like the live site where every page links its own CSS.
 
 export const metadata: Metadata = {

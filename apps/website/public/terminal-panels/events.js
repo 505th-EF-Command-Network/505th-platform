@@ -429,7 +429,6 @@ function liveHtml(e) {
   const t = (iso) => (iso ? esc(ukFmt(iso, { weekday: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()) : "");
   const steps = [
     [d.status === "posted" && d.missing ? "⚠ POST DELETED" : "POSTED", d.postedAtISO || (d.status === "posted" ? e.createdAtISO : null), d.status === "posted" && !d.missing],
-    ["REMINDER", d.reminderSentISO, !!d.reminderSentISO],
     [`STARTED${d.startSentISO ? ` · PINGED ${going}` : ""}`, d.startSentISO || e.startAtISO, !!d.startSentISO],
     ["LOCKED", d.lockedISO || d.startSentISO, !!(d.lockedISO || d.startSentISO)],
     ["CLOSES", d.closedAtISO || new Date(closeAt).toISOString(), !!d.closedAtISO],
@@ -642,7 +641,7 @@ const CSS = `
 #${ROOT} .ev-warn{display:flex;gap:10px;align-items:center;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.07);color:#f59e0b;padding:10px 12px;margin:0 0 12px;font-size:11px;letter-spacing:1px}#${ROOT} .ev-warn span{flex:1}#${ROOT} .ev-warn .b{border-color:#f59e0b;color:#f59e0b}
 #v2Modal .ev-tabs{display:flex;border-bottom:1px solid rgba(0,217,255,.18);padding:0 16px}#v2Modal .ev-tabs button{all:unset;cursor:pointer;padding:9px 14px;font:11px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;border-bottom:2px solid transparent}#v2Modal .ev-tabs button.on{color:#fff;border-bottom-color:#00D9FF}#v2Modal .ev-tabs button:focus-visible{outline:2px solid #00D9FF}
 #v2Modal .lv-live{display:flex;align-items:center;gap:6px;color:#ff4d4d;font:11px "Share Tech Mono",monospace;letter-spacing:2px;margin-bottom:10px}#v2Modal .lv-live i{width:9px;height:9px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 8px #ff4d4d;animation:lvp 1.4s infinite}@keyframes lvp{50%{opacity:.3}}@media (prefers-reduced-motion:reduce){#v2Modal .lv-live i{animation:none}}
-#v2Modal .lv-tl{display:grid;grid-template-columns:repeat(6,1fr);margin:4px 0 16px}#v2Modal .lv-tl>div{position:relative;text-align:center;padding-top:22px;font:9.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
+#v2Modal .lv-tl{display:grid;grid-template-columns:repeat(5,1fr);margin:4px 0 16px}#v2Modal .lv-tl>div{position:relative;text-align:center;padding-top:22px;font:9.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
 #v2Modal .lv-tl>div:before{content:"";position:absolute;top:8px;left:0;right:0;height:2px;background:#1c2a30}#v2Modal .lv-tl>div:first-child:before{left:50%}#v2Modal .lv-tl>div:last-child:before{right:50%}#v2Modal .lv-tl>div.d:before{background:#22e07a}
 #v2Modal .lv-tl i{position:absolute;top:2px;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:#1c2a30;border:2px solid #0b0f15}#v2Modal .lv-tl .d i{background:#22e07a}#v2Modal .lv-tl .n i{background:#00D9FF;box-shadow:0 0 10px #00D9FF}
 #v2Modal .lv-tl b{display:block;color:#e8eef2;font-weight:400}#v2Modal .lv-tl .n b{color:#00D9FF}
