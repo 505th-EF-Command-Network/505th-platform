@@ -123,7 +123,24 @@ export async function onMemberUpdate(client: Client<true>, before: GuildMember |
       }
     }
   }
-  if (fixRoles.remove.length) { hush(after.id); await after.roles.remove([...new Set(fixRoles.remove)], "Role sync: one role per group").catch(() => {}); }
+  if (fixRoles.remove.length) {
+    // One role per group: take the old rank / unit / squad / status role off. Never fail silently (2026-11-11 fix).
+    const ids = [...new Set(fixRoles.remove)];
+    const canDo = ids.filter((rid) => safeRole(after.guild, rid).role !== null);
+    const cant = ids.filter((rid) => !canDo.includes(rid));
+    hush(after.id);
+    if (canDo.length) {
+      await after.roles.remove(canDo, "Role sync: one role per group").catch(async (e: Error) => {
+        log.warn(`Role sync: couldn't remove old role(s) from ${after.displayName}: ${e.message}`);
+        await feed(client, { uid: l.uid, who: name(l.user), group: "error", from: "", to: "", source: "discord", by: "Cortana", note: `Couldn't remove the old role(s): ${e.message}` });
+      });
+    }
+    if (cant.length) {
+      const names = cant.map((rid) => after.guild.roles.cache.get(rid)?.name ?? rid).join(", ");
+      log.warn(`Role sync: can't remove ${names} from ${after.displayName} — role is above Cortana's role or has staff powers.`);
+      await feed(client, { uid: l.uid, who: name(l.user), group: "error", from: "", to: "", source: "discord", by: "Cortana", note: `Can't remove old role(s) ${names}: move Cortana's role above them in Server Settings → Roles` });
+    }
+  }
   if (!changes.length) return void log.info(`Role change for ${after.displayName}: no mapped rank / unit / squad / status role changed.`);
   set["data.syncSource"] = "discord";
   set["data.syncAtISO"] = nowISO();
