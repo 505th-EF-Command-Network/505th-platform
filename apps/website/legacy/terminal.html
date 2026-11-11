@@ -2554,6 +2554,7 @@
             return webhookConfig;
         }
 
+        window.fireWebhook = (...a) => fireWebhook(...a); // used by /terminal-panels/attendance-tracker.js (v3)
         async function fireWebhook(key, data) {
             const cfg = await getWebhooks();
             const url = cfg[key];

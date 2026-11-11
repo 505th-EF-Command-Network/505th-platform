@@ -1,64 +1,77 @@
 /**
- * ATTENDANCE TRACKER v2 (approved mock 2026-11-09) — replaces #panel-attendance.
+ * ATTENDANCE TRACKER v3 (approved mock 2026-11-11) — replaces #panel-attendance.
  *
- * All saving goes through the ORIGINAL functions, so the rules stay the same:
- * loadAttEvent / attCreateNewEvent / attCycleState (auto-save) /
- * saveAttendance(true) = lock + recalculate stats / unlockEvent /
- * deleteAttEvent / editAttMonthlyRate. Presence ("online now") is the
- * original presence system; this panel only reads it.
+ * Tabs: TRACKER (mark an op) · NEW EVENT · HISTORY (opens Attendance History).
+ * Each member is PRESENT / EXCUSED (with a short reason) / ABSENT for an event.
+ * Changes save as you go. LOCK recounts every member's stats from all locked events
+ * (same rules as before: every locked event counts as eligible, excused included —
+ * pending the Commander's decision on excused).
+ *
+ * Data: attendance_events { title, date, type, attendees[], excused[], excusedReasons{uid:text}, locked, … }
+ * Sign-ups: community_events linked by attendanceEventId (from the Events page / Cortana).
  */
-import { collection, doc, getDocs, onSnapshot, orderBy, query, where, limit } from "/terminal-shim/firestore.js";
+import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
-import { addCss, db, esc, getUsers, isMember, memberName, mountPanel, notify, onReady, platoonOrder, rankOrder, rateColor, today, toDate } from "./_common.js";
-import { ask, tell } from "./_common.js";
+import { addCss, ask, audit, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, onReady, platoonOrder, rankOrder, rateColor, today, toDate } from "./_common.js";
 
-// Lock / unlock = "Lock Attendance" in the access grid (Staff NCO+ by default).
 let canLock = false;
-onAccess((me) => { canLock = !!me.access.lock; });
-const ROOT = "attV2";
-const TYPE = { main_op: ["MAIN OP", "#00D9FF"], patrol: ["PATROL", "#22e07a"], training: ["TRAINING", "#f59e0b"], fun_op: ["FUN OP", "#a78bfa"] };
-const PLATOONS = ["Command", "1st Platoon", "2nd Platoon", "3rd Platoon", "Force Recon", "Corpsmen", "Pilot"];
+onAccess((m) => { canLock = !!m.access?.lock; });
 
+const ROOT = "attV3";
+const TYPE = { main_op: ["MAIN OP", "#00D9FF"], patrol: ["PATROL", "#22e07a"], training: ["TRAINING", "#f59e0b"], fun_op: ["FUN OP", "#a78bfa"] };
+const PLATOONS = ["Command", "1st Platoon", "2nd Platoon", "3rd Platoon", "Force Recon", "Corpsmen", "Pilot", "Awaiting BCT", ""];
+
+let me = null;
 let users = [];
 let events = [];
-let cur = null; // selected event {id,...}
-let pf = "ALL";
+let comm = []; // community_events (Discord events)
+let cur = null;
+let tab = "t";
+let flt = "ALL";
 let q = "";
 let eq = "";
+let editHead = false;
 let unsubEv = null;
 let unsubPres = null;
 let presence = [];
-let busy = false;
+let busy = 0;
+let nf = { mode: "discord", ce: "", title: "", date: today(), type: "main_op", tickGoing: true };
 
 const roll = () =>
   users
     .filter((u) => isMember(u) && u.platoon !== "Reserves" && u.role !== "retired_veteran")
     .sort((a, b) => platoonOrder(a.platoon) - platoonOrder(b.platoon) || rankOrder(a.rank) - rankOrder(b.rank));
-const pct = (e) => {
-  const n = roll().length;
-  return n ? Math.round(((e.attendees || []).length / n) * 100) : 0;
-};
+const pg = (u) => (String(u.rank || "").match(/^([OE]\d+)/) || [])[1] || "";
 const rateOf = (u) => (u.opsEligible ? Math.round(((u.opsAttended || 0) / u.opsEligible) * 100) : null);
+const stateOf = (e, uid) => ((e.attendees || []).includes(uid) ? "p" : (e.excused || []).includes(uid) ? "e" : "a");
+const fmtD = (d, o) => { const x = toDate(d); return x && !isNaN(x) ? x.toLocaleDateString("en-GB", o).toUpperCase() : "—"; };
+const linked = (e) => comm.find((c) => c.attendanceEventId === e?.id);
+const goingKeys = (c) => new Set((c?.buttons || []).filter((b) => b.attending).map((b) => b.key));
+function signup(c, uid) {
+  const s = (c?.signups || []).find((x) => x.uid === uid);
+  if (!s) return null;
+  const b = (c.buttons || []).find((x) => x.key === s.choice);
+  return { label: `${b?.emoji || ""} ${b?.label || s.choice}`.trim(), going: goingKeys(c).has(s.choice) && !s.waiting, waiting: !!s.waiting };
+}
+const goingUids = (c) => (c?.signups || []).filter((s) => s.uid && !s.waiting && goingKeys(c).has(s.choice)).map((s) => s.uid);
 
+// ───────── load ─────────
 async function load() {
-  users = await getUsers();
-  const snap = await getDocs(query(collection(db, "attendance_events"), orderBy("date", "desc"), limit(60)));
-  events = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  me = me || (await getMe());
+  const [us, evS, ceS] = await Promise.all([getUsers(), getDocs(collection(db, "attendance_events")), getDocs(collection(db, "community_events")).catch(() => null)]);
+  users = us;
+  events = evS.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  comm = ceS ? ceS.docs.map((d) => ({ id: d.id, ...d.data() })) : [];
   if (cur) cur = events.find((e) => e.id === cur.id) || null;
-  if (!cur && events.length) {
-    // Open the newest unlocked event, otherwise the newest event.
-    await pick((events.find((e) => !e.locked) || events[0]).id, true);
-  }
+  if (!cur && events.length) watch((events.find((e) => !e.locked) || events[0]).id);
   render();
 }
 
-async function pick(id, quiet) {
+function watch(id) {
   const e = events.find((x) => x.id === id);
   if (!e) return;
   cur = { ...e };
-  render();
-  // Point the original code at this event (it keeps its own copy for saving).
-  if (typeof window.loadAttEvent === "function") await window.loadAttEvent(id);
+  editHead = false;
   unsubEv?.();
   unsubEv = onSnapshot(doc(db, "attendance_events", id), (s) => {
     if (!s.exists() || !cur || cur.id !== id || busy) return;
@@ -67,7 +80,6 @@ async function pick(id, quiet) {
     if (i >= 0) events[i] = { ...cur };
     render();
   });
-  if (!quiet) document.getElementById(ROOT)?.querySelector(".evc")?.scrollIntoView({ block: "nearest" });
 }
 
 function watchPresence() {
@@ -79,328 +91,393 @@ function watchPresence() {
     if (el) el.innerHTML = presenceHtml();
   });
 }
-const presenceHtml = () => {
+function presenceHtml() {
   const seen = new Set();
   const list = presence.filter((p) => !seen.has(p.uid) && seen.add(p.uid));
-  return list.length
-    ? list.map((p) => `<span class="pp"><i></i>${esc(memberName(p))}${p.eventId && cur && p.eventId === cur.id ? " · HERE" : ""}</span>`).join("")
-    : '<span style="color:var(--dd)">ONLY YOU</span>';
-};
-
-// ───────── render ─────────
-/** Sign-ups kept from the Events page after the monthly clean-up (Cortana copies them here). */
-function archiveHtml(a) {
-  const x = a?.eventArchive;
-  if (!x || !Array.isArray(x.buttons)) return "";
-  const when = x.startAtISO ? new Date(x.startAtISO).toLocaleString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase() : "";
-  return `<details class="evarch"><summary>📦 DISCORD SIGN-UPS — ${esc(String(x.title || "").toUpperCase())}${x.status === "cancelled" ? " · CANCELLED" : ""} <small>${esc(when)}</small></summary>
-    <div class="evarch-g">${x.buttons.map((b) => {
-      const list = (x.signups || []).filter((s) => s.choice === b.key);
-      return `<div><b>${esc(b.emoji)} ${esc(b.label)} (${list.filter((s) => !s.waiting).length})</b><small>${list.map((s) => esc(s.name) + (s.waiting ? " ⏳" : "")).join(", ") || "—"}</small></div>`;
-    }).join("")}</div>
-    <small class="evarch-n">Copied from the Events page on ${esc(new Date(x.archivedAtISO || Date.now()).toLocaleDateString("en-GB"))}. Sign-ups are a guide — the roll call below is the record.</small></details>`;
+  return list.length ? list.map((p) => `<span class="pp"><i></i>${esc(memberName(p))}</span>`).join("") : '<span class="k">ONLY YOU</span>';
 }
 
+// ───────── render ─────────
 function render() {
   const root = document.getElementById(ROOT);
   if (!root) return;
-  const members = roll();
-  const locked = events.filter((e) => e.locked);
-  const tAtt = members.reduce((s, u) => s + (u.opsAttended || 0), 0);
-  const tElig = members.reduce((s, u) => s + (u.opsEligible || 0), 0);
-  const unitRate = tElig ? Math.round((tAtt / tElig) * 100) : 0;
-  const below = members.filter((u) => rateOf(u) != null && rateOf(u) < 50).length;
+  let b = root.querySelector(".body");
+  if (!b) { b = document.createElement("div"); b.className = "body"; root.appendChild(b); }
+  const tabBtn = (k, l) => `<button type="button" class="chip ${tab === k ? "on" : ""}" data-tab="${k}" aria-pressed="${tab === k}">${l}</button>`;
+  b.innerHTML = `
+    <div class="bar"><div class="h1">ATTENDANCE TRACKER</div><span class="sp"></span>${tabBtn("t", "▣ TRACKER")}${tabBtn("n", "＋ NEW EVENT")}<button type="button" class="chip" data-act="history">▤ HISTORY ↗</button></div>
+    <div class="live" aria-live="polite"><span>ONLINE NOW</span><div class="who">${presenceHtml()}</div><span class="sp"></span><span style="color:#22e07a">✓ SAVES AUTOMATICALLY</span></div>
+    ${tab === "n" ? newHtml() : trackerHtml()}`;
+}
+
+function kpis() {
+  const m = roll();
+  const tA = m.reduce((s, u) => s + (u.opsAttended || 0), 0), tE = m.reduce((s, u) => s + (u.opsEligible || 0), 0);
+  const all = tE ? Math.round((tA / tE) * 100) : 0;
   const ym = today().slice(0, 7);
-  const thisMonth = events.filter((e) => String(e.date || "").startsWith(ym)).length;
+  const monthLocked = events.filter((e) => e.locked && String(e.date || "").startsWith(ym));
+  const mp = monthLocked.reduce((s, e) => s + (e.attendees || []).length, 0);
+  const mRate = monthLocked.length && m.length ? Math.round((mp / (monthLocked.length * m.length)) * 100) : null;
+  const full = m.filter((u) => (u.attendance || 0) >= 3).length;
+  const open = events.filter((e) => !e.locked).length;
+  return `<div class="kp">
+    <div><b style="color:${rateColor(all)}">${all}%</b><span>UNIT RATE (ALL TIME)</span></div>
+    <div><b>${monthLocked.length}</b><span>OPS THIS MONTH</span></div>
+    <div><b style="color:${rateColor(mRate)}">${mRate == null ? "—" : mRate + "%"}</b><span>THIS MONTH</span></div>
+    <div><b>${full}</b><span>MEMBERS AT 3/3</span></div>
+    <div><b style="color:${open ? "#f59e0b" : "#fff"}">${open}</b><span>NOT LOCKED</span></div></div>`;
+}
 
-  root.querySelector(".unit").innerHTML = `
-    <div class="k"><b style="color:var(--a)">${locked.length}</b><span>TOTAL OPS</span></div>
-    <div class="k"><b style="color:${rateColor(unitRate)}">${unitRate}%</b><span>UNIT ATTENDANCE</span></div>
-    <div class="k"><b style="color:var(--am)">${below}</b><span>MEMBERS BELOW 50%</span></div>
-    <div class="k"><b style="color:var(--a)">${thisMonth}</b><span>OPS THIS MONTH</span></div>`;
-  root.querySelector(".who").innerHTML = presenceHtml();
-
-  // Events rail, grouped by month
+function railHtml() {
   let last = "";
-  root.querySelector(".evs").innerHTML =
-    events
-      .filter((e) => String(e.title || "").toLowerCase().includes(eq.toLowerCase()))
+  const list = events.filter((e) => String(e.title || "").toLowerCase().includes(eq.toLowerCase()));
+  return `<aside class="card rail"><div style="padding:8px"><input class="in eq" placeholder="Search ops…" value="${esc(eq)}" aria-label="Search events"></div><div class="evs">${
+    list
       .map((e) => {
-        const m = toDate(e.date)?.toLocaleString("en-GB", { month: "long", year: "numeric" }).toUpperCase() || "—";
-        const head = m !== last ? `<div class="mon">${m}</div>` : "";
-        last = m;
+        const mon = fmtD(e.date, { month: "long", year: "numeric" });
+        const head = mon !== last ? `<div class="mon">${mon}</div>` : "";
+        last = mon;
         const [tl, tc] = TYPE[e.type] || [String(e.type || "—").toUpperCase(), "#9fb3c4"];
-        const p = pct(e);
-        return `${head}<button class="ev ${cur && e.id === cur.id ? "on" : ""}" style="--tc:${tc}" data-ev="${esc(e.id)}"><span class="eb"></span>
-          <span style="min-width:0"><span class="et">${esc(e.title || "Untitled")}</span><span class="em">${esc(String(e.date || "").slice(8, 10))} ${esc(String(e.date || "").slice(5, 7))} · <b>${tl}</b> · ${e.locked ? "🔒" : '<b style="color:var(--g)">● LIVE</b>'}</span></span>
-          <span class="pc" style="color:${rateColor(p)}">${p}%<small>${(e.attendees || []).length} PRESENT</small></span></button>`;
+        const c = linked(e);
+        const n = roll().length;
+        const p = n ? Math.round(((e.attendees || []).length / n) * 100) : 0;
+        return `${head}<button type="button" class="ev ${cur?.id === e.id ? "on" : ""}" data-ev="${esc(e.id)}"><span style="min-width:0"><b>${esc(e.title || "Untitled")}</b><small>${fmtD(e.date, { weekday: "short", day: "2-digit" })} · <span style="color:${tc}">${tl}</span>${c ? ` · ${goingUids(c).length} SIGNED UP` : ""}</small></span><small style="color:${e.locked ? rateColor(p) : "#22e07a"}">${e.locked ? "🔒 " + p + "%" : "● OPEN"}</small></button>`;
       })
-      .join("") || '<div class="mon">NO EVENTS YET</div>';
-
-  // Selected event
-  const evc = root.querySelector(".evc");
-  if (!cur) {
-    evc.innerHTML = '<div class="empty" style="margin:20px">CREATE AN EVENT ON THE LEFT TO START ROLL CALL</div>';
-    return;
-  }
-  const att = new Set(cur.attendees || []);
-  const [tl, tc] = TYPE[cur.type] || [String(cur.type || "—").toUpperCase(), "#9fb3c4"];
-  const present = members.filter((u) => att.has(u.id)).length;
-  const p = members.length ? Math.round((present / members.length) * 100) : 0;
-  const shown = members.filter((u) => (pf === "ALL" || u.platoon === pf) && memberName(u).toLowerCase().includes(q.toLowerCase()));
-  const d = toDate(cur.date);
-  evc.classList.toggle("locked", !!cur.locked);
-  evc.innerHTML = `
-    <div class="evh">
-      <div class="ring" style="--p:${p};--rc:${rateColor(p)}"><div style="color:${rateColor(p)}">${p}%</div></div>
-      <div class="ttl"><h2>${esc(cur.title || "Untitled")}</h2>
-        <div class="tags"><span class="tag" style="color:${tc};border-color:${tc}88">${tl}</span>
-          <span class="tag" style="color:#9fb3c4;border-color:#3b4a5a">${d && !isNaN(d) ? d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }).toUpperCase() : "—"}</span>
-          ${cur.locked ? '<span class="tag" style="color:var(--am);border-color:var(--am)">🔒 LOCKED</span>' : '<span class="tag" style="color:var(--g);border-color:var(--g)">● LIVE — ROLL CALL OPEN</span>'}</div>
-        <div class="counts"><span><b style="color:var(--g)">${present}</b>PRESENT</span><span><b style="color:var(--r)">${members.length - present}</b>ABSENT</span><span><b style="color:#c6d0da">${members.length}</b>ELIGIBLE</span></div></div>
-      <div class="acts">${
-        !canLock
-          ? '<span class="tag" style="color:var(--d);border-color:var(--l2)">LOCK / UNLOCK: STAFF NCO AND ABOVE</span>'
-          : cur.locked
-          ? `<button class="b" style="color:var(--am);border-color:var(--am)" data-act="unlock">🔓 UNLOCK TO CORRECT</button>`
-          : `<button class="b gold" data-act="lock">🔒 LOCK &amp; FINALISE</button>`
-      }<button class="b red" data-act="delete" ${cur.locked ? 'disabled title="Unlock first"' : ""}>✕ DELETE EVENT</button></div>
-    </div>
-    <div class="lockednote">🔒 LOCKED — PERMANENT RECORD. STATS ARE COUNTED. UNLOCK TO CORRECT, THEN RE-LOCK.</div>
-    ${archiveHtml(cur)}
-    <div class="tools">
-      ${["ALL", ...PLATOONS]
-        .map((pl) => {
-          const g = pl === "ALL" ? members : members.filter((u) => u.platoon === pl);
-          if (!g.length && pl !== "ALL") return "";
-          return `<button class="chip ${pf === pl ? "on" : ""}" data-pf="${esc(pl)}">${pl === "ALL" ? "ALL" : esc(pl.replace("Platoon", "PLT").toUpperCase())}<small>${g.filter((u) => att.has(u.id)).length}/${g.length}</small></button>`;
-        })
-        .join("")}
-      <span class="sp"></span>
-      <input class="srch rq" placeholder="FIND MARINE..." value="${esc(q)}" aria-label="Find member">
-      <button class="b" data-act="all" ${cur.locked ? "disabled" : ""}>✓ ALL SHOWN PRESENT</button>
-      <button class="b" data-act="clear" ${cur.locked ? "disabled" : ""}>CLEAR</button>
-    </div>
-    <div class="roll">${
-      PLATOONS.concat(["Awaiting BCT", ""])
-        .map((pl) => {
-          const g = shown.filter((u) => (u.platoon || "") === pl);
-          if (!g.length) return "";
-          return `<div class="grp">${esc((pl || "NO PLATOON").toUpperCase())}<span>${g.filter((u) => att.has(u.id)).length} / ${g.length} PRESENT</span></div>` +
-            g
-              .map((u) => {
-                const on = att.has(u.id);
-                const r = rateOf(u);
-                return `<div class="m ${on ? "p" : ""}" role="button" tabindex="0" aria-pressed="${on}" data-uid="${esc(u.id)}"><span class="box">✓</span>
-                  <span style="min-width:0"><span class="nm2">${esc(memberName(u))}</span><span class="rk">${esc(u.rank || "—")}</span></span>
-                  <button class="rate" style="color:${rateColor(r)}" title="Monthly rate — click to correct" data-rate="${esc(u.id)}">${r == null ? "—" : r + "%"}<small>${u.opsAttended || 0}/${u.opsEligible || 0}</small></button></div>`;
-              })
-              .join("");
-        })
-        .join("") || '<div class="empty" style="grid-column:1/-1">NOBODY MATCHES</div>'
-    }</div>
-    <div class="legend">TAP A NAME TO MARK PRESENT / ABSENT · SAVES AUTOMATICALLY · % = ATTENDANCE RATE (CLICK TO CORRECT)</div>`;
-  const rq = evc.querySelector(".rq");
-  if (rq && document.activeElement?.classList?.contains("rq-was")) rq.focus();
+      .join("") || '<div class="empty">NO EVENTS YET</div>'
+  }</div></aside>`;
 }
 
-// ───────── actions ─────────
-async function toggle(uid) {
-  if (!cur || cur.locked) return notify("EVENT IS LOCKED — UNLOCK TO CORRECT", 1);
-  const set = new Set(cur.attendees || []);
-  set.has(uid) ? set.delete(uid) : set.add(uid);
-  cur.attendees = [...set];
-  const i = events.findIndex((x) => x.id === cur.id);
-  if (i >= 0) events[i].attendees = cur.attendees;
-  render();
-  busy = true;
+function trackerHtml() {
+  return `${kpis()}<div class="att">${railHtml()}<section class="card evc">${cur ? eventHtml() : '<div class="empty">PICK AN EVENT, OR ＋ NEW EVENT TO START ROLL CALL</div>'}</section></div>`;
+}
+
+function eventHtml() {
+  const e = cur;
+  const m = roll();
+  const c = linked(e);
+  const [tl, tc] = TYPE[e.type] || [String(e.type || "—").toUpperCase(), "#9fb3c4"];
+  const cnt = { p: 0, e: 0, a: 0 };
+  m.forEach((u) => cnt[stateOf(e, u.id)]++);
+  const turn = m.length ? Math.round((cnt.p / m.length) * 100) : 0;
+  const going = new Set(goingUids(c));
+  const locked = !!e.locked;
+  const shown = m.filter((u) => {
+    if (!memberName(u).toLowerCase().includes(q.toLowerCase())) return false;
+    const s = stateOf(e, u.id);
+    return flt === "ALL" || (flt === "P" && s === "p") || (flt === "A" && s !== "p") || (flt === "S" && going.has(u.id));
+  });
+  // last 3 locked events before this one, newest first
+  const prior = events.filter((x) => x.locked && x.id !== e.id && String(x.date || "") <= String(e.date || "")).slice(0, 3);
+  const sym = { p: '<span style="color:#22e07a">✓</span>', e: '<span style="color:#f59e0b">E</span>', a: '<span style="color:#4b5765">–</span>' };
+  const head = editHead && !locked
+    ? `<div class="g3" style="flex:1"><div><label for="ah_t">TITLE</label><input class="in" id="ah_t" value="${esc(e.title || "")}" maxlength="120"></div><div><label for="ah_d">DATE</label><input class="in" type="date" id="ah_d" value="${esc(e.date || "")}"></div><div><label for="ah_y">TYPE</label><select class="in" id="ah_y">${Object.entries(TYPE).map(([k, [l]]) => `<option value="${k}" ${e.type === k ? "selected" : ""}>${l}</option>`).join("")}</select></div></div><button type="button" class="b sm" data-act="headcancel">CANCEL</button><button type="button" class="b sm gold" data-act="headsave">SAVE</button>`
+    : `<div style="min-width:0;flex:1"><h2>${esc(e.title || "Untitled")}</h2><span class="k">${fmtD(e.date, { weekday: "short", day: "2-digit", month: "short", year: "numeric" })} · <span style="color:${tc}">${tl}</span>${e.createdBy ? " · CREATED BY " + esc(String(e.createdBy).toUpperCase()) : ""}${c ? ' · <span style="color:#22e07a">LINKED TO DISCORD EVENT ✓</span>' : ""}</span></div>
+       ${locked ? "" : '<button type="button" class="b sm" data-act="headedit">✎ RENAME / DATE</button>'}<button type="button" class="b sm red" data-act="delete" ${locked ? 'disabled title="Unlock first"' : ""}>🗑 DELETE</button>`;
+  const fb = (k, l) => `<button type="button" class="chip ${flt === k ? "on" : ""}" data-f="${k}" aria-pressed="${flt === k}">${l}</button>`;
+  let rows = "";
+  for (const pl of PLATOONS) {
+    const g = shown.filter((u) => (u.platoon || "") === pl);
+    if (!g.length) continue;
+    rows += `<tr class="grp"><td colspan="5">${esc((pl || "NO PLATOON").toUpperCase())} <small>${g.filter((u) => stateOf(e, u.id) === "p").length} / ${g.length} PRESENT</small></td></tr>`;
+    rows += g
+      .map((u) => {
+        const s = stateOf(e, u.id);
+        const su = signup(c, u.id);
+        const r = rateOf(u);
+        const btn = s === "p" ? ["✓ PRESENT", "#22e07a"] : s === "e" ? ["E EXCUSED", "#f59e0b"] : ["– ABSENT", "#7d8a99"];
+        return `<tr class="${s}"><td><b>${esc(memberName(u))}</b> ${pg(u) ? `<span class="pg">${esc(pg(u))}</span>` : ""}<button type="button" class="rate" data-rate="${esc(u.id)}" title="Attendance rate — click to correct" style="color:${rateColor(r)}">${r == null ? "—" : r + "%"}</button></td>
+          <td class="k">${esc(u.squad || "—")}</td>
+          <td>${su ? `<span style="color:${su.going ? "#a78bfa" : "#7d8a99"}">${esc(su.label)}${su.waiting ? " ⏳" : ""}</span>` : '<span class="k">—</span>'}</td>
+          <td class="l3">${prior.length ? prior.map((x) => sym[stateOf(x, u.id)]).join(" ") : '<span class="k">—</span>'}</td>
+          <td><button type="button" class="st" data-cyc="${esc(u.id)}" style="color:${btn[1]};border-color:${btn[1]}" ${locked ? "disabled" : ""} aria-label="${esc(memberName(u))}: ${btn[0]} — click to change">${btn[0]}</button>${s === "e" ? ` <input class="in rs" data-rs="${esc(u.id)}" maxlength="60" placeholder="Reason (optional)" value="${esc(e.excusedReasons?.[u.id] || "")}" ${locked ? "disabled" : ""} aria-label="Excused reason for ${esc(memberName(u))}">` : ""}</td></tr>`;
+      })
+      .join("");
+  }
+  const lock = !canLock
+    ? `<div class="lockbar dim"><span>🔒 LOCK / UNLOCK: STAFF NCO AND ABOVE</span></div>`
+    : locked
+    ? `<div class="lockbar"><span>🔒 LOCKED — PERMANENT RECORD, STATS COUNTED${e.lockedBy ? " · BY " + esc(String(e.lockedBy).toUpperCase()) : ""}. UNLOCK TO FIX, THEN LOCK AGAIN.</span><button type="button" class="b" data-act="unlock">🔓 UNLOCK TO CORRECT</button></div>`
+    : `<div class="lockbar"><span>🔒 LOCK recounts everyone's stats from all locked ops: ${cnt.p} present → +1 op attended · everyone → +1 op eligible · ATT this month updates · unlock any time to fix</span><button type="button" class="b gold" data-act="lock">🔒 LOCK EVENT</button></div>`;
+  return `<div class="eh">${head}</div>
+    <div class="ts"><div><b style="color:#22e07a">${cnt.p}</b><span>✓ PRESENT</span></div><div><b style="color:#f59e0b">${cnt.e}</b><span>E EXCUSED</span></div><div><b>${cnt.a}</b><span>– ABSENT</span></div><div><b style="color:${rateColor(turn)}">${turn}%</b><span>TURNOUT</span></div></div>
+    <div class="bar tools"><input class="in rq" placeholder="Find member…" value="${esc(q)}" aria-label="Find member">${fb("ALL", `ALL ${m.length}`)}${fb("P", "PRESENT")}${fb("A", "ABSENT")}${c ? fb("S", `<span style="color:#a78bfa">SIGNED UP ${going.size}</span>`) : ""}<span class="sp"></span>
+      ${c ? `<button type="button" class="b sm" data-act="tickgoing" ${locked ? "disabled" : ""}>✓ TICK ALL SIGNED UP (${going.size})</button>` : ""}<button type="button" class="b sm" data-act="clear" ${locked ? "disabled" : ""}>CLEAR ALL</button></div>
+    <div class="tw"><table><thead><tr><th>MEMBER</th><th>SQUAD</th><th>DISCORD SIGN-UP</th><th>LAST 3 OPS</th><th>THIS OP</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="empty">NOBODY MATCHES</td></tr>'}</tbody></table></div>
+    <p class="k" style="padding:6px 14px">Click THIS OP to cycle ✓ → E → –. Excused can have a short reason. Changes save as you go until you LOCK.</p>
+    ${lock}`;
+}
+
+function newHtml() {
+  const now = Date.now();
+  const avail = comm
+    .filter((c) => c.status !== "cancelled" && !events.some((e) => e.id === c.attendanceEventId) && Date.parse(c.startAtISO) > now - 7 * 864e5)
+    .sort((a, b) => String(a.startAtISO).localeCompare(String(b.startAtISO)));
+  const fromD = nf.mode === "discord";
+  const ce = avail.find((c) => c.id === nf.ce);
+  const g = ce ? goingUids(ce).length : 0;
+  return `<div class="card nfc"><b class="st2">＋ NEW ATTENDANCE EVENT</b>
+    <div class="bar" style="margin-top:12px"><button type="button" class="chip ${fromD ? "on" : ""}" data-mode="discord" aria-pressed="${fromD}">FROM A DISCORD EVENT</button><button type="button" class="chip ${fromD ? "" : "on"}" data-mode="blank" aria-pressed="${!fromD}">BLANK</button></div>
+    ${fromD ? `<label for="nf_ce">PICK EVENT</label><select class="in" id="nf_ce"><option value="">${avail.length ? "— pick —" : "No Discord events without an attendance sheet"}</option>${avail.map((c) => `<option value="${esc(c.id)}" ${nf.ce === c.id ? "selected" : ""}>${esc(c.title)} — ${fmtD(c.startAtISO, { weekday: "short", day: "2-digit", month: "short" })} · ${goingUids(c).length} signed up</option>`).join("")}</select>` : ""}
+    <div class="g3" style="margin-top:10px"><div><label for="nf_t">TITLE</label><input class="in" id="nf_t" maxlength="120" value="${esc(nf.title)}"></div><div><label for="nf_d">DATE</label><input class="in" type="date" id="nf_d" value="${esc(nf.date)}"></div><div><label for="nf_y">TYPE</label><select class="in" id="nf_y">${Object.entries(TYPE).map(([k, [l]]) => `<option value="${k}" ${nf.type === k ? "selected" : ""}>${l}</option>`).join("")}</select></div></div>
+    ${fromD && ce ? `<label class="ck"><input type="checkbox" id="nf_g" ${nf.tickGoing ? "checked" : ""}> Tick the ${g} people who signed up "Going" as present to start with</label>` : ""}
+    <div class="bar" style="margin-top:12px"><span class="sp"></span><button type="button" class="b" data-tab="t">CANCEL</button><button type="button" class="b gold" data-act="create">CREATE</button></div></div>`;
+}
+
+// ───────── saving ─────────
+async function save(patch, quiet) {
+  if (!cur) return;
+  busy++;
   try {
-    await window.attCycleState(uid); // original: toggles its copy + saves
+    Object.assign(cur, patch);
+    const i = events.findIndex((x) => x.id === cur.id);
+    if (i >= 0) Object.assign(events[i], patch);
+    await updateDoc(doc(db, "attendance_events", cur.id), { ...patch, updatedBy: me?.callsign || memberName(me) || "Staff", updatedAt: new Date().toISOString() });
+  } catch (e) {
+    notify("SAVE FAILED: " + e.message, 1);
   } finally {
-    busy = false;
+    busy--;
+  }
+  if (!quiet) render();
+}
+
+function cycle(uid) {
+  if (!cur || cur.locked) return notify("EVENT IS LOCKED — UNLOCK TO CORRECT", 1);
+  const att = new Set(cur.attendees || []), exc = new Set(cur.excused || []);
+  const s = stateOf(cur, uid);
+  att.delete(uid); exc.delete(uid);
+  if (s === "a") att.add(uid);
+  else if (s === "p") exc.add(uid);
+  const reasons = { ...(cur.excusedReasons || {}) };
+  if (s === "e") delete reasons[uid];
+  render();
+  return save({ attendees: [...att], excused: [...exc], excusedReasons: reasons });
+}
+
+/** Recount every member's stats from all locked events (same rules as the original). */
+async function recalcAllStats() {
+  notify("RECALCULATING STATS…");
+  const [evS, uS] = await Promise.all([getDocs(query(collection(db, "attendance_events"), where("locked", "==", true))), getDocs(collection(db, "users"))]);
+  const locked = evS.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const ym = today().slice(0, 7);
+  const month = locked.filter((e) => String(e.date || "").startsWith(ym));
+  const members = uS.docs.map((d) => ({ id: d.id, ...d.data() })).filter((u) => u.status !== "pending" && u.status !== "denied" && u.platoon !== "Reserves");
+  for (const u of members) {
+    let opsAttended = 0, lastAttendedDate = null;
+    for (const e of locked) {
+      if ((e.attendees || []).includes(u.id)) {
+        opsAttended++;
+        if (!lastAttendedDate || e.date > lastAttendedDate) lastAttendedDate = e.date;
+      }
+    }
+    const attendance = Math.min(month.filter((e) => (e.attendees || []).includes(u.id)).length, 3);
+    await updateDoc(doc(db, "users", u.id), { opsAttended, opsEligible: locked.length, attendance, lastAttendedDate, updatedAt: new Date().toISOString() });
   }
 }
 
-async function markAll(present) {
-  if (!cur || cur.locked) return;
-  const att = new Set(cur.attendees || []);
-  const targets = roll().filter((u) => (pf === "ALL" || u.platoon === pf) && memberName(u).toLowerCase().includes(q.toLowerCase()) && att.has(u.id) !== present);
-  if (!targets.length) return;
-  for (const u of targets) await toggle(u.id);
-  notify(present ? `✓ ${targets.length} MARKED PRESENT` : `${targets.length} CLEARED`);
-}
-
-async function createEvent(form) {
-  const title = form.querySelector(".nfn").value.trim();
-  const date = form.querySelector(".nfd").value;
-  const type = form.querySelector(".nft").value;
-  if (!title) return notify("ENTER AN OPERATION / EVENT NAME", 1);
-  // Fill the original form and use the original create (duplicate check, audit log, live sync).
-  document.getElementById("attEventTitle").value = title;
-  document.getElementById("attEventDate").value = date;
-  document.getElementById("attEventType").value = type;
-  await window.attCreateNewEvent();
-  form.classList.remove("open");
-  form.querySelector(".nfn").value = "";
-  cur = null;
-  const snap = await getDocs(query(collection(db, "attendance_events"), where("title", "==", title), where("date", "==", date)));
+async function lockEvent() {
+  const e = cur;
+  const p = (e.attendees || []).length;
+  if (!(await ask({ kind: "warn", title: "LOCK ATTENDANCE?", body: `${p} present. This finalises the event and recounts every member's stats.`, item: e.title, go: "LOCK" }))) return;
+  busy++;
+  try {
+    await updateDoc(doc(db, "attendance_events", e.id), { locked: true, lockedBy: me?.callsign || "Staff", lockedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    await recalcAllStats();
+    await audit("battalion_ops", "EVENT LOCKED", `${e.title} (${e.date}) — ${p} present, ${(e.excused || []).length} excused, stats recalculated`);
+    window.fireWebhook?.("attendance", { title: e.title, date: e.date, type: (TYPE[e.type] || [e.type])[0], present: p, by: me?.callsign || "Staff" });
+    notify(`EVENT LOCKED — ${p} PRESENT — STATS RECALCULATED`);
+  } catch (x) {
+    notify("LOCK FAILED: " + x.message, 1);
+  } finally {
+    busy--;
+  }
   await load();
-  if (!snap.empty) await pick(snap.docs[0].id);
 }
 
+async function unlockEvent() {
+  const e = cur;
+  if (!(await ask({ kind: "warn", title: "UNLOCK THIS EVENT?", body: "You can then correct it. Lock it again afterwards so stats are recounted.", item: e.title, go: "UNLOCK" }))) return;
+  try {
+    await updateDoc(doc(db, "attendance_events", e.id), { locked: false, unlockedBy: me?.callsign || "Staff", unlockedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    await audit("battalion_ops", "EVENT UNLOCKED", `${e.title || "—"} (${e.date || "—"}) unlocked for corrections`);
+    notify("EVENT UNLOCKED — MAKE CORRECTIONS THEN LOCK AGAIN");
+  } catch (x) {
+    notify("UNLOCK FAILED: " + x.message, 1);
+  }
+  await load();
+}
+
+async function deleteEvent() {
+  const e = cur;
+  if (e.locked) return notify("UNLOCK FIRST — LOCKED EVENTS ARE PERMANENT RECORD", 1);
+  if (!(await ask({ kind: "danger", title: "DELETE EVENT?", body: "The roll call for this event is removed. Stats are recounted.", item: e.title, go: "DELETE" }))) return;
+  try {
+    await deleteDoc(doc(db, "attendance_events", e.id));
+    const c = linked(e);
+    if (c) await updateDoc(doc(db, "community_events", c.id), { attendanceEventId: null }).catch(() => {});
+    await recalcAllStats();
+    await audit("battalion_ops", "EVENT DELETED", `${e.title || "—"} (${e.date || "—"})`);
+    unsubEv?.();
+    cur = null;
+    notify("EVENT DELETED — STATS RECALCULATED");
+  } catch (x) {
+    notify("DELETE FAILED: " + x.message, 1);
+  }
+  await load();
+}
+
+async function createEvent() {
+  const title = nf.title.trim(), date = nf.date, type = nf.type;
+  if (!title) return notify("ENTER AN OPERATION / EVENT NAME", 1);
+  if (!date) return notify("DATE REQUIRED", 1);
+  if (events.some((e) => e.title === title && e.date === date)) return notify("AN EVENT WITH THIS NAME AND DATE ALREADY EXISTS", 1);
+  const ce = nf.mode === "discord" ? comm.find((c) => c.id === nf.ce) : null;
+  const attendees = ce && nf.tickGoing ? goingUids(ce).filter((uid) => users.some((u) => u.id === uid)) : [];
+  const by = me?.callsign || memberName(me) || "Staff";
+  try {
+    const ref = await addDoc(collection(db, "attendance_events"), { title, date, type, attendees, excused: [], excusedReasons: {}, locked: false, createdBy: by, createdAt: new Date().toISOString(), updatedBy: by, updatedAt: new Date().toISOString() });
+    if (ce) await updateDoc(doc(db, "community_events", ce.id), { attendanceEventId: ref.id }).catch(() => notify("CREATED — BUT COULD NOT LINK THE DISCORD EVENT", 1));
+    await audit("battalion_ops", "EVENT CREATED", `${title} (${date}) — Type: ${type}${ce ? " — from Discord event, " + attendees.length + " pre-ticked" : ""}`);
+    notify("EVENT CREATED — " + title);
+    nf = { mode: "discord", ce: "", title: "", date: today(), type: "main_op", tickGoing: true };
+    tab = "t";
+    cur = null;
+    await load();
+    watch(ref.id);
+    render();
+  } catch (x) {
+    notify("CREATE FAILED: " + x.message, 1);
+  }
+}
+
+// ───────── styles ─────────
 const CSS = `
-#attV2 .evarch{border:1px solid rgba(0,217,255,.18);background:rgba(0,217,255,.03);margin:10px 0;padding:8px 12px}#attV2 .evarch summary{cursor:pointer;font-size:10.5px;letter-spacing:2px;color:#00D9FF}#attV2 .evarch summary small{color:#7d8a99;margin-left:8px}
-#attV2 .evarch-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:10px 0 6px}#attV2 .evarch-g b{display:block;font-size:11px;color:#fff;font-weight:400;letter-spacing:1px}#attV2 .evarch-g small{font-size:10.5px;color:#aeb9c4;line-height:1.5}#attV2 .evarch-n{font-size:9.5px;color:#7d8a99}
-#${ROOT} .live{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--l);background:var(--p);padding:8px 12px;margin:14px 0 12px;font-size:10px;letter-spacing:2px;color:var(--d)}
-#${ROOT} .who{display:flex;gap:6px;flex-wrap:wrap}
-#${ROOT} .pp{display:flex;align-items:center;gap:6px;border:1px solid rgba(0,217,255,.4);color:var(--a);padding:3px 8px;font-size:10px;letter-spacing:1px}
-#${ROOT} .pp i{width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g)}
-#${ROOT} .unit{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-#${ROOT} .layout{display:grid;grid-template-columns:300px 1fr;gap:14px;align-items:start}
-#${ROOT} .rail{border:1px solid var(--l);background:var(--p);position:sticky;top:12px}
-#${ROOT} .rail-h{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--l)}
-#${ROOT} .rail-h h3{margin:0;font-family:Rajdhani,sans-serif;letter-spacing:3px;font-size:13px;color:var(--a)}
-#${ROOT} .nf{display:none;padding:12px;border-bottom:1px solid var(--l);background:#0a0e14;gap:8px;flex-direction:column}
-#${ROOT} .nf.open{display:flex}
-#${ROOT} .nf input,#${ROOT} .nf select{background:#070a0f;border:1px solid var(--l2);padding:8px;font:inherit;font-size:12px;outline:0;width:100%;color:#d6dde6}
-#${ROOT} .nf .r{display:flex;gap:8px}
-#${ROOT} .rail-s{padding:8px 12px;border-bottom:1px solid var(--l)}
-#${ROOT} .rail-s input{width:100%}
-#${ROOT} .evs{max-height:600px;overflow:auto}
-#${ROOT} .mon{font-size:9px;letter-spacing:3px;color:var(--dd);padding:10px 12px 4px}
-#${ROOT} .ev{display:grid;grid-template-columns:3px 1fr auto;gap:10px;align-items:center;padding:9px 12px 9px 0;border:0;border-bottom:1px solid rgba(0,217,255,.06);cursor:pointer;background:none;width:100%;text-align:left;font:inherit;color:inherit}
-#${ROOT} .ev:hover{background:rgba(0,217,255,.04)}#${ROOT} .ev.on{background:rgba(0,217,255,.08)}
-#${ROOT} .ev .eb{align-self:stretch;background:var(--tc)}
-#${ROOT} .ev .et{display:block;font-size:12.5px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#${ROOT} .ev .em{display:block;font-size:9px;letter-spacing:1.5px;color:var(--d);margin-top:3px}
-#${ROOT} .ev .em b{font-weight:400;color:var(--tc)}
-#${ROOT} .ev .pc{text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;font-size:15px}
-#${ROOT} .ev .pc small{display:block;font-family:'Share Tech Mono',monospace;font-size:8.5px;letter-spacing:1px;color:var(--d);font-weight:400}
-#${ROOT} .evc{border:1px solid var(--l);background:var(--p);min-width:0}
-#${ROOT} .evh{display:flex;gap:16px;align-items:center;padding:16px 18px;border-bottom:1px solid var(--l);flex-wrap:wrap}
-#${ROOT} .ring{width:84px;height:84px;border-radius:50%;background:conic-gradient(var(--rc) calc(var(--p)*1%),#1a2330 0);display:grid;place-items:center;flex-shrink:0}
-#${ROOT} .ring div{width:68px;height:68px;border-radius:50%;background:var(--p);display:grid;place-items:center;font-family:Rajdhani,sans-serif;font-weight:700;font-size:20px}
-#${ROOT} .ttl{flex:1;min-width:200px}
-#${ROOT} .ttl h2{margin:0;font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:2px;font-size:22px;color:#fff}
-#${ROOT} .tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;font-size:10px;letter-spacing:1.5px}
-#${ROOT} .tag{border:1px solid;padding:2px 7px}
-#${ROOT} .counts{display:flex;gap:18px;margin-top:10px;font-size:10px;letter-spacing:2px;color:var(--d)}
-#${ROOT} .counts b{font-family:Rajdhani,sans-serif;font-size:20px;margin-right:4px}
-#${ROOT} .acts{display:flex;flex-direction:column;gap:6px}
-#${ROOT} .lockednote{display:none;padding:9px 18px;background:rgba(245,158,11,.07);border-bottom:1px solid rgba(245,158,11,.3);color:var(--am);font-size:10.5px;letter-spacing:1.5px}
-#${ROOT} .evc.locked .lockednote{display:block}
-#${ROOT} .tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--l)}
-#${ROOT} .tools .srch{width:170px}
-#${ROOT} .roll{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;padding:14px 18px 18px}
-#${ROOT} .grp{grid-column:1/-1;font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:3px;font-size:12px;color:var(--a);opacity:.8;border-bottom:1px solid var(--l);padding:6px 0 4px;margin-top:6px;display:flex;justify-content:space-between}
-#${ROOT} .grp span{font-family:'Share Tech Mono',monospace;font-size:9.5px;letter-spacing:1.5px;color:var(--d)}
-#${ROOT} .m{display:flex;align-items:center;gap:10px;border:1px solid var(--l);background:var(--p2);padding:9px 10px;cursor:pointer;transition:border-color .12s,background .12s}
-#${ROOT} .m:hover{border-color:var(--l2)}#${ROOT} .m:focus-visible{outline:2px solid var(--a);outline-offset:1px}
-#${ROOT} .m .box{width:26px;height:26px;flex-shrink:0;border:1px solid #3b4a5a;display:grid;place-items:center;font-size:14px;color:transparent}
-#${ROOT} .m .nm2{display:block;font-size:12.5px;color:#c6d0da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#${ROOT} .m .rk{display:block;font-size:9px;letter-spacing:1px;color:var(--dd);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#${ROOT} .m .rate{margin-left:auto;text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;font-size:13px;background:none;border:1px solid transparent;cursor:pointer;padding:2px 4px}
-#${ROOT} .m .rate:hover{border-color:var(--l2)}
-#${ROOT} .m .rate small{display:block;font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dd);font-weight:400;letter-spacing:1px}
-#${ROOT} .m.p{border-color:rgba(34,224,122,.55);background:rgba(34,224,122,.07)}
-#${ROOT} .m.p .box{border-color:var(--g);background:var(--g);color:#03130a}
-#${ROOT} .m.p .nm2{color:#fff}
-#${ROOT} .evc.locked .m{cursor:not-allowed;opacity:.8}
-#${ROOT} .legend{padding:0 18px 14px;font-size:9.5px;letter-spacing:1.5px;color:var(--d)}
-@media(max-width:1100px){#${ROOT} .layout{grid-template-columns:1fr}#${ROOT} .rail{position:static}#${ROOT} .evs{max-height:260px}#${ROOT} .unit{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){#${ROOT} .roll{grid-template-columns:1fr 1fr}#${ROOT} .m .rate{display:none}#${ROOT} .tools .srch{width:100%}}
+#${ROOT} .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}#${ROOT} .sp{flex:1}
+#${ROOT} .h1{font:700 20px Rajdhani,sans-serif;letter-spacing:4px;color:#00D9FF}
+#${ROOT} .k{font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
+#${ROOT} .in{height:34px;background:#060a0e;border:1px solid rgba(0,217,255,.3);color:#fff;padding:0 10px;font:13px "Share Tech Mono",monospace;width:100%;box-sizing:border-box}#${ROOT} .in:focus{outline:none;border-color:#00D9FF}
+#${ROOT} label{display:block;font:9.5px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;margin:10px 0 4px}#${ROOT} label.ck{letter-spacing:.5px;font-size:12px;color:#c6d0da}
+#${ROOT} .chip{all:unset;cursor:pointer;padding:5px 10px;border:1px solid rgba(0,217,255,.18);font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}#${ROOT} .chip.on{color:#fff;border-color:#00D9FF;background:rgba(0,217,255,.1)}
+#${ROOT} .chip:focus-visible,#${ROOT} .ev:focus-visible,#${ROOT} .st:focus-visible,#${ROOT} .rate:focus-visible{outline:2px solid #00D9FF;outline-offset:2px}
+#${ROOT} .card{background:#0b0f15;border:1px solid rgba(0,217,255,.18)}
+#${ROOT} .live{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid rgba(0,217,255,.18);background:#0b0f15;padding:8px 12px;margin-bottom:12px;font:10px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99}
+#${ROOT} .who{display:flex;gap:6px;flex-wrap:wrap}#${ROOT} .pp{display:flex;align-items:center;gap:6px;border:1px solid rgba(0,217,255,.4);color:#00D9FF;padding:3px 8px;letter-spacing:1px}#${ROOT} .pp i{width:7px;height:7px;border-radius:50%;background:#22e07a}
+#${ROOT} .kp{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}#${ROOT} .kp div,#${ROOT} .ts div{border:1px solid rgba(0,217,255,.18);background:#0b0f15;padding:10px;text-align:center}
+#${ROOT} .kp b,#${ROOT} .ts b{display:block;color:#fff;font:700 22px Rajdhani,sans-serif}#${ROOT} .kp span,#${ROOT} .ts span{font:9px "Share Tech Mono",monospace;letter-spacing:1.5px;color:#7d8a99}
+#${ROOT} .att{display:grid;grid-template-columns:290px minmax(0,1fr);gap:14px;align-items:start}
+#${ROOT} .rail{position:sticky;top:10px}#${ROOT} .evs{max-height:calc(100vh - 330px);overflow:auto}
+#${ROOT} .mon{padding:8px 12px;font:10px "Share Tech Mono",monospace;letter-spacing:2px;color:#00D9FF;border-bottom:1px solid rgba(0,217,255,.18)}
+#${ROOT} .ev{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:8px;justify-content:space-between;align-items:center;width:100%;padding:9px 12px;border-bottom:1px solid rgba(0,217,255,.07)}#${ROOT} .ev:hover{background:rgba(0,217,255,.04)}#${ROOT} .ev.on{background:rgba(0,217,255,.07);box-shadow:inset 3px 0 0 #00D9FF}
+#${ROOT} .ev b{display:block;color:#fff;font:700 14px Rajdhani,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#${ROOT} .ev small{font:10px "Share Tech Mono",monospace;color:#7d8a99;white-space:nowrap}
+#${ROOT} .evc{min-width:0}#${ROOT} .eh{padding:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-bottom:1px solid rgba(0,217,255,.18)}
+#${ROOT} .eh h2{margin:0 0 2px;color:#fff;font:700 22px Rajdhani,sans-serif;letter-spacing:2px}
+#${ROOT} .g3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:0 12px}#${ROOT} .eh .g3 label{margin-top:0}
+#${ROOT} .ts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px}
+#${ROOT} .tools{padding:0 14px;margin-bottom:8px}#${ROOT} .tools .rq{max-width:200px}
+#${ROOT} .tw{padding:0 14px;overflow-x:auto}#${ROOT} table{width:100%;border-collapse:collapse}
+#${ROOT} th{font:9.5px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;text-align:left;padding:7px 10px;border-bottom:1px solid rgba(0,217,255,.18)}
+#${ROOT} td{padding:6px 10px;border-bottom:1px solid rgba(0,217,255,.07);font:12px "Share Tech Mono",monospace;color:#c6d0da;vertical-align:middle}
+#${ROOT} td b{color:#fff;font:700 14px Rajdhani,sans-serif;letter-spacing:.5px}#${ROOT} tr.p td{background:rgba(34,224,122,.04)}#${ROOT} tr.e td{background:rgba(245,158,11,.05)}
+#${ROOT} tr.grp td{background:none;color:#00D9FF;font:700 12px Rajdhani,sans-serif;letter-spacing:3px;padding-top:14px}#${ROOT} tr.grp small{color:#7d8a99;font:9.5px "Share Tech Mono",monospace;letter-spacing:1px;margin-left:8px}
+#${ROOT} .pg{display:inline-block;min-width:28px;text-align:center;padding:0 4px;border:1px solid rgba(0,217,255,.18);color:#00D9FF;font-size:10px;margin-left:4px}
+#${ROOT} .rate{all:unset;cursor:pointer;margin-left:8px;font:700 12px Rajdhani,sans-serif;padding:0 4px;border:1px solid transparent}#${ROOT} .rate:hover{border-color:rgba(0,217,255,.35)}
+#${ROOT} .l3{letter-spacing:3px;font-weight:700}
+#${ROOT} .st{all:unset;cursor:pointer;min-width:96px;text-align:center;padding:4px 8px;border:1px solid;font:10.5px "Share Tech Mono",monospace;letter-spacing:1px}#${ROOT} .st:disabled{cursor:not-allowed;opacity:.7}
+#${ROOT} .rs{height:26px;max-width:180px;display:inline-block;vertical-align:middle;font-size:11px}
+#${ROOT} .lockbar{display:flex;gap:10px;align-items:center;margin:4px 14px 14px;padding:10px 12px;border:1px solid #ffd166;color:#ffd166;font:11px "Share Tech Mono",monospace;letter-spacing:.5px}#${ROOT} .lockbar span{flex:1}#${ROOT} .lockbar.dim{border-color:rgba(0,217,255,.18);color:#7d8a99}
+#${ROOT} .b.red{border-color:#ff4d4d;color:#ff4d4d}
+#${ROOT} .nfc{padding:16px;max-width:700px}#${ROOT} .st2{color:#fff;letter-spacing:2px;font:700 15px Rajdhani,sans-serif}
+#${ROOT} .empty{padding:30px;text-align:center;color:#7d8a99;font:11px "Share Tech Mono",monospace;letter-spacing:2px}
+@media(max-width:1000px){#${ROOT} .att{grid-template-columns:1fr}#${ROOT} .rail{position:static}#${ROOT} .evs{max-height:260px}#${ROOT} .kp{grid-template-columns:repeat(2,1fr)}#${ROOT} .g3{grid-template-columns:1fr}}
 `;
 
+// ───────── events ─────────
 onReady(() => {
   const root = mountPanel("panel-attendance", ROOT, async () => {
     watchPresence();
-    try {
-      await load();
-    } catch (e) {
-      notify("ATTENDANCE LOAD FAILED: " + e.message, 1);
-    }
+    try { await load(); } catch (e) { notify("ATTENDANCE LOAD FAILED: " + e.message, 1); }
   });
   if (!root) return;
   addCss(ROOT, CSS);
-  root.innerHTML = `
-    <div class="h1">ATTENDANCE TRACKER</div>
-    <div class="live" aria-live="polite"><span>ONLINE NOW</span><div class="who"></div><span class="sp"></span><span style="color:var(--g)">✓ SAVES AUTOMATICALLY</span></div>
-    <div class="unit"></div>
-    <div class="layout">
-      <aside class="rail">
-        <div class="rail-h"><h3>EVENTS</h3><button class="b" data-act="new">+ NEW EVENT</button></div>
-        <div class="nf">
-          <input class="nfn" placeholder="Operation / event name" aria-label="Event name" maxlength="120">
-          <div class="r"><input class="nfd" type="date" value="${today()}" aria-label="Date"><select class="nft" aria-label="Type"><option value="main_op">MAIN OP</option><option value="patrol">PATROL</option><option value="training">TRAINING</option><option value="fun_op">FUN OP</option></select></div>
-          <button class="b gold" data-act="create">CREATE &amp; START ROLL CALL ▸</button>
-        </div>
-        <div class="rail-s"><input class="srch eq" placeholder="SEARCH EVENTS..." aria-label="Search events"></div>
-        <div class="evs"></div>
-      </aside>
-      <section class="evc"></section>
-    </div>`;
+  if (!root.querySelector(".body")) root.innerHTML = '<div class="body"><div class="empty">LOADING…</div></div>';
 
-  root.addEventListener("click", async (e) => {
-    const t = e.target;
+  root.addEventListener("click", async (ev) => {
+    const t = ev.target;
     const rate = t.closest("[data-rate]");
     if (rate) {
-      e.stopPropagation();
       const u = users.find((x) => x.id === rate.dataset.rate);
       if (u) window.editAttMonthlyRate?.(u.id, memberName(u), u.opsAttended || 0, u.opsEligible || 0);
       return;
     }
-    const m = t.closest(".m[data-uid]");
-    if (m) return toggle(m.dataset.uid);
-    const ev = t.closest("[data-ev]");
-    if (ev) return pick(ev.dataset.ev);
-    const pfb = t.closest("[data-pf]");
-    if (pfb) {
-      pf = pfb.dataset.pf;
-      return render();
-    }
+    const cy = t.closest("[data-cyc]");
+    if (cy) return cycle(cy.dataset.cyc);
+    const e = t.closest("[data-ev]");
+    if (e) { watch(e.dataset.ev); return render(); }
+    const tb = t.closest("[data-tab]");
+    if (tb) { tab = tb.dataset.tab; return render(); }
+    const f = t.closest("[data-f]");
+    if (f) { flt = f.dataset.f; return render(); }
+    const md = t.closest("[data-mode]");
+    if (md) { nf.mode = md.dataset.mode; return render(); }
     const act = t.closest("[data-act]")?.dataset.act;
-    if (act === "new") return root.querySelector(".nf").classList.toggle("open");
-    if (act === "create") return createEvent(root.querySelector(".nf"));
-    if (act === "all") return markAll(true);
-    if (act === "clear") return markAll(false);
-    if (act === "lock") {
-      if (!(await ask({ kind: "warn", title: "LOCK ATTENDANCE?", body: "This finalises attendance and recalculates every member's stats.", item: cur.title, go: "LOCK" }))) return;
-      await window.saveAttendance(true);
-      return load();
+    if (!act) return;
+    if (act === "history") return window.showPanel?.("panel-att-history");
+    if (act === "create") return createEvent();
+    if (!cur) return;
+    if (act === "headedit") { editHead = true; return render(); }
+    if (act === "headcancel") { editHead = false; return render(); }
+    if (act === "headsave") {
+      const title = root.querySelector("#ah_t").value.trim(), date = root.querySelector("#ah_d").value, type = root.querySelector("#ah_y").value;
+      if (!title || !date) return notify("TITLE AND DATE REQUIRED", 1);
+      const old = `${cur.title} (${cur.date})`;
+      editHead = false;
+      await save({ title, date, type });
+      audit("battalion_ops", "EVENT EDITED", `${old} → ${title} (${date}) — Type: ${type}`);
+      return;
     }
-    if (act === "unlock") {
-      await window.unlockEvent();
-      return load();
+    if (act === "lock") return lockEvent();
+    if (act === "unlock") return unlockEvent();
+    if (act === "delete") return deleteEvent();
+    if (cur.locked) return;
+    if (act === "tickgoing") {
+      const add = goingUids(linked(cur)).filter((uid) => roll().some((u) => u.id === uid));
+      const att = new Set(cur.attendees || []);
+      add.forEach((uid) => att.add(uid));
+      const exc = (cur.excused || []).filter((uid) => !att.has(uid));
+      await save({ attendees: [...att], excused: exc });
+      return notify(`✓ ${add.length} SIGNED UP MARKED PRESENT`);
     }
-    if (act === "delete") {
-      const id = cur.id;
-      await window.deleteAttEvent(id, cur.title || "this event");
-      const snap = await getDocs(collection(db, "attendance_events"));
-      if (!snap.docs.some((d) => d.id === id)) {
-        cur = null;
-        unsubEv?.();
+    if (act === "clear") {
+      if (!(await ask({ kind: "warn", title: "CLEAR ALL?", body: "Everyone on this event goes back to absent.", item: cur.title, go: "CLEAR" }))) return;
+      return save({ attendees: [], excused: [], excusedReasons: {} });
+    }
+  });
+
+  root.addEventListener("input", (ev) => {
+    const t = ev.target;
+    const keep = (sel) => { render(); const el = root.querySelector(sel); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } };
+    if (t.classList.contains("rq")) { q = t.value; return keep(".rq"); }
+    if (t.classList.contains("eq")) { eq = t.value; return keep(".eq"); }
+    if (t.id === "nf_t") nf.title = t.value;
+  });
+
+  // Saved when you leave the box, so typing isn't interrupted.
+  root.addEventListener("change", (ev) => {
+    const t = ev.target;
+    if (t.dataset.rs && cur && !cur.locked) {
+      const reasons = { ...(cur.excusedReasons || {}), [t.dataset.rs]: t.value.trim().slice(0, 60) };
+      return save({ excusedReasons: reasons }, true);
+    }
+    if (t.id === "nf_d") nf.date = t.value;
+    if (t.id === "nf_y") nf.type = t.value;
+    if (t.id === "nf_g") nf.tickGoing = t.checked;
+    if (t.id === "nf_ce") {
+      nf.ce = t.value;
+      const c = comm.find((x) => x.id === nf.ce);
+      if (c) {
+        nf.title = c.title || nf.title;
+        nf.date = String(c.startAtISO || "").slice(0, 10) || nf.date;
+        if (TYPE[c.opType]) nf.type = c.opType;
       }
-      return load();
-    }
-  });
-  root.addEventListener("keydown", (e) => {
-    const m = e.target.closest?.(".m[data-uid]");
-    if (m && (e.key === "Enter" || e.key === " ")) {
-      e.preventDefault();
-      toggle(m.dataset.uid);
-    }
-    if (e.key === "Enter" && e.target.classList?.contains("nfn")) createEvent(root.querySelector(".nf"));
-  });
-  root.addEventListener("input", (e) => {
-    if (e.target.classList.contains("rq")) {
-      q = e.target.value;
-      render();
-      const el = root.querySelector(".rq");
-      el.focus();
-      el.setSelectionRange(q.length, q.length);
-    }
-    if (e.target.classList.contains("eq")) {
-      eq = e.target.value;
       render();
     }
   });
