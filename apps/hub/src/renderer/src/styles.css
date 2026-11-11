@@ -42,4 +42,11 @@ body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 7
 @keyframes ring { to { stroke-dashoffset: var(--o); } }
 @keyframes shine { 0% { left: -40%; } 40%, 100% { left: 120%; } }
 @layer base { button { cursor: pointer; } }
-@media (prefers-reduced-motion: reduce) { .rise { opacity: 1; transform: none; } .ring { stroke-dashoffset: var(--o); } }
+/* Personnel tiles: lift + glow + light sweep on hover (app only) */
+.tile { position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s, border-color .2s; }
+.tile:hover { transform: translateY(-3px); box-shadow: 0 6px 24px rgb(0 217 255 / .2), 0 0 0 1px #00d9ff; }
+.tile::after { content: ""; position: absolute; top: 0; bottom: 0; width: 30%; left: -40%; background: linear-gradient(90deg, transparent, rgb(0 217 255 / .14), transparent); transform: skewX(-20deg); pointer-events: none; }
+.tile:hover::after { animation: sweep .7s; }
+.tile:hover > div:first-child > span:first-child { filter: drop-shadow(0 0 8px #00d9ff); }
+@keyframes sweep { from { left: -40%; } to { left: 140%; } }
+@media (prefers-reduced-motion: reduce) { .rise { opacity: 1; transform: none; } .ring { stroke-dashoffset: var(--o); } .tile, .tile:hover { transition: none; transform: none; } .tile:hover::after { animation: none; } }

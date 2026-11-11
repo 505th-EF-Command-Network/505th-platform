@@ -1,3 +1,4 @@
+import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HistoryEntry, MemberFile, MemberTile } from "../../../preload/api";
 import { ActionWindow, type Action } from "./MemberActions";
@@ -46,13 +47,15 @@ function Hex(p: { photo: string | null; label: string; size: number }) {
   );
 }
 
-export function Personnel() {
+export function Personnel(p: { me: string }) {
+  const me = p.me;
   const [list, setList] = useState<MemberTile[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState("ALL");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"rank" | "name" | "joined" | "att">("rank");
   const [open, setOpen] = useState<string | null>(null);
+  const [view, setView] = useState<"cards" | "list">("cards");
 
   const load = useCallback(async () => {
     const r = await window.cn.hub.members();
@@ -89,10 +92,29 @@ export function Personnel() {
         <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort" className="border border-cyan/25 bg-[#05080b] px-2 py-2 text-[12px] text-white">
           <option value="rank">SORT: RANK</option><option value="name">SORT: NAME</option><option value="joined">SORT: NEWEST</option><option value="att">SORT: LOWEST ATT</option>
         </select>
+        <div className="flex" role="group" aria-label="View">
+          {(["cards", "list"] as const).map((v) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}
+              className={`border px-3 py-2 text-[11px] tracking-[1.5px] ${view === v ? "border-cyan text-cyan" : "border-cyan/25 text-dim"}`}>{v === "cards" ? "▦ CARDS" : "☰ LIST"}</button>
+          ))}
+        </div>
       </div>
+      {list && (
+        <div className="mb-3 grid grid-cols-5 gap-2.5">
+          {(() => {
+            const st = list.map(statusOf), w = list.filter((u) => u.opsEligible);
+            const avg = w.length ? Math.round(w.reduce((n, u) => n + pctOf(u)!, 0) / w.length) : null;
+            return ([[list.length, "TOTAL", "#00D9FF"], [st.filter((x) => x === "active").length, "ACTIVE", "#22e07a"], [st.filter((x) => x === "reserve").length, "RESERVE", "#f59e0b"],
+              [st.filter((x) => x === "inactive").length, "INACTIVE", "#ff4d4d"], [avg == null ? "—" : `${avg}%`, "AVG ATTENDANCE", pctC(avg)]] as [number | string, string, string][]).map(([v, l, c]) => (
+              <div key={l} className="border border-cyan/15 bg-[#0b1016] px-3.5 py-2.5"><b className="block font-head text-[22px]" style={{ color: c }}>{v}</b><span className="text-[10px] tracking-[2px] text-dim">{l}</span></div>
+            ));
+          })()}
+        </div>
+      )}
       <div role="tablist" className="mb-4 flex flex-wrap gap-1.5">
         {TABS.map(([k, l]) => {
           const n = list?.filter((u) => inTab(u, k)).length ?? 0;
+          if (k !== "ALL" && !n && tab !== k) return null;
           return (
             <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)}
               className={`border px-3 py-1.5 text-[11px] tracking-[1.5px] ${tab === k ? "border-cyan text-cyan" : k === "Inactive" ? "border-bad/30 text-bad/80" : "border-cyan/15 text-dim"}`}>
@@ -101,7 +123,30 @@ export function Personnel() {
           );
         })}
       </div>
-      {!list ? <p className="text-[12px] tracking-[2px] text-dim">LOADING…</p> : (
+      {!list ? <p className="text-[12px] tracking-[2px] text-dim">LOADING…</p> : view === "list" ? (
+        <table className="w-full border-collapse text-[13px]">
+          <thead><tr className="text-left text-[10.5px] tracking-[2px] text-dim">{["", "NAME", "RANK", "UNIT", "ROLE", "STATUS", "ATTENDANCE"].map((h) => <th key={h} className="border-b border-cyan/15 px-2.5 py-2 font-normal">{h}</th>)}</tr></thead>
+          <tbody>
+            {shown.map((u, i) => {
+              const [rl, rc] = ROLE[u.role] ?? [u.role.toUpperCase(), "#94a3b8"];
+              const [sl, sc] = STATUS[statusOf(u)]!;
+              const a = pctOf(u);
+              return (
+                <tr key={u.id} tabIndex={0} onClick={() => setOpen(u.id)} onKeyDown={(e) => e.key === "Enter" && setOpen(u.id)} className="rise cursor-pointer hover:bg-cyan/5" style={{ animationDelay: `${Math.min(i, 30) * 0.015}s` }}>
+                  <td className="border-b border-cyan/10 px-2.5 py-1.5"><Hex photo={u.photo} label={short(u.rank) || "—"} size={30} /></td>
+                  <td className="border-b border-cyan/10 px-2.5 font-bold text-white">{memberName(u)}</td>
+                  <td className="border-b border-cyan/10 px-2.5 text-dim">{u.rank || "—"}</td>
+                  <td className="border-b border-cyan/10 px-2.5 text-[#9fb3c4]">{u.platoon || "—"}</td>
+                  <td className="border-b border-cyan/10 px-2.5 text-[10.5px] tracking-[1.5px]" style={{ color: rc }}>{rl}</td>
+                  <td className="border-b border-cyan/10 px-2.5 text-[11px]" style={{ color: sc }}>● {sl}</td>
+                  <td className="border-b border-cyan/10 px-2.5 text-[12px]"><span className="mr-2 inline-block h-1 w-[90px] bg-white/5 align-middle"><i className="block h-full" style={{ width: `${a ?? 0}%`, background: pctC(a) }} /></span>{a == null ? "—" : `${a}%`}</td>
+                </tr>
+              );
+            })}
+            {!shown.length && <tr><td colSpan={7} className="py-10 text-center text-[12px] tracking-[2px] text-dimmer">NO PERSONNEL MATCH THIS FILTER</td></tr>}
+          </tbody>
+        </table>
+      ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))" }}>
           {shown.map((u, i) => {
             const [rl, rc] = ROLE[u.role] ?? [u.role.toUpperCase(), "#94a3b8"];
@@ -109,7 +154,7 @@ export function Personnel() {
             const a = pctOf(u);
             return (
               <button key={u.id} type="button" onClick={() => setOpen(u.id)} aria-label={memberName(u)}
-                className="rise group flex flex-col border border-cyan/15 bg-[#0b1016] text-left hover:border-cyan/50" style={{ animationDelay: `${Math.min(i, 20) * 0.02}s`, borderTop: `2px solid ${rc}` }}>
+                className="rise tile group flex flex-col border border-cyan/15 bg-[#0b1016] text-left hover:border-cyan/50" style={{ animationDelay: `${Math.min(i, 30) * 0.025}s`, borderTop: `3px solid ${sc}` }}>
                 <div className="relative grid h-[130px] place-items-center bg-gradient-to-b from-[#0e151c] to-[#0a0e13]">
                   <Hex photo={u.photo} label={short(u.rank) || "—"} size={84} />
                   <span className="absolute left-2 top-2 border border-gold/50 bg-black/60 px-1.5 font-head text-[12px] font-bold text-gold">{short(u.rank) || "—"}</span>
@@ -131,7 +176,7 @@ export function Personnel() {
           {!shown.length && <p className="col-span-full py-10 text-center text-[12px] tracking-[2px] text-dimmer">NO PERSONNEL MATCH THIS FILTER</p>}
         </div>
       )}
-      {open && <FileWindow id={open} onClose={() => setOpen(null)} />}
+      {open && <FileWindow id={open} me={me} onClose={() => setOpen(null)} />}
     </main>
   );
 }
@@ -139,10 +184,11 @@ export function Personnel() {
 // ───────── file window ─────────
 const KIND: Record<string, [string, string]> = { promo: ["PROMOTED", "#22e07a"], platoon: ["TRANSFER", "#00D9FF"], warn: ["WARNING", "#f59e0b"], commend: ["MEDAL", "#a78bfa"], ribbon: ["RIBBON", "#2dd4bf"] };
 
-function FileWindow(p: { id: string; onClose: () => void }) {
+function FileWindow(p: { id: string; me: string; onClose: () => void }) {
+  const meRole = p.me;
   const [f, setF] = useState<MemberFile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"details" | "record" | "att">("details");
+  const [tab, setTab] = useState<"details" | "record" | "medals" | "att" | "warn">("details");
   const [filter, setFilter] = useState<string>("all");
   const [act, setAct] = useState<Action | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -196,7 +242,7 @@ function FileWindow(p: { id: string; onClose: () => void }) {
             </aside>
             <div className="flex min-w-0 flex-1 flex-col">
               <div role="tablist" className="flex border-b border-cyan/15">
-                {([["details", "DETAILS"], ["record", "SERVICE RECORD"], ["att", "ATTENDANCE"]] as const).map(([k, l]) => (
+                {([["details", "DETAILS"], ["record", "SERVICE RECORD"], ["medals", "MEDALS"], ["att", "ATTENDANCE"], ["warn", "WARNINGS"]] as const).map(([k, l]) => (
                   <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={`border-b-2 px-5 py-3 text-[12px] tracking-[2px] ${tab === k ? "border-cyan text-cyan" : "border-transparent text-dim"}`}>{l}</button>
                 ))}
                 {f.canEdit ? (
@@ -208,21 +254,49 @@ function FileWindow(p: { id: string; onClose: () => void }) {
                 ) : <span className="ml-auto self-center pr-4 text-[10.5px] tracking-[1.5px] text-dimmer">{f.retired ? "RETIRED — FILE FROZEN" : "VIEW ONLY"}</span>}
               </div>
               <div className="min-h-0 flex-1 overflow-auto p-5">
-                {tab === "details" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {[["IDENTITY", [["FIRST NAME", f.firstName], ["LAST NAME", f.lastName], ["CALLSIGN", f.callsign || "—"], ["DISCORD", f.discordUsername ? "@" + f.discordUsername : "—"]]],
-                      ["RANK & ROLE", [["RANK", f.rank || "—"], ["ROLE", rl]]],
-                      ["UNIT", [["PLATOON", f.platoon || "—"], ["SQUAD", f.squad || "—"], ["IN PLATOON SINCE", f.joinedPlatoon || "—"]]],
-                      ["SERVICE", [["JOINED", f.joinedAt || "—"], ["BCT PASSED", f.graduation || "—"], ["RECRUITED BY", f.recruitSource || "—"]]]].map(([h, kv]) => (
-                      <section key={h as string} className="border border-cyan/15 bg-[#0e151a]">
-                        <h4 className="m-0 border-b border-cyan/15 px-3 py-2 text-[10.5px] tracking-[2.5px] text-cyan">{h as string}</h4>
-                        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-3 text-[13px]">
-                          {(kv as [string, string][]).map(([k, v]) => [<dt key={k + "k"} className="text-[10.5px] tracking-[1.5px] text-dim">{k}</dt>, <dd key={k + "v"} className="m-0 text-white">{v}</dd>])}
-                        </dl>
-                      </section>
-                    ))}
-                  </div>
+                {tab === "details" && <Details f={f} me={meRole} roleLabel={rl} onSaved={(m) => { setToast(m); setTick((t) => t + 1); }} />}
+                {tab === "medals" && (
+                  <>
+                    <h4 className="mb-2 mt-0 text-[10.5px] tracking-[2.5px] text-cyan">MEDALS · {f.commendationHistory.length}</h4>
+                    <div className="mb-5 grid grid-cols-3 gap-2.5">
+                      {f.commendationHistory.map((e, i) => (
+                        <div key={i} className="rise border border-[#a78bfa44] bg-[#0e151a] p-3" style={{ animationDelay: `${i * 0.03}s` }}>
+                          <b className="block text-[#c4b5fd]">★ {String(e.title ?? "Medal")}</b><span className="text-[11px] text-dim">{String(e.date ?? "—")}{e.addedBy ? ` · by ${String(e.addedBy)}` : ""}</span>
+                          {e.note && <p className="m-0 mt-1 text-[12px] text-[#aeb9c4]">{String(e.note)}</p>}
+                        </div>
+                      ))}
+                      {!f.commendationHistory.length && <p className="col-span-3 m-0 text-[12px] tracking-[2px] text-dimmer">NO MEDALS YET.</p>}
+                    </div>
+                    <h4 className="mb-2 mt-0 text-[10.5px] tracking-[2.5px] text-cyan">RIBBONS · {f.ribbonHistory.length}</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {f.ribbonHistory.map((e, i) => <span key={i} title={String(e.note ?? "")} className="border border-[#2dd4bf66] px-2.5 py-1 text-[11.5px] text-[#5eead4]">▬ {String(e.title ?? "Ribbon")} <span className="text-dimmer">{String(e.date ?? "")}</span></span>)}
+                      {!f.ribbonHistory.length && <p className="m-0 text-[12px] tracking-[2px] text-dimmer">NO RIBBONS YET.</p>}
+                    </div>
+                    {f.canEdit && <button type="button" onClick={() => setAct({ kind: "medal" })} className="mt-5 border border-[#a78bfa88] px-3 py-1.5 text-[11px] tracking-[1.5px] text-[#a78bfa]">★ AWARD MEDAL</button>}
+                  </>
                 )}
+                {tab === "warn" && (() => {
+                  const now = new Date().toISOString().slice(0, 10);
+                  const live = f.warningHistory.filter((e) => !e.expires || String(e.expires) >= now);
+                  return (
+                    <>
+                      <div className="mb-4 border bg-[#0e151a] p-3" style={{ borderColor: live.length ? "#f59e0b" : "#22e07a" }}>
+                        <b style={{ color: live.length ? "#f59e0b" : "#22e07a" }}>● {live.length ? `${live.length} ACTIVE WARNING${live.length === 1 ? "" : "S"}` : "GOOD STANDING — NO ACTIVE WARNINGS"}</b>
+                        <div className="text-[11px] text-dim">{f.warningHistory.length} on record in total</div>
+                      </div>
+                      {f.warningHistory.map((e, i) => {
+                        const old = !!e.expires && String(e.expires) < now;
+                        return (
+                          <div key={i} className="mb-2 border border-cyan/10 bg-[#0e151a] px-3 py-2.5" style={{ borderLeft: "3px solid #f59e0b", opacity: old ? 0.55 : 1 }}>
+                            <div className="text-[10.5px] tracking-[1.5px]"><b className="text-[#f59e0b]">⚠ {String(e.severity ?? "WARNING")}</b> <span className="text-dim">· {String(e.date ?? "—")}{e.addedBy ? ` · by ${String(e.addedBy)}` : ""}{e.expires ? ` · ${old ? "EXPIRED" : "expires"} ${String(e.expires)}` : ""}</span></div>
+                            <div className="mt-1 text-white">{String(e.note ?? "")}</div>
+                          </div>
+                        );
+                      })}
+                      {f.canEdit && <button type="button" onClick={() => setAct({ kind: "warn" })} className="mt-3 border border-[#f59e0b88] px-3 py-1.5 text-[11px] tracking-[1.5px] text-[#f59e0b]">⚠ ISSUE WARNING</button>}
+                    </>
+                  );
+                })()}
                 {tab === "record" && (
                   <>
                     <div className="mb-3 flex flex-wrap gap-1.5">
@@ -278,6 +352,79 @@ function FileWindow(p: { id: string; onClose: () => void }) {
       </div>
       {act && f && <ActionWindow f={f} name={memberName(f)} action={act} onClose={() => setAct(null)} onDone={(m) => { setAct(null); setToast(m); setTick((t) => t + 1); }} />}
       {toast && <div role="status" className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 border border-ok bg-panel px-4 py-2 text-[12px] tracking-[1.5px] text-ok">✓ {toast}</div>}
+    </div>
+  );
+}
+
+// ───────── Details tab (view / edit) ─────────
+const ROLE_OPTS = ["enlistee", "marine", "recruiter", "nco", "staff_nco", "officer", "developer", "commander", "retired_veteran"];
+const F_TEXT: [keyof MemberFile & string, string][] = [["firstName", "FIRST NAME"], ["lastName", "LAST NAME"], ["callsign", "CALLSIGN"], ["squad", "SQUAD"], ["recruitSource", "RECRUITED BY"]];
+const F_DATE: [keyof MemberFile & string, string][] = [["joinedAt", "JOINED"], ["graduation", "BCT PASSED"], ["joinedPlatoon", "IN PLATOON SINCE"]];
+
+function Details(p: { f: MemberFile; me: string; roleLabel: string; onSaved: (m: string) => void }) {
+  const { f } = p;
+  const keys: string[] = [...F_TEXT, ...F_DATE].map(([k]) => k as string).concat("role");
+  const start = () => Object.fromEntries(keys.map((k) => [k, String(f[k as keyof MemberFile] ?? "")]));
+  const [edit, setEdit] = useState(false);
+  const [v, setV] = useState<Record<string, string>>(start);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => { if (!edit) setV(start()); }, [f, edit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const orig = start();
+  const changed = keys.filter((k) => v[k] !== orig[k]);
+  const canRole = ["commander", "developer"].includes(p.me);
+  const save = async () => {
+    setBusy(true); setErr(null);
+    const r = await window.cn.hub.memberAction(f.id, { action: "details", changes: Object.fromEntries(changed.map((k) => [k, v[k]])), expect: orig, reason });
+    setBusy(false);
+    if (r.error) return setErr(r.error);
+    setEdit(false); setReason(""); p.onSaved("File updated");
+  };
+  const cell = (k: string, label: string, type: "text" | "date" | "role") => {
+    const on = edit && (type !== "role" || canRole);
+    const ch = changed.includes(k);
+    return (
+      <div key={k}>
+        <label className="mb-1 block text-[10px] tracking-[1.5px]" style={{ color: ch ? "#f59e0b" : "#7d8a99" }}>{label}{ch ? " • CHANGED" : ""}</label>
+        {!on ? <div className="px-2.5 py-2 text-[13px] text-white">{type === "role" ? p.roleLabel : v[k] || "—"}{type === "role" && edit && <span className="ml-2 text-[10.5px] text-dimmer">🔒 Commander / Developer only</span>}</div>
+          : type === "role" ? (
+            <select value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} className="w-full border bg-[#07111b] px-2.5 py-2 text-[13px] text-white" style={{ borderColor: ch ? "#f59e0b" : "rgb(0 217 255 / .2)" }}>
+              {ROLE_OPTS.filter((r) => r !== "commander" || p.me === "commander" || v[k] === "commander").map((r) => <option key={r} value={r}>{ROLE[r]?.[0] ?? r}</option>)}
+            </select>)
+          : <input type={type} value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} maxLength={80}
+              className="w-full border bg-[#07111b] px-2.5 py-2 text-[13px] text-white outline-none focus:border-cyan" style={{ borderColor: ch ? "#f59e0b" : "rgb(0 217 255 / .2)", colorScheme: "dark" }} />}
+      </div>
+    );
+  };
+  const sec = (h: string, body: React.ReactNode[]) => (
+    <section className="mb-4"><h4 className="mb-2.5 mt-0 text-[10.5px] tracking-[2.5px] text-cyan">{h}</h4><div className="grid grid-cols-2 gap-x-4 gap-y-3">{body}</div></section>
+  );
+  return (
+    <div>
+      {f.canEdit && (
+        <div className="mb-3 flex justify-end">
+          <button type="button" onClick={() => setEdit(!edit)} className="border border-cyan px-3 py-1.5 text-[11px] tracking-[1.5px] text-cyan">{edit ? "👁 VIEW" : "✎ EDIT FILE"}</button>
+        </div>
+      )}
+      {sec("IDENTITY", [cell("firstName", "FIRST NAME", "text"), cell("lastName", "LAST NAME", "text"), cell("callsign", "CALLSIGN", "text"),
+        <div key="dc"><label className="mb-1 block text-[10px] tracking-[1.5px] text-dim">DISCORD</label><div className="px-2.5 py-2 text-[13px] text-white">{f.discordUsername ? "@" + f.discordUsername : "—"} {f.discordLinked ? "· linked ✓" : "· not linked"}</div></div>])}
+      {sec("SERVICE", [
+        <div key="rk"><label className="mb-1 block text-[10px] tracking-[1.5px] text-dim">RANK</label><div className="px-2.5 py-2 text-[13px] text-white">{f.rank || "—"}{edit && <span className="ml-2 text-[10.5px] text-dimmer">🔒 use PROMOTE</span>}</div></div>,
+        <div key="pl"><label className="mb-1 block text-[10px] tracking-[1.5px] text-dim">PLATOON</label><div className="px-2.5 py-2 text-[13px] text-white">{f.platoon || "—"}{edit && <span className="ml-2 text-[10.5px] text-dimmer">🔒 use TRANSFER</span>}</div></div>,
+        cell("role", "WEBSITE ROLE", "role"), cell("squad", "SQUAD", "text"), cell("recruitSource", "RECRUITED BY", "text")])}
+      {sec("DATES", F_DATE.map(([k, l]) => cell(k, l, "date")))}
+      {edit && (
+        <div className="sticky bottom-[-20px] -mx-5 mt-2 flex items-center gap-2.5 border-t border-[#f59e0b] bg-[#1a1405] px-5 py-3" style={{ animation: "rise .3s ease-out forwards" }}>
+          <b className="text-[12px] tracking-[1.5px] text-[#f59e0b]">● {changed.length} UNSAVED CHANGE{changed.length === 1 ? "" : "S"}</b>
+          {err && <span className="text-[12px] text-bad">⚠ {err}</span>}
+          <div className="flex-1" />
+          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} placeholder={changed.includes("role") ? "Reason (required for role change)" : "Reason (optional)"}
+            className="w-[280px] border border-cyan/25 bg-[#07111b] px-2.5 py-2 text-[12px] text-white outline-none focus:border-cyan" />
+          <button type="button" onClick={() => setEdit(false)} className="border border-cyan/25 px-3 py-2 text-[11px] tracking-[1.5px] text-dim">CANCEL</button>
+          <button type="button" disabled={busy || !changed.length} onClick={() => void save()} className="border border-ok px-3 py-2 text-[11px] tracking-[1.5px] text-ok disabled:opacity-40">{busy ? "SAVING…" : "✓ SAVE CHANGES"}</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 type U = Record<string, any>;
 const LISTS: Record<string, string> = { promo: "promotionHistory", platoon: "platoonHistory", warn: "warningHistory", commend: "commendationHistory", ribbon: "ribbonHistory" };
 const KIND: Record<string, string> = { promo: "PROMOTION", platoon: "TRANSFER", warn: "WARNING", commend: "MEDAL", ribbon: "RIBBON" };
-const SEVERITY = new Set(["VERBAL", "WRITTEN", "FINAL"]);
+const ROLES = new Set(["commander", "officer", "developer", "staff_nco", "nco", "recruiter", "marine", "enlistee", "retired_veteran"]);
+const SEVERITY =new Set(["VERBAL", "WRITTEN", "FINAL"]);
 const str = (v: unknown, max = 400) => String(v ?? "").trim().slice(0, max);
 const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "")) ? String(v) : new Date().toISOString().slice(0, 10));
 const autoId = () => Array.from(randomBytes(20), (b) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[b % 62]).join("");
@@ -146,6 +147,42 @@ export async function POST(req: Request, ctx: { params: Promise<{ uid: string }>
         after = () => hubAudit(who, "SERVICE RECORD EDITED", `${name}: ${label} (${e.date || "—"}) — ${done.join("; ")} — reason: ${reason} — via app`);
       }
       set[`data.${list}`] = arr;
+      break;
+    }
+    case "details": {
+      // Details tab edit: names, callsign, squad, dates, recruiter, website role. Rank / platoon go through Promote / Transfer.
+      const ch = (b.changes ?? {}) as U, done: string[] = [];
+      const exp = (b.expect ?? {}) as U;
+      const TEXT: [string, number][] = [["firstName", 40], ["lastName", 40], ["callsign", 40], ["squad", 40], ["recruitSource", 80]];
+      const DATES = ["joinedAt", "graduation", "joinedPlatoon"];
+      for (const [k, max] of TEXT) {
+        if (!(k in ch)) continue;
+        const v = str(ch[k], max);
+        if ((k === "firstName" || k === "lastName") && !v) return hubJson({ error: "First and last name can't be empty." }, 400);
+        if (String(exp[k] ?? "") !== String(u[k] ?? "")) return hubJson({ error: "Someone else changed this file. Close it and open it again." }, 409);
+        if (String(u[k] ?? "") !== v) { set[`data.${k}`] = v; done.push(`${k}: ${u[k] || "—"} → ${v || "—"}`); }
+      }
+      for (const k of DATES) {
+        if (!(k in ch)) continue;
+        const raw = String(ch[k] ?? "");
+        if (raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return hubJson({ error: `Bad date for ${k}.` }, 400);
+        const old = String(u[k] ?? "").slice(0, 10);
+        if (String(exp[k] ?? "") !== old) return hubJson({ error: "Someone else changed this file. Close it and open it again." }, 409);
+        if (old !== raw) { set[`data.${k}`] = raw; done.push(`${k}: ${old || "—"} → ${raw || "—"}`); }
+      }
+      if ("role" in ch && String(ch.role) !== String(u.role ?? "")) {
+        const to = str(ch.role, 30);
+        if (!["commander", "developer"].includes(a.role)) return hubJson({ error: "Only the Commander or a Developer can change a website role." }, 403);
+        if (!ROLES.has(to)) return hubJson({ error: "Pick a valid role." }, 400);
+        if (to === "commander" && a.role !== "commander") return hubJson({ error: "Only the Commander can make someone Commander." }, 403);
+        if (uid === a.uid) return hubJson({ error: "You can't change your own role." }, 403);
+        if (String(exp.role ?? "") !== String(u.role ?? "")) return hubJson({ error: "Someone else changed this file. Close it and open it again." }, 409);
+        set["data.role"] = to; done.push(`role: ${u.role || "—"} → ${to}`);
+      }
+      const reason = str(b.reason, 200);
+      if (!done.length) return hubJson({ error: "Nothing changed." }, 400);
+      if ("data.role" in set && reason.length < 3) return hubJson({ error: "A reason is required to change a role." }, 400);
+      after = () => hubAudit(who, "PERSONNEL FILE EDITED", `${name}: ${done.join("; ")}${reason ? ` — reason: ${reason}` : ""} — via app`);
       break;
     }
     default:
