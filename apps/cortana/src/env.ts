@@ -19,6 +19,11 @@ const schema = z.object({
   MONGODB_URI: z.string().startsWith("mongodb", "MONGODB_URI must start with mongodb"),
   MONGODB_DB: z.string().min(1).default("505th"),
   // "true" ONLY after Presence Intent is switched ON in the Developer Portal → Bot (otherwise Discord refuses the login).
+  // Optional — Audit Log keeps copies of pictures / GIFs / clips so they can be seen after a message is deleted.
+  // Without these, deleted messages still show their text, just not the pictures.
+  CLOUDINARY_CLOUD_NAME: z.string().regex(/^[\w-]+$/, "CLOUDINARY_CLOUD_NAME looks wrong").optional().or(z.literal("").transform(() => undefined)),
+  CLOUDINARY_API_KEY: z.string().regex(/^\d{6,20}$/, "CLOUDINARY_API_KEY must be numbers").optional().or(z.literal("").transform(() => undefined)),
+  CLOUDINARY_API_SECRET: z.string().min(10, "CLOUDINARY_API_SECRET looks wrong").optional().or(z.literal("").transform(() => undefined)),
   PRESENCE_INTENT: z.enum(["true", "false", ""]).optional().transform((v) => v === "true"),
 });
 

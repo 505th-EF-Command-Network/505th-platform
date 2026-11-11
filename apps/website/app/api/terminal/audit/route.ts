@@ -3,12 +3,18 @@ import { TerminalDoc } from "@505th/db";
 import { AUDIT_DELETE_ROLES, can } from "@/lib/terminal/access";
 import { FsError, getActor } from "@/lib/terminal/fs";
 
+/**
+ * AUDIT LOG v3
+ * GET                   → { entries, settings, lastCleanup, canClean, canClear, canSettings }   (newest first, max 5000)
+ * GET ?archives=1       → { archives: [{ id, name, label, count, from, to, by, bytes, createdAtISO }] }
+ * GET ?archive={id}     → the .txt file (download)
+ * Clean-up and Clear are done by Cortana (jobs "audit.cleanup" / "audit.clear") — they also remove picture copies.
+ */
 export const dynamic = "force-dynamic";
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 const COLLS = ["audit_logs", "audit_log"]; // new format + the original Command Panel's format
-const DAY = 86400000;
-const LOCKED_KEEP_DAYS = 365;
+const CLEAR_ROLES = new Set(["commander", "developer"]);
 
 async function actorOr(): Promise<Awaited<ReturnType<typeof getActor>> | Response> {
   try {
@@ -19,102 +25,66 @@ async function actorOr(): Promise<Awaited<ReturnType<typeof getActor>> | Respons
   }
 }
 
-const iso = (v: unknown): string | null => {
-  if (!v) return null;
-  if (v instanceof Date) return v.toISOString();
-  if (typeof v === "string") return v;
-  return null;
+const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : typeof v === "string" ? v : null);
+const WEB_CAT: Record<string, string> = {
+  manpower: "manpower", battalion_ops: "operations", operations: "operations", intel: "operations", public_comms: "workspace", workspace: "workspace",
+  discord: "discord", discord_network: "command", commander: "command", command: "command", security: "security",
 };
 
 /** Both audit formats → one shape. */
 function normalise(d: { _id: string; data?: unknown; createTime?: Date | null }) {
   const x = (d.data ?? {}) as Record<string, any>;
+  const source = x.source === "discord" ? "discord" : x.source === "hub" ? "hub" : x.role === "cortana" || x.source === "cortana" ? "cortana" : "website";
+  const section = String(x.section || x.category || "other").toLowerCase();
   return {
     id: d._id,
     at: iso(x.createdAt) || x.createdAtISO || iso(x.timestamp) || iso(d.createTime) || null,
-    section: String(x.section || x.category || "other").toLowerCase(),
+    source,
+    cat: String(x.cat || (source === "discord" ? "server" : source === "hub" ? "hub" : WEB_CAT[section] || "command")),
+    section,
     action: String(x.action || "—"),
     details: String(x.details ?? x.detail ?? ""),
     by: String(x.by || x.operatorName || "—"),
     role: String(x.role || ""),
     locked: x.locked === true,
-    source: x.source === "discord" ? "discord" : "terminal",
+    target: x.target ?? null, channel: x.channel ?? null, before: x.before ?? null, after: x.after ?? null, content: x.content ?? null,
+    media: Array.isArray(x.media) ? x.media.map((m: any) => ({ url: String(m.url ?? ""), name: String(m.name ?? ""), kind: String(m.kind ?? "file") })) : null,
+    mediaRemoved: x.mediaRemoved === true,
+    bulk: Array.isArray(x.bulk) ? x.bulk.map((b: any) => ({ at: b.at, author: b.author, content: b.content, media: (b.media ?? []).map((m: any) => ({ url: m.url, name: m.name, kind: m.kind })) })) : null,
+    extra: { reason: x.reason ?? null, count: x.count ?? null, added: x.added ?? null, removed: x.removed ?? null, invite: x.invite ?? null, accountAgeDays: x.accountAgeDays ?? null, roles: x.roles ?? null, oldAvatar: x.oldAvatar ?? null, newAvatar: x.newAvatar ?? null, until: x.until ?? null, messageUrl: x.messageUrl ?? null },
   };
 }
 
-/** Delete entries older than the retention setting, at most once a day. */
-async function purge() {
-  const s = await TerminalDoc.findById("settings/audit", { data: 1 }).lean();
-  const cfg = (s?.data ?? {}) as Record<string, any>;
-  const days = Number.isFinite(cfg.retentionDays) ? Number(cfg.retentionDays) : 90;
-  if (cfg.lastPurgeISO && Date.now() - Date.parse(cfg.lastPurgeISO) < DAY) return;
-  const now = new Date();
-  if (days > 0) {
-    const cut = new Date(Date.now() - days * DAY);
-    const lockedCut = new Date(Date.now() - LOCKED_KEEP_DAYS * DAY);
-    await TerminalDoc.deleteMany({
-      parent: { $in: COLLS },
-      $or: [
-        { "data.locked": { $ne: true }, createTime: { $lt: cut } },
-        { "data.locked": true, createTime: { $lt: lockedCut } },
-      ],
-    });
-  }
-  await TerminalDoc.updateOne(
-    { _id: "settings/audit" },
-    { $set: { "data.lastPurgeISO": now.toISOString(), updateTime: now }, $setOnInsert: { parent: "settings", docId: "audit", createTime: now } },
-    { upsert: true },
-  );
-}
-
-/** GET → { entries, canDelete, retentionDays } (newest first, max 3000). */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const actor = await actorOr();
   if (actor instanceof Response) return actor;
   if (!can(actor.role, actor.access, "audit")) return json({ error: "permission-denied" }, 403);
-  await purge();
-  const docs = await TerminalDoc.find({ parent: { $in: COLLS } }, { parent: 1, docId: 1, data: 1, createTime: 1 }).sort({ createTime: -1 }).limit(3000).lean();
-  const ms = (v: string | null) => (v ? Date.parse(v) || 0 : 0);
-  const entries = docs.map(normalise).sort((a, b) => ms(b.at) - ms(a.at));
-  const s = await TerminalDoc.findById("settings/audit", { data: 1 }).lean();
-  const retentionDays = Number((s?.data as any)?.retentionDays ?? 90);
-  return json({ entries, canDelete: AUDIT_DELETE_ROLES.has(actor.role), canRetention: can(actor.role, actor.access, "set"), retentionDays });
-}
+  const sp = req.nextUrl.searchParams;
 
-/** POST { ids, reason } → deletes them and adds ONE locked "ENTRIES DELETED" record. */
-export async function POST(req: NextRequest) {
-  const origin = req.headers.get("origin");
-  if (!origin || origin !== req.nextUrl.origin) return json({ error: "Bad origin" }, 403);
-  const actor = await actorOr();
-  if (actor instanceof Response) return actor;
-  if (!can(actor.role, actor.access, "audit") || !AUDIT_DELETE_ROLES.has(actor.role)) return json({ error: "Only Commander, Officer or Developer can delete audit entries" }, 403);
-
-  let ids: string[], reason: string;
-  try {
-    const b = await req.json();
-    ids = b?.ids;
-    reason = String(b?.reason ?? "").trim().slice(0, 300);
-    if (!Array.isArray(ids) || !ids.length || ids.length > 500 || reason.length < 3) throw new Error();
-    if (!ids.every((i) => typeof i === "string" && /^(audit_logs|audit_log)\/[A-Za-z0-9_\-]{1,200}$/.test(i))) throw new Error();
-  } catch {
-    return json({ error: "Pick entries and give a reason (3+ characters)" }, 400);
+  const archive = sp.get("archive");
+  if (archive) {
+    if (!/^[A-Za-z0-9_\-]{1,60}$/.test(archive)) return json({ error: "Bad id" }, 400);
+    const a = (await TerminalDoc.findById(`audit_archives/${archive}`, { data: 1 }).lean())?.data as Record<string, any> | undefined;
+    if (!a) return json({ error: "Not found" }, 404);
+    const name = String(a.name || "audit.txt").replace(/[^\w.\-]/g, "_");
+    return new NextResponse(String(a.text ?? ""), { headers: { "Content-Type": "text/plain; charset=utf-8", "Content-Disposition": `attachment; filename="${name}"`, "Cache-Control": "private, no-store" } });
   }
-  const docs = await TerminalDoc.find({ _id: { $in: ids } }, { data: 1, createTime: 1 }).lean();
-  if (docs.some((d) => (d.data as any)?.locked === true)) return json({ error: "Deletion records are locked and can't be deleted" }, 403);
-  if (!docs.length) return json({ error: "Nothing to delete" }, 404);
+  if (sp.get("archives")) {
+    const docs = (await TerminalDoc.find({ parent: "audit_archives" }, { docId: 1, "data.name": 1, "data.label": 1, "data.kind": 1, "data.reason": 1, "data.count": 1, "data.from": 1, "data.to": 1, "data.by": 1, "data.bytes": 1, "data.createdAtISO": 1 }).sort({ createTime: -1 }).limit(500).lean()) as { docId: string; data?: Record<string, unknown> }[];
+    return json({ archives: docs.map((d) => ({ id: d.docId, ...(d.data ?? {}) })) });
+  }
 
-  const dates = docs.map((d) => normalise(d).at).filter(Boolean).sort() as string[];
-  const f = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
-  await TerminalDoc.deleteMany({ _id: { $in: docs.map((d) => d._id) } });
-  const now = new Date();
-  const id = `${now.getTime()}${Math.random().toString(36).slice(2, 8)}`;
-  await TerminalDoc.create({
-    _id: `audit_logs/${id}`, parent: "audit_logs", docId: id, createTime: now, updateTime: now,
-    data: {
-      section: "security", action: "ENTRIES DELETED", locked: true,
-      details: `${docs.length} audit entr${docs.length === 1 ? "y" : "ies"} deleted${dates.length ? ` (${f(dates[0]!)}${dates.length > 1 ? ` – ${f(dates.at(-1)!)}` : ""})` : ""} — "${reason}"`,
-      uid: actor.uid, by: actor.displayName, role: actor.role, createdAt: now, createdAtISO: now.toISOString(),
-    },
+  const docs = await TerminalDoc.find({ parent: { $in: COLLS } }, { parent: 1, docId: 1, data: 1, createTime: 1 }).sort({ createTime: -1 }).limit(5000).lean();
+  const ms = (v: string | null) => (v ? Date.parse(v) || 0 : 0);
+  // Discord message text, pictures and edits are private: Officer and above only.
+  const seeText = AUDIT_DELETE_ROLES.has(actor.role);
+  const entries = docs.map(normalise).sort((a, b) => ms(b.at) - ms(a.at)).map((e) =>
+    seeText || e.source !== "discord" || e.cat !== "messages" ? e : { ...e, details: e.action === "BULK DELETE" ? e.details.replace(/ · from .*/, "") : `${e.target ?? "Member"} — ${e.channel ?? ""} (text hidden: Officer and above)`, content: null, before: null, after: null, media: null, bulk: null, private: true },
+  );
+  const s = ((await TerminalDoc.findById("settings/audit", { data: 1 }).lean())?.data ?? {}) as Record<string, any>;
+  const { lastCleanup, lastPurgeISO: _old, retentionDays: _r, ...settings } = s;
+  return json({
+    entries, settings, lastCleanup: lastCleanup ?? null,
+    canClean: AUDIT_DELETE_ROLES.has(actor.role), canClear: CLEAR_ROLES.has(actor.role), canSettings: can(actor.role, actor.access, "set") && AUDIT_DELETE_ROLES.has(actor.role),
   });
-  return json({ ok: true, deleted: docs.length });
 }

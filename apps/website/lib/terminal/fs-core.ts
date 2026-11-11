@@ -295,7 +295,7 @@ export function checkWrite(
   const needs = writeNeeds(target.top, target.docId, fields, newValues);
   if (needs && !needs.some((k) => can(actor.role, actor.access, k))) deny("You don't have access to change this");
 
-  // Audit entries can only be ADDED here. Deleting goes through /api/terminal/audit (leaves a locked record).
+  // Audit entries can only be ADDED here. Removing them is Cortana's clean-up / clear (Audit Log v3, leaves a locked record).
   if ((target.top === "audit_log" || target.top === "audit_logs") && op !== "add") deny("Audit entries can only be removed from Security → Audit Log");
   // Suspending is a Command action (Commander / Developer by default).
   if (target.top === "users" && ["suspended", "suspendedUntil", "suspendReason"].some((f) => fields.has(f)) && !can(actor.role, actor.access, "set")) {

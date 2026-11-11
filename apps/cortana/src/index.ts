@@ -25,6 +25,8 @@ import { startLegacyImport } from "./legacy-import.ts";
 import { startCleanup } from "./cleanup.ts";
 import { startAar } from "./aar.ts";
 import { startMonthlyReset } from "./monthly-reset.ts";
+import { startDiscordAudit } from "./audit-discord.ts";
+import { startAuditCleanup } from "./audit-cleanup.ts";
 import { onJoin, onLeave, onMessageDelete, onMessageEdit } from "./logs.ts";
 import { handleCommandButton, handleCommandModal } from "./commands/staff.ts";
 import { scheduleSync, syncGuild } from "./sync.ts";
@@ -40,11 +42,13 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildScheduledEvents,
+    GatewayIntentBits.GuildModeration, // bans (Audit Log). Not privileged.
+    GatewayIntentBits.GuildInvites, // invite used on join (Audit Log). Not privileged.
     GatewayIntentBits.GuildVoiceStates, // who is in which voice channel (Dashboard → Staff Online). Not a privileged intent.
     // Staff Discord status (Dashboard → Staff Online). Privileged: only when PRESENCE_INTENT=true in .env.local.
     ...(env.PRESENCE_INTENT ? [GatewayIntentBits.GuildPresences] : []),
   ],
-  partials: [Partials.GuildMember, Partials.Message, Partials.Channel],
+  partials: [Partials.GuildMember, Partials.Message, Partials.Channel, Partials.User],
   // Never ping @everyone / roles unless a feature explicitly allows it.
   allowedMentions: { parse: [] },
 });
@@ -69,6 +73,8 @@ client.once(Events.ClientReady, async (ready) => {
   startTickets(ready);
   startAar();
   startMonthlyReset();
+  startDiscordAudit(ready); // Audit Log v3 — Discord server events
+  startAuditCleanup(ready); // Audit Log v3 — monthly clean-up, clear, archives
   startModeration();
   startModlist();
   startLegacyImport();

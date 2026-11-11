@@ -3353,7 +3353,6 @@
             if(tab==='unit-status') window.cmdLoadUnitStatus();
             if(tab==='frago')       window.cmdLoadFragos();
             if(tab==='staff')       window.cmdLoadStaff();
-            if(tab==='audit')       window.cmdLoadAudit();
             if(tab==='promote')     window.cmdLoadPromoteUsers();
             if(tab==='suspend')     window.cmdLoadSuspendUsers();
         };
@@ -3515,27 +3514,6 @@
             } catch(e){el.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#ef4444;padding:12px">ERROR: '+esc(e.message)+'</div>';}
         };
 
-        window.cmdLoadAudit = async function() {
-            const rows=document.getElementById('cmdAuditRows');
-            if(!rows) return;
-            rows.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#555;padding:20px">LOADING...</div>';
-            try {
-                const filter=document.getElementById('cmdAuditFilter')?.value||'';
-                let q=filter
-                    ?query(collection(db,'audit_log'),where('category','==',filter),orderBy('timestamp','desc'),limit(60))
-                    :query(collection(db,'audit_log'),orderBy('timestamp','desc'),limit(60));
-                const snap=await getDocs(q);
-                if(snap.empty){rows.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#555;padding:20px">NO ENTRIES.</div>';return;}
-                rows.innerHTML=snap.docs.map(d=>{
-                    const e=d.data(), ts=e.timestamp?.toDate?e.timestamp.toDate().toLocaleString():'—';
-                    return `<div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:9px 18px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'Share Tech Mono',monospace;font-size:10px">
-                        <div style="color:rgba(245,158,11,.5)">${ts}</div>
-                        <div style="color:#c0c0c0">${esc(e.operatorName||e.operatorUid||'—')}</div>
-                        <div style="color:#e0e0e0">${esc(e.action||'')}${e.detail?' — <span style="color:#aaa">'+esc(e.detail)+'</span>':''}</div>
-                    </div>`;
-                }).join('');
-            } catch(e){rows.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#ef4444;padding:20px">ERROR: '+esc(e.message)+'</div>';}
-        };
 
         let _cmdPromoteSelectedUid=null, _cmdAllUsersCache=[];
 
@@ -4556,29 +4534,6 @@
                     <div id="cmdStaffList"><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#555">LOADING...</div></div>
                 </div>
 
-                <!-- AUDIT LOG -->
-                <div class="cmd-panel-tab hidden" id="cmdpanel-audit">
-                    <div style="font-family:Rajdhani,sans-serif;font-size:10px;letter-spacing:3px;color:rgba(245,158,11,.6);margin-bottom:12px">FULL AUDIT LOG — ALL CATEGORIES UNFILTERED</div>
-                    <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-                        <select id="cmdAuditFilter" onchange="cmdLoadAudit()" style="background:rgba(0,0,0,.6);border:1px solid rgba(245,158,11,.25);color:#e0e0e0;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px;outline:none">
-                            <option value="">ALL CATEGORIES</option>
-                            <option value="manpower">MANPOWER</option>
-                            <option value="battalion_ops">BATTALION OPS</option>
-                            <option value="public_comms">PUBLIC COMMS</option>
-                            <option value="discord_network">DISCORD &amp; NETWORK</option>
-                        </select>
-                        <button onclick="cmdLoadAudit()" style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:#f59e0b;font-family:Rajdhani,sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:6px 14px;cursor:pointer">&#8635; REFRESH</button>
-                    </div>
-                    <div style="background:rgba(0,0,0,.3);border:1px solid rgba(245,158,11,.15)">
-                        <div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.1);background:rgba(245,158,11,.06)">
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(245,158,11,.9);font-weight:700">TIMESTAMP</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(245,158,11,.9);font-weight:700">OPERATOR</div>
-                            <div style="font-size:9px;letter-spacing:2px;color:rgba(245,158,11,.9);font-weight:700">ACTION / DETAILS</div>
-                        </div>
-                        <div id="cmdAuditRows"><div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#555;padding:20px">LOADING...</div></div>
-                    </div>
-                </div>
-
                 <!-- PROMOTE -->
                 <div class="cmd-panel-tab hidden" id="cmdpanel-promote">
                     <div style="font-family:Rajdhani,sans-serif;font-size:10px;letter-spacing:3px;color:rgba(245,158,11,.6);margin-bottom:16px">COMMAND PROMOTIONS — OFFICER &amp; COMMANDER TIER</div>
@@ -4651,7 +4606,6 @@
             if(tab==='unit-status') cmdLoadUnitStatus();
             if(tab==='frago')       cmdLoadFragos();
             if(tab==='staff')       cmdLoadStaff();
-            if(tab==='audit')       cmdLoadAudit();
             if(tab==='promote')     cmdLoadPromoteUsers();
             if(tab==='suspend')     cmdLoadSuspendUsers();
         }
@@ -4764,27 +4718,6 @@
             } catch(e){el.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#ef4444;padding:12px">ERROR: '+esc(e.message)+'</div>';}
         }
 
-        async function cmdLoadAudit() {
-            const rows=document.getElementById('cmdAuditRows');
-            if(!rows) return;
-            rows.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#555;padding:20px">LOADING...</div>';
-            try {
-                const filter=document.getElementById('cmdAuditFilter')?.value||'';
-                let q=filter
-                    ?query(collection(db,'audit_log'),where('category','==',filter),orderBy('timestamp','desc'),limit(60))
-                    :query(collection(db,'audit_log'),orderBy('timestamp','desc'),limit(60));
-                const snap=await getDocs(q);
-                if(snap.empty){rows.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#555;padding:20px">NO ENTRIES.</div>';return;}
-                rows.innerHTML=snap.docs.map(d=>{
-                    const e=d.data(), ts=e.timestamp?.toDate?e.timestamp.toDate().toLocaleString():'—';
-                    return `<div style="display:grid;grid-template-columns:160px 200px 1fr;gap:16px;padding:9px 18px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'Share Tech Mono',monospace;font-size:10px">
-                        <div style="color:rgba(245,158,11,.5)">${ts}</div>
-                        <div style="color:#c0c0c0">${esc(e.operatorName||e.operatorUid||'—')}</div>
-                        <div style="color:#e0e0e0">${esc(e.action||'')}${e.detail?' — <span style="color:#aaa">'+esc(e.detail)+'</span>':''}</div>
-                    </div>`;
-                }).join('');
-            } catch(e){rows.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:#ef4444;padding:20px">ERROR: '+esc(e.message)+'</div>';}
-        }
 
         async function cmdLoadPromoteUsers() {
             if(!allUsers.length) {

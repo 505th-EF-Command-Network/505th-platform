@@ -332,6 +332,8 @@ onReady(() => {
       setBadge();
       if (active && isShown()) markRead();
     });
+    // Dashboard pop-up chat → "⤢ open full page" (msg-dock.js).
+    window.addEventListener("msg:open", (e) => { if (convs.some((c) => c.id === e.detail?.id)) openConv(e.detail.id); });
     onSnapshot(collection(db, "presence_sessions"), (snap) => {
       const cut = Date.now() - 3 * 60 * 1000;
       online = new Set(snap.docs.map((d) => d.data()).filter((p) => Date.parse(p.updatedAt || 0) > cut).map((p) => p.uid));

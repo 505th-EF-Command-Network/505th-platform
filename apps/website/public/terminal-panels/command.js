@@ -367,8 +367,7 @@ function renderSettings() {
       <p class="hint">Changes show in Discord within a few seconds — no restart. Channels, logs, welcome message and pings are set in <b>COMMAND → Cortana Setup</b>.</p>
       <div class="act"><button class="b" data-gocs>OPEN CORTANA SETUP →</button><span style="flex:1"></span><button class="b gold" data-save="cortana">SAVE</button></div>`,
     site: `<span class="lbl" style="margin-top:0">SIGN-UP PAGE</span><p class="hint" style="margin:0">Follows the recruitment switch in COMMAND → UNIT STATUS (currently <b style="color:${status.recruitmentOpen !== false ? "#22e07a" : "#ff4d4d"}">${status.recruitmentOpen !== false ? "OPEN" : "CLOSED"}</b>).</p>
-      <label class="lbl" for="sRet">AUDIT LOG RETENTION</label><select class="fld" id="sRet" style="max-width:280px">${[30, 90, 180, 365, 0].map((d) => `<option value="${d}" ${(S.audit.retentionDays ?? 90) === d ? "selected" : ""}>${d ? d + " DAYS" : "FOREVER"}</option>`).join("")}</select>
-      <div class="act"><span style="flex:1"></span><button class="b gold" data-save="site">SAVE</button></div>`,
+      <span class="lbl">AUDIT LOG</span><p class="hint" style="margin:0">Monthly clean-up, archives and clear are in <b>SECURITY → Audit Log → ⚙ CLEAN-UP</b>.</p>`,
     roles: `<p class="hint" style="margin-top:0">Each terminal role can give <b style="color:#fff">several Discord roles</b>. Cortana adds them when someone gets the role and removes them when they lose it. Roles with admin permissions or above Cortana's own role are refused by Cortana (same safety check as RCD Guardian).</p>
       <table class="t rm"><thead><tr><th>TERMINAL ROLE</th><th>DISCORD ROLES GIVEN</th></tr></thead><tbody>${MAP_ROLES.map((r) => `<tr><td><b>${RL[r]}</b></td><td><div class="rch">${(rm.map[r] || []).map((d, i) => `<span class="rc">@${esc(d)}<button data-rmdel="${r}:${i}" aria-label="Remove @${esc(d)} from ${RL[r]}">✕</button></span>`).join("")}<input class="addr" data-rmadd="${r}" placeholder="+ ADD ROLE (type, Enter)" aria-label="Add Discord role to ${RL[r]}"></div></td></tr>`).join("")}</tbody></table>
       <label class="ckl"><input type="checkbox" data-rmopt="removeOld" ${rm.removeOld !== false ? "checked" : ""}> REMOVE THE OLD ROLE'S DISCORD ROLES WHEN SOMEONE IS PROMOTED / DEMOTED</label>
@@ -404,10 +403,6 @@ async function saveSettings(which) {
       root.querySelectorAll("[data-cort]").forEach((el) => (data[el.dataset.cort] = el.value.trim().replace(/^#/, "") || null));
       await setDoc(doc(db, "settings", "cortana"), data, { merge: true });
       await audit("command", "SETTINGS SAVED", "Cortana settings");
-    }
-    if (which === "site") {
-      await setDoc(doc(db, "settings", "audit"), { retentionDays: +root.querySelector("#sRet").value }, { merge: true });
-      await audit("command", "SETTINGS SAVED", `Audit retention: ${+root.querySelector("#sRet").value || "forever"} days`);
     }
     if (which === "roles") {
       await setDoc(doc(db, "settings", "discord_role_map"), S.discord_role_map);

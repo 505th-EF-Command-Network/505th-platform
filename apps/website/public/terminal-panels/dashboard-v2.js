@@ -1,14 +1,17 @@
 /**
- * DASHBOARD v2 — built to the approved mock (shell-v2, 2026-11-10).
+ * DASHBOARD v3 (approved mock 2026-11-11) — on top of v2 (shell-v2, 2026-11-10).
+ * v3: welcome pills + system lights + your status dot · Messages dock with pop-up chats (msg-dock.js) ·
+ *     new widgets: My Attendance, My Status, Quick Actions, Messages, Monthly Reset, Latest AAR · widget library with previews.
  * Welcome bar · customise bar · widget grid · "+ Add widget" drawer.
  * Layout is saved per member on users/{uid}.dashLayout = { order: [...], wide: [...] }.
  * Widgets only appear if the member has the access item they need.
  * Cortana / Discord / Hub numbers show as "not running" until Cortana v2 reports them.
  */
 import { onAuthStateChanged } from "/terminal-shim/auth.js";
-import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, updateDoc } from "/terminal-shim/firestore.js";
+import { collection, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, updateDoc, where } from "/terminal-shim/firestore.js";
 import { addCss, auth, cortanaStatus, db, esc, uptimeDays, getMe, getUsers, hexAvatar, isMember, memberName, notify, onReady, platoonOrder, rateColor, toDate } from "./_common.js";
 import { onAccess } from "./nav-v2.js";
+import { STATES, mountDock, openPop, refreshPopPosition, startDock, statusOf, updateUsers } from "./msg-dock.js";
 
 addCss("dash2", `
 #panel-dashboard > :not(.panel-title):not(#dash2){display:none!important}
@@ -62,6 +65,24 @@ addCss("dash2", `
 #dash2 button:focus-visible,.d2-drawer button:focus-visible{outline:2px solid #00D9FF;outline-offset:1px}
 @media(max-width:1000px){.d2-grid,.d2-sys,.d2-cort,.d2-kpis{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.d2-grid{grid-template-columns:1fr}.d2-welcome{flex-wrap:wrap}}
+/* ───── v3 ───── */
+.d3-shell{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0;align-items:start}.d3-main{min-width:0;padding-right:12px}
+.d3-me{position:relative;cursor:pointer;display:inline-block}.d3-me:focus-visible{outline:2px solid #00D9FF;outline-offset:3px}
+.d3-sdot{position:absolute;right:0;bottom:4px;width:14px;height:14px;border-radius:50%;border:2px solid #0b0f15}
+.d3-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.d3-pills span{font-size:10px;letter-spacing:1.5px;padding:3px 8px;border:1px solid rgba(0,217,255,.32);color:#c6d0da;background:rgba(0,0,0,.25)}.d3-pills b{color:#00D9FF;font-weight:400}.d3-pills .hot{border-color:rgba(255,77,77,.5)}.d3-pills .hot b{color:#ff4d4d}
+.d3-lights{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}.d3-li{font-size:9px;letter-spacing:1.5px;display:flex;align-items:center;gap:5px}.d3-li i{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.d3-smenu{position:fixed;z-index:900;background:#0b0f15;border:1px solid rgba(0,217,255,.35);min-width:200px;box-shadow:0 10px 30px rgba(0,0,0,.6);font-family:'Share Tech Mono',monospace}.d3-smenu button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid rgba(0,217,255,.07);padding:9px 12px;color:#d6dde6;cursor:pointer;font:inherit;font-size:12px}.d3-smenu button:hover,.d3-smenu button:focus{background:rgba(0,217,255,.07);outline:0}
+.d3-ma{display:grid;grid-template-columns:auto 1fr 1fr 1.5fr;gap:18px;align-items:center}
+.d3-ring{width:96px;height:96px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),#1a2330 0);display:grid;place-items:center}.d3-ring>div{width:76px;height:76px;border-radius:50%;background:#0b0f15;display:grid;place-items:center;align-content:center;text-align:center}.d3-ring b{font:700 22px Rajdhani,sans-serif;color:#fff;line-height:1}.d3-ring small{font-size:8.5px;letter-spacing:1px;color:#7d8a99}
+.d3-pips{display:flex;gap:6px;margin:6px 0}.d3-pips i{width:20px;height:20px;border-radius:50%;border:1px dashed #00D9FF}.d3-pips i.f{background:#f59e0b;border:1px solid #f59e0b}
+.d3-big{font:700 22px Rajdhani,sans-serif;color:#fff}
+.d3-last>div{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:baseline;font-size:11.5px;padding:3px 0;border-bottom:1px solid rgba(0,217,255,.06)}.d3-next{display:block!important;margin-top:8px;border:0!important}.d3-next b{color:#fff;font-weight:400}
+.d3-st{display:grid;grid-template-columns:1fr 1fr;gap:6px}.d3-sb{background:none;border:1px solid rgba(0,217,255,.18);color:#c6d0da;padding:8px;font:inherit;font-size:10.5px;letter-spacing:1.5px;cursor:pointer}.d3-sb.on{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);color:#fff}
+.d3-stn{display:flex;gap:6px;margin-top:8px}.d3-in{flex:1;min-width:0;height:30px;background:#060a0e;border:1px solid rgba(0,217,255,.18);color:#fff;padding:0 8px;font:inherit;font-size:11px}select.d3-in{flex:0 0 auto}
+.d3-q{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.d3-q button{background:#0e131b;border:1px solid rgba(0,217,255,.18);padding:12px 4px;text-align:center;font:inherit;font-size:9.5px;letter-spacing:1.5px;color:#c6d0da;cursor:pointer}.d3-q button:hover{border-color:#00D9FF}.d3-q b{display:block;font-size:18px;color:#00D9FF;margin-bottom:2px}
+.d3-pv{height:96px;overflow:hidden;border:1px solid rgba(0,217,255,.12);background:#070a0f;margin-bottom:8px;position:relative;pointer-events:none;grid-column:1/-1}.d3-pv>div{transform:scale(.55);transform-origin:top left;width:182%;padding:8px}
+.d2-ci{flex-wrap:wrap}
+@media(max-width:1100px){.d3-ma{grid-template-columns:auto 1fr}}@media(max-width:800px){.d3-shell{grid-template-columns:1fr}.d3-main{padding:0}.d3-q{grid-template-columns:repeat(2,1fr)}}
 `);
 
 const OPS = { Active: ["ACTIVE", "#22e07a"], "Stand Down": ["STAND DOWN", "#7d8a99"], "On Op": ["ON OP", "#f59e0b"], "Training Cycle": ["TRAINING", "#00D9FF"], Maintenance: ["MAINTENANCE", "#a78bfa"] };
@@ -95,7 +116,8 @@ const onlineNow = () => {
   D.pres.filter((p) => Date.parse(p.updatedAt || 0) > cut).forEach((p) => m.set(p.uid, p));
   // You're looking at the dashboard, so you're online — even if your check-in hasn't been saved yet.
   if (D.me?.uid && !m.has(D.me.uid)) m.set(D.me.uid, { uid: D.me.uid, role: D.me.role || "", panel: "admin_dashboard", updatedAt: new Date().toISOString() });
-  return [...m.values()];
+  // My Status: Invisible / Offline members don't show as online to others.
+  return [...m.values()].filter((p) => p.uid === D.me?.uid || statusOf(userOf(p.uid)) !== "offline");
 };
 const userOf = (id) => D.users.find((u) => u.id === id) || {};
 const panelName = (p) => {
@@ -283,9 +305,119 @@ const WID = {
       (open.length ? open.slice(0, 7).map((x) => `<button class="d2-row" data-task="${x.id}"><span class="d2-tag" style="--c:${pc[x.priority] || pc.med}">${String(x.priority || "med").toUpperCase()}</span><span><b>${esc(x.title)}</b><br><small>${esc(x.assigneeName || "UNASSIGNED")} · ${esc(({ todo: "TO DO", doing: "IN PROGRESS", review: "REVIEW" })[x.status || "todo"] || "")}</small></span><small style="${x.due && x.due < t ? "color:#ff4d4d" : ""}">${x.due ? (x.due < t ? "LATE " : "DUE ") + ukDay(x.due) : ""}</small></button>`).join("") : empty("NO OPEN PROJECTS.")) +
       `<div class="d2-foot"><small class="dim">${open.length} OPEN</small><button class="lnk" data-go="panel-projects">OPEN TRACKER ▸</button></div>`;
   } },
+  myatt: { t: "◉ MY ATTENDANCE", d: "Your own %, ATT this month, PT, last ops and the next op", ico: "◉", g: "UNIT", b: myAttHtml },
+  mystatus: { t: "◐ MY STATUS", d: "Online / Do not disturb / Invisible / Offline — same as the Hub", ico: "◐", g: "STATUS", b: myStatusHtml },
+  quick: { t: "⚡ QUICK ACTIONS", d: "Your most used actions in one place", ico: "⚡", g: "WORK", b: quickHtml },
+  msgs: { t: "✉ MESSAGES", d: "Unread conversations — click to pop the chat up", ico: "✉", g: "WORK", b: msgsHtml },
+  reset: { t: "↻ MONTHLY RESET", d: "Reset status, next date and missed warning", ico: "↻", g: "STATUS", acc: "roster", accL: "ROSTER", b: resetHtml },
+  aar: { t: "✦ LATEST AAR", d: "The newest After Action Report", ico: "✦", g: "WORK", b: aarHtml },
 };
-const DEF = ["sitrep", "kpis", "system", "cortana", "staff", "ops", "todo", "activity"];
-const DEF_WIDE = ["sitrep", "kpis", "system"];
+const DEF = ["kpis", "todo", "quick", "myatt", "ops", "mystatus", "staff", "activity", "system", "cortana"];
+const DEF_WIDE = ["kpis", "myatt", "system"];
+const V3_ADD = ["myatt", "mystatus", "quick"]; // added once to layouts saved before v3
+
+/* ───────── v3 widgets ───────── */
+const SOON = 14 * 864e5;
+function myAttHtml() {
+  const u = D.me || {};
+  const mine = (e) => (e.attendees || []).includes(uid) ? "p" : (e.excused || []).includes(uid) ? "e" : "a";
+  const locked = D.att.filter((e) => e.locked).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const pct = u.opsEligible ? Math.round(((u.opsAttended || 0) / u.opsEligible) * 100) : null;
+  const att = Math.min(3, u.attendance || 0);
+  const st = pct == null ? ["NEW", "#7d8a99"] : pct >= 75 ? ["ON TRACK", "#22e07a"] : pct >= 50 ? ["AT RISK", "#f59e0b"] : ["BELOW 50%", "#ff4d4d"];
+  const sym = { p: ['✓', "#22e07a"], e: ["E", "#f59e0b"], a: ["–", "#4b5765"] };
+  const next = D.events.filter((e) => e.status !== "cancelled" && Date.parse(e.startAtISO) > Date.now()).sort((a, b) => String(a.startAtISO).localeCompare(String(b.startAtISO)))[0];
+  const mySu = next ? (next.signups || []).find((x) => x.uid === uid) : null;
+  const myBtn = mySu ? (next.buttons || []).find((b) => b.key === mySu.choice) : null;
+  const n = new Date(); const nx = new Date(n.getFullYear(), n.getMonth() + 1, 1);
+  return `<div class="d3-ma"><div class="d3-ring" style="--p:${pct ?? 0};--c:${st[1]}"><div><b>${pct == null ? "—" : pct + "%"}</b><small>ALL TIME</small></div></div>
+    <div><span class="dim">ATT THIS MONTH</span><div class="d3-pips">${[1, 2, 3].map((k) => `<i class="${att >= k ? "f" : ""}"></i>`).join("")}</div><b class="d3-big">${att} / 3</b><small class="dim" style="display:block">${att >= 3 ? '<span style="color:#22e07a">+1 PT on ' + nx.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).toUpperCase() + "</span>" : `${3 - att} more op${3 - att === 1 ? "" : "s"} → <span style="color:#22e07a">+1 PT</span>`}</small></div>
+    <div><span class="dim">PROMOTION TRACKER</span><b class="d3-big" style="color:#ffd166;display:block">${u.promotionTracker || 0} PT</b><small class="dim">OPS ${u.opsAttended || 0} / ${u.opsEligible || 0}${u.lastAttendedDate ? " · LAST " + ukDay(u.lastAttendedDate) : ""}</small><div style="margin-top:6px"><span class="d2-tag" style="--c:${st[1]}">${st[0]}</span></div></div>
+    <div class="d3-last"><span class="dim">LAST OPS</span>${locked.slice(0, 5).map((e) => { const [g, c] = sym[mine(e)]; const why = mine(e) === "e" && e.excusedReasons?.[uid] ? ` <small class="dim">"${esc(e.excusedReasons[uid])}"</small>` : ""; return `<div><b style="color:${c}">${g}</b><span>${esc(e.title || "Op")}${why}</span><small class="dim">${ukDay(e.date)}</small></div>`; }).join("") || '<small class="dim">NO LOCKED OPS YET</small>'}
+      ${next ? `<div class="d3-next"><span class="dim">NEXT:</span> <b>${esc(next.title)}</b> <small class="dim">${new Date(next.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</small> ${myBtn ? `<span class="d2-tag" style="--c:${myBtn.attending ? "#22e07a" : "#f59e0b"}">YOU: ${esc(String(myBtn.label).toUpperCase())}</span>` : '<span class="d2-tag" style="--c:#7d8a99">NOT SIGNED UP</span>'}</div>` : ""}</div></div>`;
+}
+function myStatusHtml() {
+  const cur = statusOf(D.me, true);
+  const s = D.me?.myStatus || {};
+  const until = s.untilISO && Date.parse(s.untilISO) > Date.now() ? new Date(s.untilISO).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : null;
+  return `<div class="d3-st">${Object.entries(STATES).map(([k, [l, c, g]]) => `<button class="d3-sb ${cur === k ? "on" : ""}" data-st="${k}" style="--c:${c}" aria-pressed="${cur === k}"><span style="color:${c}">${g}</span> ${l.toUpperCase()}</button>`).join("")}</div>
+    <div class="d3-stn"><input class="d3-in" id="d3Note" maxlength="60" placeholder="Note (e.g. in briefing)" value="${esc(cur !== "online" ? s.note || "" : "")}" aria-label="Status note"><select class="d3-in" id="d3Until" aria-label="Clear after"><option value="0">DON'T CLEAR</option><option value="60">1 HOUR</option><option value="240">4 HOURS</option><option value="today">TODAY</option></select></div>
+    <small class="dim" style="display:block;margin-top:6px">${until ? `CLEARS AT ${until} · ` : ""}DND: NO CHAT POP-UPS · INVISIBLE: YOU LOOK OFFLINE · SHOWS ON STAFF ONLINE, MESSAGES AND THE HUB</small>`;
+}
+async function setStatus(state) {
+  const note = document.getElementById("d3Note")?.value.trim().slice(0, 60) || "";
+  const u = document.getElementById("d3Until")?.value || "0";
+  let untilISO = null;
+  if (state !== "online" && u !== "0") {
+    if (u === "today") { const d = new Date(); d.setHours(23, 59, 0, 0); untilISO = d.toISOString(); }
+    else untilISO = new Date(Date.now() + Number(u) * 60000).toISOString();
+  }
+  const myStatus = state === "online" ? { state: "online", note: "", untilISO: null } : { state, note, untilISO, setAtISO: new Date().toISOString() };
+  try {
+    await updateDoc(doc(db, "users", uid), { myStatus });
+    D.me = { ...(D.me || {}), myStatus };
+    const i = D.users.findIndex((x) => x.id === uid);
+    if (i >= 0) D.users[i] = { ...D.users[i], myStatus };
+    updateUsers(D.users);
+    paintMe();
+    if (!editing) drawW();
+    notify(`STATUS: ${STATES[state][0].toUpperCase()}`);
+  } catch (e) {
+    notify("COULD NOT SAVE STATUS — " + e.message, true);
+  }
+}
+function paintMe() {
+  const el = document.getElementById("d2Hex");
+  if (!el) return;
+  const s = statusOf(D.me, true);
+  el.innerHTML = hexAvatar(D.me || {}, "lg") + `<i class="d3-sdot" style="background:${STATES[s][1]}" aria-label="Status: ${STATES[s][0]}"></i>`;
+  el.title = `Your status: ${STATES[s][0]} — click to change`;
+}
+function statusMenu(anchor) {
+  document.getElementById("d3SMenu")?.remove();
+  const m = document.createElement("div");
+  m.id = "d3SMenu";
+  m.className = "d3-smenu";
+  m.setAttribute("role", "menu");
+  const cur = statusOf(D.me, true);
+  m.innerHTML = Object.entries(STATES).map(([k, [l, c, g]]) => `<button role="menuitemradio" aria-checked="${cur === k}" data-st="${k}"><span style="color:${c}">${g}</span> ${l}${cur === k ? " ✓" : ""}</button>`).join("");
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = r.left + "px";
+  m.style.top = r.bottom + 6 + "px";
+  m.querySelector("button").focus();
+  m.addEventListener("click", (e) => { const b = e.target.closest("[data-st]"); if (b) { m.remove(); setStatus(b.dataset.st); } });
+  setTimeout(() => document.addEventListener("click", function off(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener("click", off); } }), 0);
+}
+const QUICK = [["⚑", "NEW EVENT", "panel-events", "ev"], ["▣", "ATTENDANCE", "panel-attendance", "att"], ["✦", "NEW AAR", "panel-aar", "aar"], ["✉", "MESSAGES", "panel-msg2", null],
+  ["★", "ROSTER", "panel-roster", "roster"], ["✎", "PERSONNEL", "panel-active", "pers"], ["⚠", "MODERATION", "panel-moderation", "modw"], ["☍", "AUDIT LOG", "panel-auditv2", "audit"]];
+function quickHtml() {
+  const list = QUICK.filter(([, , , a]) => !a || acc[a]);
+  return `<div class="d3-q">${list.map(([i, l, pnl]) => `<button data-go="${pnl}"><b>${i}</b>${l}</button>`).join("")}</div>`;
+}
+function msgsHtml() {
+  const cv = (D.convs || []).filter((c) => (c.unreadCounts?.[uid] || 0) > 0);
+  if (!cv.length) return empty("NO UNREAD MESSAGES.") + '<div class="d2-foot"><span></span><button class="lnk" data-go="panel-msg2">OPEN MESSAGES ▸</button></div>';
+  return cv.slice(0, 5).map((c) => { const o = (c.participants || []).filter((p) => p !== uid); const u = o.length === 1 ? userOf(o[0]) : { callsign: c.name || "Group" }; return `<button class="d2-row" data-pop="${esc(c.id)}">${hexAvatar(u, "xs")}<span><b>${esc(c.name || (o.length === 1 ? memberName(u) : "Group"))}</b><br><small>${esc(String(c.lastMessage || "").slice(0, 60))}</small></span><span class="d2-tag" style="--c:#00D9FF">${c.unreadCounts[uid]}</span></button>`; }).join("");
+}
+function resetHtml() {
+  const r = D.reset || {};
+  const cur = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }).slice(0, 7);
+  const n = new Date(); const nx = new Date(n.getFullYear(), n.getMonth() + 1, 1);
+  const days = Math.ceil((nx - n) / 864e5);
+  const done = (r.lastAttendanceReset || "") >= cur;
+  return `${done ? `<b style="color:#22e07a">✓ ${new Date(cur + "-15").toLocaleDateString("en-GB", { month: "long" }).toUpperCase()} RESET DONE</b><small class="dim" style="display:block">${r.lastResetAt ? ukDay(r.lastResetAt) + " " + ukTime(r.lastResetAt) : ""}${r.lastResetBy ? " · " + esc(r.lastResetBy) : ""}${r.lastResetPromoted != null ? " · " + r.lastResetPromoted + " GOT +1 PT" : ""}</small>` : `<b style="color:#ff4d4d">⚠ THIS MONTH'S RESET HAS NOT RUN</b><small class="dim" style="display:block">CORTANA MAY HAVE BEEN OFFLINE — RUN IT FROM THE ROSTER</small>`}
+    <div class="d2-foot"><small class="dim">NEXT: 01 ${nx.toLocaleDateString("en-GB", { month: "short" }).toUpperCase()} · IN ${days} DAY${days === 1 ? "" : "S"}</small><button class="lnk" data-go="panel-roster">ROSTER ▸</button></div>`;
+}
+function aarHtml() {
+  const a = D.aar;
+  if (!a) return empty("NO AARS YET.");
+  const R = { success: ["✓ SUCCESS", "#22e07a"], partial: ["◐ PARTIAL", "#f5c518"], failure: ["✕ FAILED", "#ff4d4d"] }[a.result] || ["—", "#7d8a99"];
+  const objs = Array.isArray(a.objectives) ? a.objectives : [];
+  return `<b style="color:#fff;font-family:Rajdhani,sans-serif;font-size:16px">${esc(a.title || "AAR")}</b> <span class="d2-tag" style="--c:${R[1]}">${R[0]}</span>
+    <small class="dim" style="display:block">${a.date ? ukDay(a.date) : ""}${objs.length ? ` · ${objs.filter((o) => o.done).length}/${objs.length} OBJECTIVES` : ""}${a.filedBy ? " · " + esc(a.filedBy) : ""}</small>
+    <p class="d2-p" style="margin-top:6px">${esc(String(a.summary || "").slice(0, 180))}</p><div class="d2-foot"><span></span><button class="lnk" data-go="panel-aar">OPEN AARS ▸</button></div>`;
+}
 const allowed = (k) => !!WID[k] && (!WID[k].acc || acc[WID[k].acc]);
 
 function needsList() {
@@ -301,7 +433,7 @@ function needsList() {
 /* ───────── layout ───────── */
 async function save() {
   try {
-    await updateDoc(doc(db, "users", uid), { dashLayout: { order: L, wide: [...WIDE] } });
+    await updateDoc(doc(db, "users", uid), { dashLayout: { order: L, wide: [...WIDE], v3: true } });
   } catch {
     notify("COULD NOT SAVE YOUR LAYOUT", true);
   }
@@ -347,7 +479,9 @@ function drawCat() {
     if (!ks.length) return "";
     return `<div class="d2-ch2">${grp}</div>` + ks.map((k) => {
       const w = WID[k], on = L.includes(k);
-      return `<div class="d2-ci ${on ? "on" : ""}"><span class="ico">${w.ico}</span><span><b>${w.t.replace(/^\S+\s/, "")}</b><small>${w.d}</small>${w.accL ? `<div class="lock">NEEDS: ${w.accL}</div>` : ""}</span>${on ? '<span class="dim">ADDED</span>' : `<button class="b sm gold" data-add="${k}">+ ADD</button>`}</div>`;
+      let pv = "";
+      try { pv = w.b(); } catch { pv = ""; }
+      return `<div class="d2-ci ${on ? "on" : ""}"><div class="d3-pv" aria-hidden="true"><div>${pv}</div></div><span class="ico">${w.ico}</span><span><b>${w.t.replace(/^\S+\s/, "")}</b><small>${w.d}</small>${w.accL ? `<div class="lock">NEEDS: ${w.accL}</div>` : ""}</span>${on ? '<span class="dim">ADDED</span>' : `<button class="b sm gold" data-add="${k}">+ ADD</button>`}</div>`;
     }).join("");
   }).join("");
 }
@@ -363,7 +497,9 @@ async function load() {
       D.fragos = s.docs.map((d) => d.data()).find((f) => !(f.visibility === "commander_only" && !["commander", "developer"].includes(role)) && !(f.visibility === "officers_only" && !["commander", "developer", "officer"].includes(role))) || null;
     }),
     safe(getDocs(collection(db, "community_events")), (s) => (D.events = s.docs.map((d) => ({ id: d.id, ...d.data() })))),
-    acc.att ? safe(getDocs(collection(db, "attendance_events")), (s) => (D.att = s.docs.map((d) => d.data()))) : null,
+    safe(getDocs(collection(db, "attendance_events")), (s) => (D.att = s.docs.map((d) => ({ id: d.id, ...d.data() })))),
+    safe(getDoc(doc(db, "settings", "roster_meta")), (s) => (D.reset = s.data() || {})),
+    safe(getDocs(query(collection(db, "aars"), orderBy("submittedAt", "desc"), limit(5))), (s) => (D.aar = s.docs.map((d) => ({ id: d.id, ...d.data() })).find((a) => a.status !== "draft") || null)),
     acc.proj ? safe(getDocs(collection(db, "projects")), (s) => (D.tasks = s.docs.map((d) => ({ id: d.id, ...d.data() })))) : null,
     acc.notes ? safe(fetch("/api/terminal/notes", { cache: "no-store" }).then((r) => r.json()), (j) => (D.notes = j.notes || [])) : null,
     acc.audit ? safe(getDocs(query(collection(db, "audit_logs"), orderBy("createdAt", "desc"), limit(12))), (s) => (D.audit = s.docs.map((d) => d.data()))) : null,
@@ -391,7 +527,13 @@ function hello() {
   const day = n.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", timeZone: "Europe/London" }).toUpperCase().replace(",", "");
   const time = n.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   const k = needsList().length;
-  document.getElementById("d2Sub").innerHTML = `${esc(day)} · ${time} UK · ${k ? `<span style="color:#f59e0b">${k} THING${k === 1 ? "" : "S"} NEED YOU</span>` : "NOTHING NEEDS YOU"}`;
+  const nxt = (D.events || []).filter((e) => e.status !== "cancelled" && Date.parse(e.startAtISO) > Date.now()).sort((a, b) => String(a.startAtISO).localeCompare(String(b.startAtISO)))[0];
+  const c0 = D.cortana || {};
+  const light = (n, ok) => `<span class="d3-li" style="color:${ok === true ? "#22e07a" : ok === false ? "#ff4d4d" : "#4b5765"}" title="${n}: ${ok === true ? "online" : ok === false ? "down" : "not running"}"><i></i>${n}</span>`;
+  document.getElementById("d2Sub").innerHTML = `${esc(day)} · ${time} UK
+    <div class="d3-pills">${nxt ? `<span>NEXT OP <b>${esc(String(nxt.title).toUpperCase())} · ${new Date(nxt.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</b></span>` : ""}<span>YOUR ATT <b>${Math.min(3, D.me?.attendance || 0)}/3</b></span><span>PT <b>${D.me?.promotionTracker || 0}</b></span>${k ? `<span class="hot"><b>${k}</b> NEED${k === 1 ? "S" : ""} YOU</span>` : "<span>NOTHING NEEDS YOU</span>"}</div>
+    <div class="d3-lights">${light("WEBSITE", D.ping.web != null ? true : D.ping.webErr ? false : null)}${light("DATABASE", D.ping.db != null ? true : D.ping.dbErr ? false : null)}${light("CORTANA", c0.online ? true : c0.lastHeartbeatISO ? false : null)}${light("HUB", null)}</div>`;
+  paintMe();
   const [l, c] = OPS[D.status.opStatus] || ["NOT SET", "#7d8a99"];
   const open = D.status.recruitmentOpen !== false;
   document.getElementById("d2Unit").innerHTML = `<b style="color:${c}">◉ ${l}</b><small style="color:${open ? "#22e07a" : "#ff4d4d"}">${open ? "● RECRUITING" : "○ RECRUITMENT CLOSED"}</small>`;
@@ -402,12 +544,15 @@ function mount() {
   if (!panel || document.getElementById("dash2")) return;
   const root = document.createElement("div");
   root.id = "dash2";
-  root.innerHTML = `
-    <div class="d2-welcome"><span id="d2Hex"></span><div><div class="d2-hi" id="d2Hello">WELCOME</div><div class="dim" id="d2Sub"></div></div><div class="d2-unit" id="d2Unit"></div><button class="b" id="d2CustBtn" style="margin-left:14px">✎ CUSTOMISE</button></div>
+  root.innerHTML = `<div class="d3-shell"><div class="d3-main">
+    <div class="d2-welcome"><span id="d2Hex" class="d3-me" role="button" tabindex="0" title="Your status — click to change"></span><div><div class="d2-hi" id="d2Hello">WELCOME</div><div class="dim" id="d2Sub"></div></div><div class="d2-unit" id="d2Unit"></div><button class="b" id="d2CustBtn" style="margin-left:14px">✎ CUSTOMISE</button></div>
     <div class="d2-custbar" id="d2Cust"><b>✎ CUSTOMISING YOUR DASHBOARD</b><span class="dim">DRAG ⠿ TO MOVE · ⇔ WIDE / NARROW · ✕ REMOVE · ONLY YOU SEE YOUR LAYOUT</span><span style="flex:1"></span><button class="b" id="d2Reset">↺ RESET TO DEFAULT</button><button class="b" id="d2Add">+ ADD WIDGET</button><button class="b gold" id="d2Done">DONE</button></div>
     <div class="d2-grid" id="d2Grid"></div>
-    <p class="d2-hint">Widgets only appear in the list if you have access to them. Your layout is saved to your account, so it follows you to any device.</p>`;
+    <p class="d2-hint">Widgets only appear in the list if you have access to them. Your layout is saved to your account, so it follows you to any device.</p></div></div>`;
   panel.appendChild(root);
+  mountDock(root.querySelector(".d3-shell"));
+  root.querySelector("#d2Hex").addEventListener("click", () => statusMenu(root.querySelector("#d2Hex")));
+  root.querySelector("#d2Hex").addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), statusMenu(root.querySelector("#d2Hex"))));
   document.body.insertAdjacentHTML("beforeend", `<aside class="d2-drawer" id="d2Drawer" hidden aria-label="Add widget"><div class="d2-dh"><b>ADD WIDGET</b><button class="b sm" id="d2DrClose" aria-label="Close">✕</button></div><div id="d2Cat"></div></aside>`);
 
   document.getElementById("d2CustBtn").onclick = () => cust(true);
@@ -430,6 +575,10 @@ function mount() {
     if (lo && !editing) { try { sessionStorage.setItem("evOpenLive", lo.dataset.liveop); } catch { /* blocked */ } return go("panel-events"); }
     const go1 = e.target.closest("[data-go]");
     if (go1 && !editing) return go(go1.dataset.go);
+    const st = e.target.closest("[data-st]");
+    if (st && !editing) return setStatus(st.dataset.st);
+    const pp = e.target.closest("[data-pop]");
+    if (pp && !editing) return openPop(pp.dataset.pop);
     const b = e.target.closest(".d2-wt button[data-a]");
     if (!b) return;
     const k = b.closest(".d2-w").dataset.k;
@@ -456,6 +605,10 @@ function mount() {
 
 async function refresh() {
   await load();
+  const mine = D.users.find((x) => x.id === uid);
+  if (mine) D.me = { ...(D.me || {}), ...mine };
+  startDock(uid, D.me, D.users);
+  updateUsers(D.users);
   hello();
   if (!editing) drawW();
 }
@@ -468,7 +621,10 @@ onReady(() => {
       acc = me.access || {};
       D.me = await getMe().catch(() => null);
       const s = D.me?.dashLayout;
-      if (s && Array.isArray(s.order)) { L = s.order.filter((k) => WID[k]); WIDE = new Set((s.wide || []).filter((k) => WID[k])); }
+      if (s && Array.isArray(s.order)) {
+        L = s.order.filter((k) => WID[k]); WIDE = new Set((s.wide || []).filter((k) => WID[k]));
+        if (!s.v3) { V3_ADD.slice().reverse().forEach((k) => !L.includes(k) && L.unshift(k)); WIDE.add("myatt"); save(); }
+      }
       else { L = [...DEF]; WIDE = new Set(DEF_WIDE); }
       mount();
       document.getElementById("d2Hex").innerHTML = hexAvatar(D.me || {}, "lg");
@@ -477,6 +633,9 @@ onReady(() => {
       setInterval(() => (document.getElementById("panel-dashboard")?.classList.contains("hidden") ? hello() : refresh()), 60000);
       // Online Now / Staff Online update live (instant updates), not once a minute.
       let seen = null;
+      onSnapshot(query(collection(db, "conversations"), where("participants", "array-contains", uid)), (s) => { D.convs = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!editing && L.includes("msgs")) drawW(); }, () => {});
+      const dp = document.getElementById("panel-dashboard");
+      if (dp) new MutationObserver(refreshPopPosition).observe(dp, { attributes: true, attributeFilter: ["class"] });
       onSnapshot(collection(db, "presence_sessions"), (s) => {
         D.pres = s.docs.map((d) => d.data());
         // Sign-in pop-up when ANOTHER staff member opens the terminal (like RCD). Not on the first load.
