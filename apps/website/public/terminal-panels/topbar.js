@@ -65,7 +65,10 @@ addCss("tb2", `
 .tb3-dd{width:330px}.tb3-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.05);font-size:11.5px;letter-spacing:1px;color:#d6dde6}
 .tb3-row small{margin-left:auto;color:#7d8a99;font-size:10px}.tb3-row b{font-weight:400;color:#fff}
 .tb2-mm .tb3-s{display:flex;align-items:center;gap:10px}.tb2-mm .tb3-s i{width:9px;height:9px;border-radius:50%}.tb2-mm .tb3-s.on{color:#00D9FF}.tb2-mm .tb3-h{padding:6px 14px 2px;font-size:9px;letter-spacing:2px;color:#4b5765}
-@media(max-width:1250px){.tb3-clk{display:none}}@media(max-width:1100px){.tb3-sys{display:none}}
+/* never wider than the screen (17:18 bug: bar pushed the page sideways) */
+.top-bar{min-width:0;max-width:100vw;box-sizing:border-box;overflow:hidden}.top-bar-left{flex-shrink:0}.top-bar-right{min-width:0;flex:1 1 auto;justify-content:flex-end}
+.tb2{min-width:0;flex-wrap:nowrap}
+@media(max-width:1600px){.tb3-clk{display:none}}@media(max-width:1450px){.tb3-sys{display:none}}@media(max-width:1300px){.tb2-crumb{display:none}}@media(max-width:1150px){.tb2-search span{display:none}.tb2-search{min-width:0}}
 @media(max-width:900px){.tb3-pill{display:none}.tb2-crumb,.tb2-search span,.tb2-me div{display:none}.tb2-search{min-width:0}.tb2-al{right:8px;left:8px;width:auto}}
 `);
 

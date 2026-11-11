@@ -51,7 +51,8 @@ export const access = () => me;
 const listeners = [];
 /** Run fn(me) once access is known (and again never). */
 export function onAccess(fn) {
-  me ? fn(me) : listeners.push(fn);
+  if (!me) return void listeners.push(fn);
+  try { fn(me); } catch (e) { console.error("onAccess listener failed", e); }
 }
 
 function buildMenu() {
@@ -177,7 +178,8 @@ async function loadAccess() {
     } catch {}
   }
   applyAccess();
-  listeners.splice(0).forEach((fn) => fn(me));
+  // One page's error must not stop the others getting access (2026-11-11 fix).
+  listeners.splice(0).forEach((fn) => { try { fn(me); } catch (e) { console.error("onAccess listener failed", e); } });
 }
 
 function wrapShowPanel() {
