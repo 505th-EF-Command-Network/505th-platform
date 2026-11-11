@@ -143,11 +143,32 @@ function renderRoles() {
       h += "</tr>";
     }
   }
-  h += "</tbody></table></div>";
-  const d = raDiff();
-  if (d.length) h += `<div class="ra-diff"><b>${d.length} UNSAVED CHANGE${d.length === 1 ? "" : "S"}</b><ul>${d.map((x) => `<li class="${x.up ? "up" : "dn"}">${esc(x.txt)}</li>`).join("")}</ul></div>`;
-  if (ed) h += `<div class="savebar ${d.length ? "show" : ""}" style="${d.length ? "" : "display:flex;border-color:var(--l);color:var(--d);background:var(--p)"}"><span>${d.length ? `${d.length} UNSAVED CHANGE${d.length === 1 ? "" : "S"} · LOGGED TO THE AUDIT LOG` : "NO CHANGES"}</span><span style="flex:1"></span><button class="b" data-act="ra-builtin">RESET ALL TO BUILT-IN</button>${d.length ? '<button class="b" data-act="ra-discard">DISCARD</button><button class="b gold" data-act="ra-save">SAVE ROLE ACCESS</button>' : ""}</div>`;
+  h += "</tbody></table></div><div class=\"ra-foot\"></div>";
   box.innerHTML = h;
+  raFoot();
+}
+/** Diff list + save bar only (no table rebuild → the page doesn't jump while you click). */
+function raFoot() {
+  const foot = document.querySelector(`#${ROOT} .ra-foot`);
+  if (!foot) return;
+  const d = raDiff();
+  let h = "";
+  if (d.length) h += `<div class="ra-diff"><b>${d.length} UNSAVED CHANGE${d.length === 1 ? "" : "S"}</b><ul>${d.map((x) => `<li class="${x.up ? "up" : "dn"}">${esc(x.txt)}</li>`).join("")}</ul></div>`;
+  if (ra.canEdit) h += `<div class="savebar ${d.length ? "show" : ""}" style="${d.length ? "" : "display:flex;border-color:var(--l);color:var(--d);background:var(--p)"}"><span>${d.length ? `${d.length} UNSAVED CHANGE${d.length === 1 ? "" : "S"} · LOGGED TO THE AUDIT LOG` : "NO CHANGES"}</span><span style="flex:1"></span><button class="b" data-act="ra-builtin">RESET ALL TO BUILT-IN</button>${d.length ? '<button class="b" data-act="ra-discard">DISCARD</button><button class="b gold" data-act="ra-save">SAVE ROLE ACCESS</button>' : ""}</div>`;
+  foot.innerHTML = h;
+}
+/** Update the clicked-on boxes in place. */
+function raCells() {
+  document.querySelectorAll(`#${ROOT} [data-ra]`).forEach((b) => {
+    const [role, key] = b.dataset.ra.split(":");
+    const on = raHas(role, key), chg = raChanged(role, key);
+    b.classList.toggle("on", on);
+    b.classList.toggle("chgd", chg);
+    b.setAttribute("aria-checked", String(on));
+    b.textContent = on ? "✓" : "";
+    b.title = chg ? "CHANGED FROM BUILT-IN — CLICK TO CHANGE" : "BUILT-IN DEFAULT — CLICK TO CHANGE";
+  });
+  raFoot();
 }
 function raToggle(role, key) {
   const now = raHas(role, key), built = !!ra.builtIn[role][key];
@@ -155,7 +176,7 @@ function raToggle(role, key) {
   if (!now === built) delete raWork[role][key];
   else raWork[role][key] = now ? 0 : 1;
   if (!Object.keys(raWork[role]).length) delete raWork[role];
-  renderRoles();
+  raCells();
 }
 async function raSave() {
   const d = raDiff();
@@ -271,8 +292,8 @@ onReady(() => {
     if (ra2) { const [r, k] = ra2.dataset.ra.split(":"); return raToggle(r, k); }
     const act2 = e.target.closest("[data-act]")?.dataset.act;
     if (act2 === "ra-save") return raSave();
-    if (act2 === "ra-discard") { raWork = clone(raSaved); return renderRoles(); }
-    if (act2 === "ra-builtin") { raWork = {}; notify("ALL ROLES SET BACK TO BUILT-IN — SAVE TO APPLY"); return renderRoles(); }
+    if (act2 === "ra-discard") { raWork = clone(raSaved); return raCells(); }
+    if (act2 === "ra-builtin") { raWork = {}; notify("ALL ROLES SET BACK TO BUILT-IN — SAVE TO APPLY"); return raCells(); }
     const c = e.target.closest("[data-cell]");
     if (c) {
       const [i, k] = c.dataset.cell.split(":");

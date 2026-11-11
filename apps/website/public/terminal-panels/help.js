@@ -217,6 +217,8 @@ function addQ(panel) {
   b.className = "hl-q";
   b.type = "button";
   b.textContent = "?";
+  // Inline + !important so no page style can strip the circle (it showed as "NOTES?" / "NT?" on some pages).
+  b.style.cssText = "all:unset;cursor:pointer!important;display:inline-grid!important;place-items:center!important;width:22px!important;height:22px!important;min-width:22px!important;margin:0 0 0 12px!important;padding:0!important;border:1px solid #00D9FF!important;border-radius:50%!important;color:#00D9FF!important;background:transparent!important;font:700 12px/1 monospace!important;letter-spacing:0!important;text-shadow:none!important;vertical-align:middle!important;box-sizing:border-box!important;-webkit-text-fill-color:#00D9FF!important;flex:0 0 auto!important";
   b.setAttribute("aria-label", `Help: ${h.t}`);
   b.dataset.help = panel.id;
   title.appendChild(b);
