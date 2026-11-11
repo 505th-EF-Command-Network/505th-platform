@@ -43,7 +43,7 @@ const GROUPS = [
     ["panel-cmd-promote", "&#9650; Command Promotions"], ["panel-cmd-suspend", "&#9940; Suspensions"],
     ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-cortana", "&#9670; Cortana Setup"], ["panel-cmd-rolesync", "&#8644; Discord Role Sync"], ["panel-cmd-settings", "&#9881; Settings"],
     ["label", "COMMANDER"], ["panel-cmd-access", "&#128273; Command Access"]] },
-  { id: "nav-help", icon: "&#10067;", label: "HELP", tip: "What every page does, how-to steps and guided tours.", links: [["panel-help", "&#10067; Help &amp; Guided Tours"]] },
+  { id: "nav-help", icon: "&#9432;", label: "HELP", tip: "What every page does, how-to steps and guided tours.", links: [["panel-help", "&#9432; Help &amp; Guided Tours"]] },
 ];
 
 let me = null; // { uid, role, access }

@@ -1,5 +1,5 @@
 /**
- * ❓ HELP (approved mock 2026-11-10): every Command Terminal page explained + interactive guided tours.
+ * HELP (approved mock 2026-11-10): every Command Terminal page explained + interactive guided tours.
  *  - HELP page (sidebar → HELP): search, groups, a card per page (only pages you can open), how-to article, FAQ.
  *  - A "?" button by each page title opens that page's help in a side panel.
  *  - "▶ SHOW ME" runs a guided tour on the real page: spotlight + steps (Next / Back / Skip, ← → Enter Esc).
@@ -227,7 +227,7 @@ function endTour() {
   tour = null;
 }
 
-/* ───────── "?" side panel ───────── */
+/* ───────── help side panel ───────── */
 let acc = {};
 const CMDK = ["cmd_status", "cmd_sitrep", "cmd_staff", "cmd_promote", "cmd_suspend", "ovr", "bot", "set"];
 let role = "";
@@ -247,22 +247,6 @@ function openSide(id) {
 }
 function closeSide() { if (ui.side) ui.side.hidden = true; }
 
-/** Put a "?" by each page title that has help. */
-function addQ(panel) {
-  const h = H[panel.id];
-  if (!h || panel.querySelector(".hl-q")) return;
-  const title = panel.querySelector(".panel-title, .h1");
-  if (!title) return;
-  const b = document.createElement("button");
-  b.className = "hl-q";
-  b.type = "button";
-  b.textContent = "?";
-  // Inline + !important so no page style can strip the circle (it showed as "NOTES?" / "NT?" on some pages).
-  b.style.cssText = "all:unset;cursor:pointer!important;display:inline-grid!important;place-items:center!important;width:22px!important;height:22px!important;min-width:22px!important;margin:0 0 0 12px!important;padding:0!important;border:1px solid #00D9FF!important;border-radius:50%!important;color:#00D9FF!important;background:transparent!important;font:700 12px/1 monospace!important;letter-spacing:0!important;text-shadow:none!important;vertical-align:middle!important;box-sizing:border-box!important;-webkit-text-fill-color:#00D9FF!important;flex:0 0 auto!important";
-  b.setAttribute("aria-label", `Help: ${h.t}`);
-  b.dataset.help = panel.id;
-  title.appendChild(b);
-}
 
 /* ───────── HELP page ───────── */
 let q = "", sel = "panel-events", grp = "";
@@ -271,7 +255,7 @@ function page(root) {
   const cur = H[sel] && canSee(H[sel]) ? sel : items[0]?.[0];
   root.innerHTML = `<div class="panel-title">HELP</div><div class="hl-sub">WHAT EVERY PAGE DOES · WHO CAN USE IT · HOW-TO STEPS · ▶ SHOW ME = GUIDED TOUR ON THE REAL PAGE</div>
   <div class="hl-lay"><div class="hl-side"><input class="fld" id="hlQ" value="${esc(q)}" placeholder="⌕ Search help…" aria-label="Search help">
-    ${["", ...GROUPS].map((g) => `<button class="${g === grp ? "on" : ""}" data-grp="${g}">${g || "📚 ALL PAGES"}</button>`).join("")}<button data-grp="__cmd" class="${grp === "__cmd" ? "on" : ""}">⌘ CORTANA COMMANDS</button><button data-grp="__faq" class="${grp === "__faq" ? "on" : ""}">❓ FAQ</button>
+    ${["", ...GROUPS].map((g) => `<button class="${g === grp ? "on" : ""}" data-grp="${g}">${g || "📚 ALL PAGES"}</button>`).join("")}<button data-grp="__cmd" class="${grp === "__cmd" ? "on" : ""}">⌘ CORTANA COMMANDS</button><button data-grp="__faq" class="${grp === "__faq" ? "on" : ""}">ℹ FAQ</button>
     <p class="hl-n">ONLY SHOWS PAGES YOU CAN OPEN</p></div>
   <div>${grp === "__cmd" ? `<div class="hl-card">${CMDS.map(([w, c]) => `<div class="hl-row"><b>${esc(w)}</b><span>${esc(c)}</span></div>`).join("")}<p class="hl-n" style="margin-top:10px">STAFF ANSWERS ARE PRIVATE · KICK / BAN / RESTART ASK YOU TO CONFIRM</p></div>`
     : grp === "__faq" ? `<div class="hl-card">${FAQ.map(([a, b], n) => `<details ${n ? "" : "open"}><summary>${esc(a)}</summary><p>${esc(b)}</p></details>`).join("")}</div>`
@@ -281,8 +265,6 @@ function page(root) {
 
 const CSS = `
 /* !important: some pages reset their own buttons (e.g. #id button{all:unset}), which made the "?" look like a typo ("NOTES?"). */
-button.hl-q{all:unset;cursor:pointer!important;display:inline-grid!important;place-items:center!important;width:22px!important;height:22px!important;margin:0 0 0 12px!important;padding:0!important;border:1px solid #00D9FF!important;color:#00D9FF!important;background:transparent!important;border-radius:50%!important;font:700 12px/1 monospace!important;vertical-align:middle!important;letter-spacing:0!important;text-shadow:none!important;box-sizing:border-box!important}
-button.hl-q:hover,button.hl-q:focus-visible{background:rgba(0,217,255,.15)!important;outline:none}
 .hl-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);z-index:10040;background:#07131b;border-left:1px solid #00D9FF;box-shadow:-12px 0 30px rgba(0,0,0,.6);padding:20px 22px;overflow:auto;color:#cfe9f2;font:14px/1.5 "Rajdhani","Segoe UI",sans-serif}
 .hl-panel .xx{all:unset;cursor:pointer;position:absolute;top:12px;right:14px;color:#6f8a96;font-size:18px}
 .hl-crumb{font:10px monospace;letter-spacing:1.5px;color:#6f8a96;display:flex;justify-content:space-between;gap:8px;padding-right:24px}.hl-who{border:1px solid rgba(0,217,255,.18);padding:1px 6px}
@@ -346,7 +328,7 @@ onReady(() => {
   }, true);
   addEventListener("resize", () => tour && place());
 
-  // "?" side panel.
+  // Help side panel.
   ui.side = document.createElement("aside");
   ui.side.className = "hl-panel v2";
   ui.side.hidden = true;
@@ -363,10 +345,7 @@ onReady(() => {
     if (e.target.closest(".hl-panel [data-close]")) closeSide();
   }, true);
 
-  // Add "?" to page titles as pages render.
-  const scan = () => document.querySelectorAll(".main-content > .panel").forEach(addQ);
-  new MutationObserver(() => scan()).observe(document.querySelector(".main-content") || document.body, { childList: true, subtree: true });
-  scan();
+  // Page-title "?" buttons removed (user request 2026-11-11) — help is on the HELP page and in the Command "WHAT IS THIS?" boxes.
 
   onAccess((me) => { acc = me?.access || {}; role = me?.role || ""; if (root) page(root); });
   const root = mountPanel("panel-help", "helpV2", () => page(root));
