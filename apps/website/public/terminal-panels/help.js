@@ -238,8 +238,9 @@ function page(root) {
 }
 
 const CSS = `
-.hl-q{all:unset;cursor:pointer;display:inline-grid;place-items:center;width:22px;height:22px;margin-left:10px;border:1px solid #00D9FF;color:#00D9FF;border-radius:50%;font:700 12px monospace;vertical-align:middle;letter-spacing:0}
-.hl-q:hover,.hl-q:focus-visible{background:rgba(0,217,255,.15);outline:none}
+/* !important: some pages reset their own buttons (e.g. #id button{all:unset}), which made the "?" look like a typo ("NOTES?"). */
+button.hl-q{all:unset;cursor:pointer!important;display:inline-grid!important;place-items:center!important;width:22px!important;height:22px!important;margin:0 0 0 12px!important;padding:0!important;border:1px solid #00D9FF!important;color:#00D9FF!important;background:transparent!important;border-radius:50%!important;font:700 12px/1 monospace!important;vertical-align:middle!important;letter-spacing:0!important;text-shadow:none!important;box-sizing:border-box!important}
+button.hl-q:hover,button.hl-q:focus-visible{background:rgba(0,217,255,.15)!important;outline:none}
 .hl-panel{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);z-index:10040;background:#07131b;border-left:1px solid #00D9FF;box-shadow:-12px 0 30px rgba(0,0,0,.6);padding:20px 22px;overflow:auto;color:#cfe9f2;font:14px/1.5 "Rajdhani","Segoe UI",sans-serif}
 .hl-panel .xx{all:unset;cursor:pointer;position:absolute;top:12px;right:14px;color:#6f8a96;font-size:18px}
 .hl-crumb{font:10px monospace;letter-spacing:1.5px;color:#6f8a96;display:flex;justify-content:space-between;gap:8px;padding-right:24px}.hl-who{border:1px solid rgba(0,217,255,.18);padding:1px 6px}

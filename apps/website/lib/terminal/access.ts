@@ -75,6 +75,40 @@ export function cleanOverrides(raw: unknown): Overrides {
   return out;
 }
 
+/**
+ * Role defaults (approved mock 2026-11-11): Developers / Command can change what each ROLE gets
+ * (settings/role_access → { roles: { nco: { pers: 1 }, ... } }). Kept here as a module value so `can()` stays
+ * sync and pure; the server (getActor) and Cortana load it with setRoleDefaults() before checking.
+ * Commander and locked items are never changed. Per-person overrides still win.
+ */
+export const EDITABLE_ROLES = ["recruiter", "nco", "staff_nco", "officer", "developer"] as const;
+let ROLE_DEFAULTS: Record<string, Overrides> = {};
+
+/** Built-in (code) default for a role. */
+export const builtInDefault = (role: string | null | undefined, key: string) => {
+  const item = BY_KEY.get(key);
+  return !!item && roleLevel(role) >= item.min;
+};
+/** Clean a stored role-defaults object: editable roles, known keys, 0/1, never locked, only real differences. */
+export function cleanRoleDefaults(raw: unknown): Record<string, Overrides> {
+  const out: Record<string, Overrides> = {};
+  const src = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  for (const r of EDITABLE_ROLES) {
+    const o = cleanOverrides(src[r]);
+    for (const [k, v] of Object.entries(o)) if ((v === 1) === builtInDefault(r, k)) delete o[k];
+    if (Object.keys(o).length) out[r] = o;
+  }
+  return out;
+}
+export function setRoleDefaults(raw: unknown) { ROLE_DEFAULTS = cleanRoleDefaults(raw); }
+export const getRoleDefaults = () => ROLE_DEFAULTS;
+/** What the role gets by default right now (role access table, else built-in). */
+export function roleDefault(role: string | null | undefined, key: string): boolean {
+  const o = ROLE_DEFAULTS[role ?? ""];
+  if (o && key in o && !BY_KEY.get(key)?.locked) return o[key] === 1;
+  return builtInDefault(role, key);
+}
+
 /** Does this role (plus per-person overrides) have the item? */
 export function can(role: string | null | undefined, overrides: unknown, key: string): boolean {
   const item = BY_KEY.get(key);
@@ -84,7 +118,7 @@ export function can(role: string | null | undefined, overrides: unknown, key: st
   if (item.locked) return lvl >= item.min;
   const o = cleanOverrides(overrides);
   if (key in o) return o[key] === 1;
-  return lvl >= item.min;
+  return roleDefault(role, key);
 }
 
 /** Every item → true/false for one member. */
@@ -95,11 +129,7 @@ export function effectiveAccess(role: string | null | undefined, overrides: unkn
 /** Drop overrides that equal the role default, so "changed" means really changed. */
 export function normaliseOverrides(role: string, raw: unknown): Overrides {
   const o = cleanOverrides(raw);
-  const lvl = roleLevel(role);
-  for (const [k, v] of Object.entries(o)) {
-    const def = lvl >= BY_KEY.get(k)!.min ? 1 : 0;
-    if (v === def) delete o[k];
-  }
+  for (const [k, v] of Object.entries(o)) if ((v === 1) === roleDefault(role, k)) delete o[k];
   return o;
 }
 
@@ -156,6 +186,7 @@ export function writeNeeds(top: string, docId: string, fields: Set<string>, valu
       if (docId === "unit_cards") return ["oob"];
       if (docId === "page_content") return ["web"];
       if (docId === "roster_meta") return ["roster"];
+      if (docId === "role_access") return ["set"];
       if (["webhooks", "site", "discord", "audit", "cortana", "discord_role_map", "discord_sync"].includes(docId)) return ["set"];
       return null;
     default: return null;

@@ -4,6 +4,8 @@
  * Role dropdown = default access (saved through the normal personnel rules).
  * Click a cell = grant / remove for that one person (saved through /api/terminal/access).
  * The server re-checks everything.
+ * ROLE ACCESS tab (approved mock 2026-11-11): what each ROLE gets by default (Developers / Command edit, /api/terminal/role-access).
+ * Per-person changes on the Members tab still win.
  */
 import { doc, updateDoc } from "/terminal-shim/firestore.js";
 import { addCss, audit, db, esc, memberName, mountPanel, notify, onReady } from "./_common.js";
@@ -18,10 +20,15 @@ let data = null; // { me, items, members, assignable }
 let rows = []; // working copy [{uid, role, overrides}]
 let saved = []; // last saved copy
 let q = "", roleF = "", onlyChanged = false;
+let tab = "members";
+let ra = null; // { canEdit, items, roles, builtIn, current }
+let raWork = {}, raSaved = {}; // role → {key: 0|1}
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const item = (k) => data.items.find((i) => i.key === k);
-const def = (r, it) => (LV[r.role] ?? 0) >= it.min;
+/** Role default right now: Role Access table, else built-in. */
+const roleDef = (role, key) => { const o = raSaved[role]; if (o && key in o) return o[key] === 1; return ra ? !!ra.builtIn[role]?.[key] : (LV[role] ?? 0) >= (item(key)?.min ?? 99); };
+const def = (r, it) => (it.locked ? (LV[r.role] ?? 0) >= it.min : roleDef(r.role, it.key));
 const has = (r, it) => (r.role === "commander" ? true : it.locked ? def(r, it) : it.key in r.overrides ? r.overrides[it.key] === 1 : def(r, it));
 const meHas = (k) => !!data.me.access[k];
 function lockedWhy(r, it) {
@@ -41,10 +48,15 @@ async function load() {
     return;
   }
   data = j;
+  const rr = await fetch("/api/terminal/role-access", { cache: "no-store" }).catch(() => null);
+  ra = rr?.ok ? await rr.json() : null;
+  raSaved = clone(ra?.current || {});
+  raWork = clone(raSaved);
   data.members.sort((a, b) => (LV[b.role] ?? 0) - (LV[a.role] ?? 0) || memberName(a).localeCompare(memberName(b)));
   rows = data.members.map((m) => ({ uid: m.uid, role: m.role, overrides: { ...m.overrides } }));
   saved = clone(rows);
   render();
+  showTab();
 }
 
 function render() {
@@ -89,6 +101,77 @@ function render() {
   const bar = root.querySelector(".savebar");
   bar.classList.toggle("show", d > 0);
   bar.querySelector(".dn").textContent = `${d} MEMBER${d === 1 ? "" : "S"} CHANGED — NOT SAVED`;
+}
+
+/* ───────── ROLE ACCESS tab ───────── */
+const raHas = (role, key) => { const o = raWork[role]; return o && key in o ? o[key] === 1 : !!ra.builtIn[role]?.[key]; };
+const raChanged = (role, key) => { const o = raWork[role]; return !!o && key in o; }; // differs from built-in
+const raDiff = () => {
+  const out = [];
+  for (const r of ra.roles) for (const it of ra.items) {
+    if (it.locked || r.key === "commander") continue;
+    const was = raSaved[r.key] && it.key in raSaved[r.key] ? raSaved[r.key][it.key] === 1 : !!ra.builtIn[r.key][it.key];
+    const will = raHas(r.key, it.key);
+    if (was !== will) {
+      const ppl = rows.filter((x) => x.role === r.key), keep = ppl.filter((x) => it.key in x.overrides).length;
+      out.push({ up: will, txt: `${will ? "+" : "−"} ${RL[r.key]} → ${it.label} (${ppl.length - keep} member${ppl.length - keep === 1 ? "" : "s"} ${will ? "get" : "lose"} it${keep ? ` · ${keep} keep${keep === 1 ? "s" : ""} their personal setting` : ""})` });
+    }
+  }
+  return out;
+};
+function renderRoles() {
+  const root = document.getElementById(ROOT);
+  const box = root.querySelector(".ra");
+  if (!ra) { box.innerHTML = '<div class="empty">ROLE ACCESS COULD NOT LOAD.</div>'; return; }
+  const ed = ra.canEdit;
+  let h = `<div class="ra-info">Set what <b>each role</b> gets by default. Everyone with that role follows it — unless they have their own change on the Members tab (that still wins). Commander always has everything. Bot Server / Settings / Overall Status stay Developer + Commander only. ${ed ? "" : "<b>Only Developers / Command can change role defaults.</b>"}</div>
+    <span class="lgd" style="margin:8px 0 10px"><i class="c on"></i>HAS IT <i class="c"></i>DOESN'T <i class="c on chgd"></i>CHANGED FROM BUILT-IN <i class="c lk"></i>FIXED</span>
+    <div class="wrap"><table class="rat"><thead><tr><th class="mh">ACCESS</th>${ra.roles.map((r) => `<th class="ch">${RL[r.key]}<small>${r.count} MEMBER${r.count === 1 ? "" : "S"}</small></th>`).join("")}</tr></thead><tbody>`;
+  for (const g of GROUPS) {
+    const list = ra.items.filter((i) => i.group === g);
+    if (!list.length) continue;
+    h += `<tr><td class="gh" colspan="${ra.roles.length + 1}">${g}</td></tr>`;
+    for (const it of list) {
+      h += `<tr><td class="mh"><b>${esc(it.label)}</b>${it.locked ? ' <span class="dim">🔒 DEV / CMD ONLY</span>' : ""}</td>`;
+      for (const r of ra.roles) {
+        const fixed = it.locked || r.key === "commander" || !ed;
+        const on = r.key === "commander" ? true : it.locked ? !!ra.builtIn[r.key][it.key] : raHas(r.key, it.key);
+        const chg = !it.locked && r.key !== "commander" && raChanged(r.key, it.key);
+        const tip = r.key === "commander" ? "COMMANDER ALWAYS HAS EVERYTHING" : it.locked ? "DEVELOPER / COMMANDER ONLY" : !ed ? "ONLY DEVELOPERS / COMMAND CAN CHANGE THIS" : chg ? "CHANGED FROM BUILT-IN — CLICK TO CHANGE" : "BUILT-IN DEFAULT — CLICK TO CHANGE";
+        h += `<td><button class="c ${on ? "on" : ""} ${chg ? "chgd" : ""} ${fixed ? "lk" : ""}" ${fixed ? 'aria-disabled="true"' : `data-ra="${r.key}:${it.key}"`} role="checkbox" aria-checked="${on}" aria-label="${RL[r.key]} — ${esc(it.label)}" title="${tip}">${on ? "✓" : it.locked && r.key !== "commander" ? "🔒" : ""}</button></td>`;
+      }
+      h += "</tr>";
+    }
+  }
+  h += "</tbody></table></div>";
+  const d = raDiff();
+  if (d.length) h += `<div class="ra-diff"><b>${d.length} UNSAVED CHANGE${d.length === 1 ? "" : "S"}</b><ul>${d.map((x) => `<li class="${x.up ? "up" : "dn"}">${esc(x.txt)}</li>`).join("")}</ul></div>`;
+  if (ed) h += `<div class="savebar ${d.length ? "show" : ""}" style="${d.length ? "" : "display:flex;border-color:var(--l);color:var(--d);background:var(--p)"}"><span>${d.length ? `${d.length} UNSAVED CHANGE${d.length === 1 ? "" : "S"} · LOGGED TO THE AUDIT LOG` : "NO CHANGES"}</span><span style="flex:1"></span><button class="b" data-act="ra-builtin">RESET ALL TO BUILT-IN</button>${d.length ? '<button class="b" data-act="ra-discard">DISCARD</button><button class="b gold" data-act="ra-save">SAVE ROLE ACCESS</button>' : ""}</div>`;
+  box.innerHTML = h;
+}
+function raToggle(role, key) {
+  const now = raHas(role, key), built = !!ra.builtIn[role][key];
+  raWork[role] = { ...(raWork[role] || {}) };
+  if (!now === built) delete raWork[role][key];
+  else raWork[role][key] = now ? 0 : 1;
+  if (!Object.keys(raWork[role]).length) delete raWork[role];
+  renderRoles();
+}
+async function raSave() {
+  const d = raDiff();
+  if (!d.length) return;
+  const res = await fetch("/api/terminal/role-access", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ roles: raWork }) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) return notify("SAVE FAILED: " + (j.error || res.status), 1);
+  notify(`✓ ROLE ACCESS SAVED (${j.changed} CHANGE${j.changed === 1 ? "" : "S"}) — WRITTEN TO AUDIT LOG`);
+  await load();
+}
+function showTab() {
+  const root = document.getElementById(ROOT);
+  root.querySelectorAll("[data-tab]").forEach((b) => { b.classList.toggle("on", b.dataset.tab === tab); b.setAttribute("aria-selected", String(b.dataset.tab === tab)); });
+  root.querySelector(".mem").hidden = tab !== "members";
+  root.querySelector(".ra").hidden = tab !== "roles";
+  if (tab === "roles") renderRoles();
 }
 
 function toggle(i, key) {
@@ -157,6 +240,11 @@ const CSS = `
 #${ROOT} .rl{font-size:9.5px;letter-spacing:1.5px;border:1px solid;padding:2px 7px}#${ROOT} .r-commander{color:var(--am)}#${ROOT} .r-developer,#${ROOT} .r-officer{color:#a78bfa}
 #${ROOT} .rst{background:none;border:0;color:var(--d);cursor:pointer;font-size:13px}
 #${ROOT} .savebar{position:sticky;bottom:10px;display:none;gap:8px;align-items:center;border:1px solid var(--am);background:#141006;color:var(--am);padding:10px 14px;font-size:11px;letter-spacing:2px;margin-top:10px;z-index:5}#${ROOT} .savebar.show{display:flex}
+#${ROOT} .tabs{display:flex;border-bottom:1px solid var(--l);margin:10px 0 4px}#${ROOT} .tabs button{all:unset;cursor:pointer;padding:9px 16px;font-size:10.5px;letter-spacing:2px;color:var(--d);border-bottom:2px solid transparent}#${ROOT} .tabs button.on{color:#fff;border-bottom-color:var(--a)}#${ROOT} .tabs button:focus-visible{outline:2px solid var(--a)}
+#${ROOT} .ra-info{border:1px solid var(--l);background:rgba(0,217,255,.04);padding:10px 12px;font-size:11px;line-height:1.7;color:#9fb3c4;margin-top:12px}#${ROOT} .ra-info b{color:#fff}
+#${ROOT} table.rat{min-width:760px}#${ROOT} table.rat td.gh{text-align:left;color:var(--a);font-size:9px;letter-spacing:3px;padding-top:12px;background:none}
+#${ROOT} .c.chgd{box-shadow:0 0 0 2px #ffd166}#${ROOT} .c.on.chgd{background:rgba(255,209,102,.25);border-color:#ffd166;color:#ffd166}
+#${ROOT} .ra-diff{border:1px solid var(--l);margin-top:12px;padding:10px 12px;font-size:11px}#${ROOT} .ra-diff b{color:#ffd166;letter-spacing:2px}#${ROOT} .ra-diff ul{margin:6px 0 0;padding-left:16px}#${ROOT} .ra-diff .up{color:var(--g)}#${ROOT} .ra-diff .dn{color:var(--r)}
 #${ROOT} .hint{font-size:10px;letter-spacing:1px;color:var(--d);line-height:1.8;margin-top:12px}
 `;
 
@@ -167,15 +255,24 @@ onReady(() => {
   root.innerHTML = `
     <div class="h1">OFFICER MANAGEMENT</div>
     <div class="sub">EVERY MEMBER RECRUITER AND ABOVE — ROLE GIVES DEFAULT ACCESS, CLICK A CELL TO GRANT OR REMOVE FOR THAT PERSON</div>
-    <div class="body"><div class="kp"></div>
+    <div class="tabs" role="tablist"><button role="tab" data-tab="members" class="on">MEMBERS (PER PERSON)</button><button role="tab" data-tab="roles">ROLE ACCESS (DEFAULTS)</button></div>
+    <div class="body"><div class="mem"><div class="kp"></div>
     <div class="ftr"><input class="srch" data-f="q" placeholder="SEARCH MEMBER..." aria-label="Search member">
       <select class="srch" data-f="role" aria-label="Filter by role"><option value="">ALL ROLES</option>${Object.entries(RL).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
       <label class="dim" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-f="only"> ONLY CHANGED FROM DEFAULT</label>
-      <span class="lgd"><i class="c on"></i>ROLE DEFAULT <i class="c gr"></i>EXTRA GRANTED <i class="c rv"></i>REMOVED <i class="c lk"></i>LOCKED</span></div>
+      <span class="lgd"><i class="c on"></i>ROLE DEFAULT (ROLE ACCESS TAB) <i class="c gr"></i>EXTRA GRANTED <i class="c rv"></i>REMOVED <i class="c lk"></i>LOCKED</span></div>
     <div class="wrap"><table></table></div>
     <div class="savebar"><span class="dn"></span><span style="flex:1"></span><button class="b" data-act="discard">DISCARD</button><button class="b gold" data-act="save">SAVE ACCESS CHANGES</button></div>
-    <div class="hint">• Role sets the defaults; per-person changes stay when the role changes, until reset (↺).<br>• You can only give access you have yourself, and only to members whose role you're allowed to assign.<br>• 🔒 Commander always has everything · nobody edits their own row · Command pages are Developer / Commander only.<br>• Every change is written to the Audit Log, and the server enforces it on every page — not just the menu.</div></div>`;
+    <div class="hint">• Role sets the defaults; per-person changes stay when the role changes, until reset (↺).<br>• You can only give access you have yourself, and only to members whose role you're allowed to assign.<br>• 🔒 Commander always has everything · nobody edits their own row · Command pages are Developer / Commander only.<br>• Every change is written to the Audit Log, and the server enforces it on every page — not just the menu.</div></div><div class="ra" hidden></div></div>`;
   root.addEventListener("click", (e) => {
+    const tb = e.target.closest("[data-tab]");
+    if (tb) { tab = tb.dataset.tab; return showTab(); }
+    const ra2 = e.target.closest("[data-ra]");
+    if (ra2) { const [r, k] = ra2.dataset.ra.split(":"); return raToggle(r, k); }
+    const act2 = e.target.closest("[data-act]")?.dataset.act;
+    if (act2 === "ra-save") return raSave();
+    if (act2 === "ra-discard") { raWork = clone(raSaved); return renderRoles(); }
+    if (act2 === "ra-builtin") { raWork = {}; notify("ALL ROLES SET BACK TO BUILT-IN — SAVE TO APPLY"); return renderRoles(); }
     const c = e.target.closest("[data-cell]");
     if (c) {
       const [i, k] = c.dataset.cell.split(":");
@@ -210,6 +307,6 @@ onReady(() => {
     render();
   });
   addEventListener("beforeunload", (e) => {
-    if (rows.some((r, i) => changedOf(r, i))) e.preventDefault();
+    if (rows.some((r, i) => changedOf(r, i)) || (ra && raDiff().length)) e.preventDefault();
   });
 });

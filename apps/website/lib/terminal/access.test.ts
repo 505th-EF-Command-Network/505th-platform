@@ -65,3 +65,17 @@ test("Cortana-only collections can't be written from the terminal", () => {
     assert.throws(() => checkWrite({ uid: "c", role: "commander", access: {} }, "set", { top, path: `${top}/x`, docId: "x" }, new Set(["online"]), {}, null), /Only Cortana/);
   }
 });
+
+test("role access table changes role defaults; personal overrides still win; locked/commander unchanged", async () => {
+  const { setRoleDefaults, cleanRoleDefaults } = await import("./access");
+  setRoleDefaults({ nco: { pers: 1, set: 1 }, staff_nco: { modk: 0 }, commander: { om: 0 }, recruiter: { bct: 1 } });
+  assert.equal(can("nco", {}, "pers"), true);
+  assert.equal(can("nco", {}, "set"), false); // locked: ignored
+  assert.equal(can("staff_nco", {}, "modk"), false);
+  assert.equal(can("staff_nco", { modk: 1 }, "modk"), true); // person wins
+  assert.equal(can("commander", {}, "om"), true);
+  assert.deepEqual(cleanRoleDefaults({ recruiter: { bct: 1 } }), {}); // same as built-in → dropped
+  assert.deepEqual(normaliseOverrides("nco", { pers: 1 }), {}); // equals new role default → not an override
+  setRoleDefaults({});
+  assert.equal(can("nco", {}, "pers"), false);
+});

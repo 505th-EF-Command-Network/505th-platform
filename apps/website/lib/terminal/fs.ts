@@ -13,6 +13,7 @@ import {
   touchedFields, type Actor, type MongoUpdate, type UserTarget,
 } from "./fs-core";
 import { checkConvQuery, checkConvRead, checkConvWrite, checkNotif } from "./conv-core";
+import { loadRoleDefaults } from "./role-defaults";
 
 export { FsError };
 
@@ -33,6 +34,7 @@ export async function getActor(): Promise<Who> {
   if (!viewer) throw new FsError("unauthenticated", "Not signed in");
   if (viewer.terminal.result !== "GRANTED" || !viewer.member) throw new FsError("permission-denied", "No Command Terminal clearance");
   await connectDb();
+  await loadRoleDefaults();
   const m = await Member.findById(viewer.member.id, { legacyId: 1, role: 1, email: 1 }).lean();
   if (!m) throw new FsError("permission-denied", "Member record not found");
   const uid = m.legacyId || String(m._id);
