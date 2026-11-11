@@ -59,6 +59,11 @@ export type Overview = {
   system: { cortana: { online: boolean; pingMs: number | null; cpu: number | null; startedAtISO: string | null; missingPerms: number; errors24h: number; jobsQueued: number }; dbMs: number; website: boolean; media: boolean; realtime: boolean };
   at: string;
 };
+export type HistMember = { uid: string; name: string; rank: string; platoon: string; attended: number; eligible: number; missed: number; rate: number };
+export type HistMonth = { id: string; totalOps: number; memberCount: number; snapshotAt: string; savedBy: string; rebuiltAt: string; lateUpdate: { at: string; by: string; title: string; action: string } | null; members: HistMember[] };
+export type HistData = { months: HistMonth[]; missing: string[]; current: string };
+export type MediaItem = { id: string; type: "image" | "video"; url: string; name: string; description: string; category: string; uploadedAt: string; enabled: boolean };
+export type OobData = { data: Record<string, { status?: string; name?: string; userId?: string } | boolean>; members: { id: string; name: string; rank: string; short: string }[] };
 export type NetState = { state: "off" | "connecting" | "live"; reason: string | null };
 
 declare global {
@@ -98,6 +103,12 @@ declare global {
         savePrefs(body: HubPrefs): Promise<{ ok?: boolean; error?: string }>;
         readAlerts(body: { ids?: string[]; all?: boolean }): Promise<{ ok?: boolean; error?: string }>;
         rsvp(eventId: string, key: string): Promise<{ ok?: boolean; msg?: string; waiting?: boolean; error?: string }>;
+        history(): Promise<HistData | { error: string }>;
+        historyAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        media(): Promise<{ items: MediaItem[] } | { error: string }>;
+        mediaAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        oob(): Promise<OobData | { error: string }>;
+        oobAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
     };

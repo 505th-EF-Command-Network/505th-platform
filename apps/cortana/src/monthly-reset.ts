@@ -14,7 +14,7 @@ import { auditLog } from "./util.ts";
 
 const META = "settings/roster_meta";
 const STALE_MS = 15 * 60_000;
-const RANK_ABBR: Record<string, string> = {
+export const RANK_ABBR: Record<string, string> = {
   "O9 / Lieutenant General": "LtGen", "O8 / Major General": "MajGen", "O7 / Brigadier General": "BGen", "O6 / Colonel": "Col", "O5 / Lieutenant Colonel": "LtCol",
   "O4 / Major": "Maj", "O3 / Captain": "Capt", "O2 / First Lieutenant": "1stLt", "O1 / Second Lieutenant": "2ndLt", "E9 / Sergeant Major": "SgtMaj",
   "E9 / Master Gunnery Sergeant": "MGySgt", "E9 / First Sergeant": "1stSgt", "E8 / Master Sergeant": "MSgt", "E7 / Gunnery Sergeant": "GySgt", "E6 / Staff Sergeant": "SSgt",

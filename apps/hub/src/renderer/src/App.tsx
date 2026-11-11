@@ -1,3 +1,6 @@
+import { Oob } from "./pages/Oob";
+import { History } from "./pages/History";
+import { Media } from "./pages/Media";
 import { Guard } from "./components/Guard";
 import { Bct } from "./pages/Bct";
 import { Aars } from "./pages/Aars";
@@ -108,6 +111,9 @@ function Shell({ net }: { net: NetState }) {
           : page === "panel-events" ? <Events onPage={setPage} />
           : page === "panel-aar" ? <Aars me={data.me.name} />
           : page === "panel-register" ? <Bct />
+          : page === "panel-att-history" ? <History me={data.me.role} />
+          : page === "panel-media" ? <Media />
+          : page === "panel-unitcards" ? <Oob />
           : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
       </div>
       {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}

@@ -14,14 +14,14 @@ type Group = { id: string; label: string; icon: string; links: Link[] };
 const GROUPS: Group[] = [
   { id: "manpower", label: "MANPOWER", icon: "♟", links: [
     { id: "panel-active", label: "Personnel Files", icon: "✎", key: "pers", app: true }, { id: "panel-register", label: "BCT Approvals", icon: "✚", key: "bct", app: true, count: "bct" },
-    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob" },
+    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob", app: true },
     { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat" }] },
   { id: "operations", label: "OPERATIONS", icon: "⚙", links: [
-    { id: "panel-attendance", label: "Attendance Tracker", icon: "▣", key: "att", app: true }, { id: "panel-att-history", label: "Attendance History", icon: "☷", key: "att" },
+    { id: "panel-attendance", label: "Attendance Tracker", icon: "▣", key: "att", app: true }, { id: "panel-att-history", label: "Attendance History", icon: "☷", key: "att", app: true },
     { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }, { id: "panel-events", label: "Events", icon: "⚑", key: "ev", app: true }] },
   { id: "comms", label: "COMMS", icon: "✉", links: [
     { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", count: "tickets" }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send" }] },
-  { id: "intel", label: "INTEL ARCHIVE", icon: "▤", links: [{ id: "panel-media", label: "Media (Gallery + Videos)", icon: "▧", key: "media" }] },
+  { id: "intel", label: "INTEL ARCHIVE", icon: "▤", links: [{ id: "panel-media", label: "Media (Gallery + Videos)", icon: "▧", key: "media", app: true }] },
   { id: "discord", label: "DISCORD", icon: "◈", links: [
     { id: "panel-quick", label: "Quick Upload", icon: "⇪", key: "qu" }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw" }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [

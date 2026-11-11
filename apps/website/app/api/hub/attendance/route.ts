@@ -2,8 +2,8 @@ import { randomBytes } from "node:crypto";
 import { TerminalDoc, connectDb } from "@505th/db";
 import { getHubActor, hubAudit, hubJson } from "@/lib/hub/auth";
 import { can } from "@/lib/terminal/access";
-import { memberName } from "@/lib/hub/members";
 import { syncMember } from "@/lib/terminal/fs";
+import { snapshotMonth } from "@/lib/hub/history";
 
 export const dynamic = "force-dynamic";
 type U = Record<string, any>;
@@ -39,24 +39,11 @@ async function recalcAllStats() {
   }
 }
 
-/** Same as attendance-core.js snapshotMonth / rebuildMonth: an earlier month changed → re-save its History record. */
+/** An earlier month changed (late lock / unlock) → re-save its Attendance History record (same as the Terminal). */
 async function historyCatchUp(e: U, by: string, action: string) {
   const m = String(e?.date || "").slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(m) || m >= ukMonth()) return;
-  const ev = (await events()).filter((x) => x.locked && String(x.date || "").startsWith(m));
-  const ops = ev.filter((x) => x.type === "main_op");
-  const members = (await users())
-    .filter((u) => counted(u) && u.platoon !== "Reserves")
-    .map((u) => {
-      const attended = ev.filter((x) => (x.attendees || []).includes(u.id)).length;
-      return { uid: u.id, name: memberName(u) || u.callsign || "Unknown", rank: u.rank || "—", platoon: u.platoon || "—", role: u.role || "—", attended, eligible: ev.length,
-        missed: ops.length - ops.filter((x) => (x.attendees || []).includes(u.id)).length, rate: ev.length ? Math.round((attended / ev.length) * 100) : 0, pip: u.attendance || 0 };
-    })
-    .sort((a, b) => b.rate - a.rate || a.name.localeCompare(b.name));
-  const now = new Date();
-  const data = { month: m, totalOps: ev.length, memberCount: members.length, snapshotAt: now.toISOString(), members, lateUpdate: { at: now.toISOString(), by, title: e.title || "—", action } };
-  const old = await TerminalDoc.findById(`attendance_history/${m}`, { data: 1 }).lean();
-  await TerminalDoc.updateOne({ _id: `attendance_history/${m}` }, { $set: { parent: "attendance_history", docId: m, updateTime: now, data: { ...((old?.data ?? {}) as U), ...data } }, $setOnInsert: { createTime: now } }, { upsert: true });
+  await snapshotMonth(m, { lateUpdate: { at: new Date().toISOString(), by, title: e.title || "—", action } });
 }
 
 /** GET /api/hub/attendance → Attendance Tracker (events, roll, linked Discord sign-ups, online now). */

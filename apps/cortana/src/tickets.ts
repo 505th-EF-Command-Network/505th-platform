@@ -24,6 +24,7 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { PermanentJobError, registerJob } from "./worker.ts";
 import { allowed, uidAllowed } from "./access.ts";
+import { RANK_ABBR } from "./monthly-reset.ts";
 import { LOGO, auditLog, autoId, cortanaSettings, mentionsIn, nextNumber, nowISO } from "./util.ts";
 
 type TType = { name: string; emoji?: string; channelId: string; categoryId?: string; purpose?: string; staffRoleIds?: string[]; question?: string; color?: number; btnLabel?: string; btnEmoji?: string; btnStyle?: string; panel?: { channelId?: string; messageId?: string } };
@@ -331,6 +332,17 @@ export async function onTicketMessage(m: Message) {
 }
 
 /* ───────── website jobs ───────── */
+/** Plain-text reply signature, like /say: `Sgt. S. "Raven"` or `Cpl. J. Harper`. */
+async function signName(uid: unknown, fallback: string) {
+  const u = typeof uid === "string" && uid ? ((await TerminalDoc.findById(`users/${uid}`, { data: 1 }).lean())?.data as Record<string, any> | undefined) : undefined;
+  if (!u) return fallback;
+  const first = String(u.firstName || "").trim(), last = String(u.lastName || "").trim(), cs = String(u.callsign || "").trim();
+  const hasCs = cs && cs !== first && cs !== `${first} ${last}`;
+  const name = `${first ? first[0].toUpperCase() + ". " : ""}${hasCs ? `"${cs}"` : last}`.trim();
+  const r = String(u.rank || ""), ab = RANK_ABBR[r] || (r ? r.split("/").pop()!.trim() : "");
+  return [ab ? `${ab}.` : "", name].filter(Boolean).join(" ") || fallback;
+}
+
 async function who(job: { data: { requestedBy?: string } }, key: string) {
   const a = await uidAllowed(job.data.requestedBy, key);
   if (!a.ok) throw new PermanentJobError("You don't have access to do that");
@@ -374,7 +386,7 @@ export function startTickets(client: Client<true>) {
     const ch = await c.channels.fetch(tk.channelId).catch(() => null);
     if (!ch || !("send" in ch)) throw new PermanentJobError("Ticket channel is gone");
     const m = mentionsIn(body);
-    await ch.send({ content: m.text || undefined, embeds: [new EmbedBuilder().setColor(0x00d9ff).setAuthor({ name: `${by} · staff (via website)` }).setDescription(body)], allowedMentions: { users: m.users, roles: m.roles } });
+    await ch.send({ content: `**${await signName(job.data.requestedBy, by)}**\n${body}`.slice(0, 2000), allowedMentions: { users: m.users, roles: m.roles } });
     const set: Record<string, unknown> = { lastActivityISO: nowISO(), waiting: "member" };
     if (tk.firstReplyMs == null) set.firstReplyMs = Date.now() - Date.parse(tk.openedAtISO);
     await patch(String(ticketId), set, { who: by, whoId: "", staff: true, text: body, atISO: nowISO() });

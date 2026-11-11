@@ -4,7 +4,7 @@ import { can } from "@/lib/terminal/access";
 
 export const dynamic = "force-dynamic";
 /** Folder → access key needed (same folders as /api/terminal/upload-sign). */
-const FOLDERS: Record<string, string> = { "505th_aar": "aar" };
+const FOLDERS: Record<string, string> = { "505th_aar": "aar", "505th_gallery": "media" };
 
 /**
  * POST { folder } → { cloudName, apiKey, timestamp, folder, signature } for the app (bearer token).
