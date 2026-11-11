@@ -126,7 +126,7 @@ export function Dashboard(p: { sum: Summary; ov: Overview | null; net: NetState;
   const me = p.sum.me;
   const hour = Number(ukTime(now, { hour: "2-digit", hour12: false }));
   const greet = hour < 12 ? "GOOD MORNING" : hour < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
-  const first = me.name.replace(/^\S+\s/, "").replace(/^[A-Z]\.\s*/, "").replace(/"/g, "").toUpperCase();
+  const first = (/"([^"]+)"/.exec(me.name)?.[1] ?? me.name.trim().split(/\s+/).pop() ?? "").toUpperCase();
   const dash = p.dash.filter(([k]) => W[k]);
   const props: P = { sum: p.sum, ov: p.ov, net: p.net, onPage: p.onPage, onRefresh: p.onRefresh, now };
   return (
