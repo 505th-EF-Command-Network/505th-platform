@@ -66,6 +66,11 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
         <span className="leading-tight"><b className="block text-[10.5px] font-normal tracking-[2px] text-white">CORTANA</b><small className="text-[10px] text-dim">{c.online ? (c.pingMs != null ? `${c.pingMs} ms` : "online") : "offline"}</small></span>
         <i className="h-6 w-px bg-cyan/20" />
         <span className="leading-tight"><b className="block text-[10.5px] font-normal tracking-[2px] text-white">NET</b><small className="text-[10px]" style={{ color: live ? "#22e07a" : p.net.state === "connecting" ? "#f59e0b" : "#ff4d4d" }}>{live ? "LIVE" : p.net.state === "connecting" ? "…" : "OFF"}</small></span>
+        <i className="h-6 w-px bg-cyan/20" />
+        {(() => { const ok = c.online && live, part = c.online || live; const col = ok ? "#22e07a" : part ? "#f59e0b" : "#ff4d4d";
+          return <span className="leading-tight" role="status" title={ok ? "Hub is live: Cortana online and live sync connected" : `${c.online ? "" : "Cortana offline. "}${live ? "" : "Live sync off — the Hub refreshes every minute instead."}`}>
+            <b className="block text-[10.5px] font-normal tracking-[2px] text-white">HUB <span style={{ color: col }}>● {ok ? "LIVE" : part ? "PARTIAL" : "OFFLINE"}</span></b>
+            <small className="text-[10px] tracking-[1px]" style={{ color: col }}>{ok ? "OPERATIONAL" : part ? "DEGRADED" : "NO CONNECTION"}</small></span>; })()}
       </div>
       <div className="px-1 text-right leading-tight"><b className="block font-head text-[17px] tracking-[1px] text-white">{ukTime(now)}</b><small className="text-[9.5px] tracking-[1.5px] text-dim">UK · {ukTime(now, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}</small></div>
       <button type="button" aria-label="Refresh" title="Refresh" onClick={() => { setSpin(true); p.onRefresh(); setTimeout(() => setSpin(false), 800); }} className="grid h-9 w-9 place-items-center border border-cyan/20 text-[15px] text-[#c6d0da] hover:border-cyan hover:shadow-[0_0_12px_-3px_#00d9ff]">

@@ -65,6 +65,9 @@ function Shell({ net }: { net: NetState }) {
   const { data, error, reload } = useSummary();
   const [ov, setOv] = useState<Overview | null>(null);
   const [page, setPage] = useState("dashboard");
+  const [visited, setVisited] = useState<string[]>(["dashboard"]);
+  // Remember the last 10 pages opened; older ones are unmounted to save memory.
+  useEffect(() => setVisited((v) => (v.includes(page) ? v : [...v, page].slice(-10))), [page]);
   const [toast, setToast] = useState<string | null>(null);
   const [nav, setNav] = useState<NavPrefs | null>(null);
   const [dash, setDash] = useState<Dash | null>(null);
@@ -108,20 +111,24 @@ function Shell({ net }: { net: NetState }) {
       <div className="flex min-h-0 flex-1">
         <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
           onStatus={(s) => void setStatus(s)} onMyFile={() => setMyFile(true)} onSignOut={() => void window.cn.auth.logout()} version={version} />
-        <Guard key={page} label={page === "dashboard" ? "Dashboard" : PAGES[page] ?? "This page"}>{page === "dashboard" ? <Dashboard sum={data} ov={ov} net={net} dash={dash ?? DEFAULT_DASH} onDash={(d) => { setDash(d); save({ dash: d }); }} onPage={setPage} onRefresh={refresh} />
-          : page === "panel-active" ? <Personnel me={data.me.role} />
-          : page === "panel-roster" ? <Roster me={data.me.role} />
-          : page === "panel-attendance" ? <Attendance onPage={setPage} />
-          : page === "panel-events" ? <Events onPage={setPage} />
-          : page === "panel-aar" ? <Aars me={data.me.name} />
-          : page === "panel-register" ? <Bct />
-          : page === "panel-att-history" ? <History me={data.me.role} />
-          : page === "panel-media" ? <Media />
-          : page === "panel-unitcards" ? <Oob />
-          : page === "panel-recruit-source" ? <Recruit />
-          : page === "panel-tickets" ? <Tickets me={data.me.role} />
-          : page === "panel-send" ? <Send />
-          : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
+        {/* Pages stay mounted after the first visit (hidden), so switching back is instant; live topics keep them fresh. */}
+        {(visited.includes(page) ? visited : [...visited, page]).map((pg) => (
+          <div key={pg} className={pg === page ? "contents" : "hidden"} aria-hidden={pg !== page}>
+            <Guard label={pg === "dashboard" ? "Dashboard" : PAGES[pg] ?? "This page"}>{pg === "dashboard" ? <Dashboard sum={data} ov={ov} net={net} dash={dash ?? DEFAULT_DASH} onDash={(d) => { setDash(d); save({ dash: d }); }} onPage={setPage} onRefresh={refresh} />
+          : pg === "panel-active" ? <Personnel me={data.me.role} />
+          : pg === "panel-roster" ? <Roster me={data.me.role} />
+          : pg === "panel-attendance" ? <Attendance onPage={setPage} />
+          : pg === "panel-events" ? <Events onPage={setPage} />
+          : pg === "panel-aar" ? <Aars me={data.me.name} />
+          : pg === "panel-register" ? <Bct />
+          : pg === "panel-att-history" ? <History me={data.me.role} />
+          : pg === "panel-media" ? <Media />
+          : pg === "panel-unitcards" ? <Oob />
+          : pg === "panel-recruit-source" ? <Recruit />
+          : pg === "panel-tickets" ? <Tickets me={data.me.role} />
+          : pg === "panel-send" ? <Send />
+          : <ComingSoon title={PAGES[pg] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
+          </div>))}
       </div>
       <ConfirmHost />
       {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}

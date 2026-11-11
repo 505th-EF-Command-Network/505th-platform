@@ -17,7 +17,8 @@ export const TOKEN_PREFIX = "cn5h_";
 const TOKEN_RE = /^Bearer (cn5h_[A-Za-z0-9_-]{43})$/;
 /** Signed out after 30 days without use. */
 export const IDLE_MS = 30 * 24 * 60 * 60 * 1000;
-const TOUCH_EVERY_MS = 60 * 60 * 1000;
+/** How often lastUsedAt is refreshed — also drives "on the Hub" in Staff on Duty, so keep it short. */
+const TOUCH_EVERY_MS = 60 * 1000;
 
 export const sha256Hex = (v: string) => createHash("sha256").update(v).digest("hex");
 export const randomToken = () => randomBytes(32).toString("base64url");

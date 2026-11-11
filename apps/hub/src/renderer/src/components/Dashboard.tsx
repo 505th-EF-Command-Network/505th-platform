@@ -65,10 +65,12 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
   alerts: { title: "ALERTS", desc: "Promotions, warnings, mentions", size: 2, body: ({ sum, onRefresh }) => sum.alerts.length ? <>{sum.alerts.slice(0, 7).map((a) => (
     <Row key={a.id} onClick={() => { if (!a.read) void window.cn.hub.readAlerts({ ids: [a.id] }).then(onRefresh); }}>
       {!a.read ? <i className="h-2 w-2 shrink-0 rounded-full bg-cyan" /> : <i className="h-2 w-2 shrink-0" />}<span className={`min-w-0 flex-1 truncate ${a.read ? "text-[#9fb3c4]" : "text-white"}`}>{a.title}</span></Row>))}</> : <Empty t="ALL CLEAR" /> },
-  staff: { title: "STAFF ON DUTY", desc: "Who's online / DND right now", size: 2, body: ({ sum }) => {
+  staff: { title: "STAFF ON DUTY", desc: "Who's online / DND right now — and on the Hub or the Terminal", size: 2, body: ({ sum }) => {
     const on = sum.staff.filter((s) => s.state !== "offline");
     return on.length ? <>{on.slice(0, 8).map((s) => (
       <Row key={s.uid}><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATE[s.state].color }} /><span className="min-w-0 flex-1 truncate text-white">{s.name}</span>
+        {s.where && <span title={s.where === "both" ? "On the Hub app and the website Terminal" : s.where === "hub" ? "On the Hub app" : "On the website Terminal"}
+          className={`shrink-0 border px-1 text-[8.5px] tracking-[1px] ${s.where === "terminal" ? "border-gold/50 text-gold" : "border-cyan/50 text-cyan"}`}>{s.where === "both" ? "HUB + WEB" : s.where === "hub" ? "HUB" : "TERMINAL"}</span>}
         <small className="max-w-[110px] truncate text-[10.5px]" style={{ color: STATE[s.state].color }}>{s.state === "dnd" ? (s.note || "DND") : pageName(s.page) || "online"}</small></Row>))}
       <div className="mt-1 text-[10.5px] text-dim">{on.length} / {sum.staff.length} staff on</div></> : <Empty t="NO STAFF ONLINE" />; } },
   events: { title: "THIS WEEK", desc: "7-day mini calendar of ops", size: 4, page: "panel-events", body: ({ ov, onPage }) => {

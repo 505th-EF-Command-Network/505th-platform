@@ -1,4 +1,4 @@
-import { TerminalDoc } from "@505th/db";
+import { HubSession, Member, TerminalDoc } from "@505th/db";
 import { getHubActor, hubJson } from "@/lib/hub/auth";
 import { effectiveAccess, hasTerminal, roleLevel } from "@/lib/terminal/access";
 
@@ -37,6 +37,10 @@ export async function GET(req: Request) {
     TerminalDoc.find({ parent: `notifications/${a.uid}/items` }, { docId: 1, data: 1 }).sort({ "data.createdAt": -1 }).limit(20).lean(),
     TerminalDoc.findById("bot_status/cortana", { data: 1 }).lean(),
   ]);
+  // Who has the Hub app open (any call in the last few minutes — the app polls every 60 s).
+  const hubLive = await HubSession.find({ revokedAt: { $exists: false }, lastUsedAt: { $gt: new Date(now - ONLINE_MS) } }, { member: 1 }).lean();
+  const hubMembers = hubLive.length ? await Member.find({ _id: { $in: hubLive.map((s) => s.member) } }, { legacyId: 1 }).lean() : [];
+  const onHub = new Set(hubMembers.map((m) => String(m.legacyId || m._id)));
   const lastSeen = new Map<string, { at: number; panel: string }>();
   for (const p of pres) {
     const d = (p.data ?? {}) as U, at = Date.parse(d.updatedAt || 0);
@@ -50,10 +54,13 @@ export async function GET(req: Request) {
     .filter((u) => hasTerminal(u.role) && u.status !== "pending" && u.status !== "denied" && u.suspended !== true && u.role !== "retired_veteran")
     .map((u) => {
       const p = lastSeen.get(u.id);
-      const st = u.id === a.uid ? stateOf(u, true) : stateOf(u, !!p);
+      const hub = onHub.has(u.id) || u.id === a.uid;
+      const st = u.id === a.uid ? stateOf(u, true) : stateOf(u, !!p || hub);
+      const where = st === "offline" ? "" : p && hub ? "both" : hub ? "hub" : "terminal";
       return {
         uid: u.id, name: nameOf(u), role: u.role, level: roleLevel(u.role), state: st,
         page: st === "online" ? p?.panel || "" : "",
+        where,
         note: st === "dnd" ? String(u.myStatus?.note || "") : "",
         until: st === "dnd" ? u.myStatus?.untilISO || null : null,
         photo: [u.photoUrl, u.photoURL, u.discordAvatarUrl].find((p) => typeof p === "string" && p.startsWith("https://")) ?? null,

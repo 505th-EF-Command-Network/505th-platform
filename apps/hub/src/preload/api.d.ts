@@ -6,7 +6,7 @@ export type AuthState =
   | { status: "signed-in"; user: AppUser }
   | { status: "offline"; error: string };
 export type MyStatus = { state: "online" | "dnd" | "invisible" | "offline"; note?: string; untilISO?: string | null };
-export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; note: string; until: string | null; photo: string | null };
+export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; where?: "hub" | "terminal" | "both" | ""; note: string; until: string | null; photo: string | null };
 export type Summary = {
   me: { uid: string; name: string; role: string; rank: string; platoon: string; attendance: number; pt: number; opsAttended: number; opsEligible: number; status: MyStatus; access: Record<string, boolean> };
   ops: { id: string; title: string; startAtISO: string; opType: string; signedUp: number; mine: string | null; myChoice: string | null; myWaiting: boolean; open: boolean; linked: boolean;
