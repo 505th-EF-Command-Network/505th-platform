@@ -14,7 +14,7 @@
 import { getAuth } from "/terminal-shim/auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs } from "/terminal-shim/firestore.js";
 import { hexAvatar, photoUrlOf } from "./_common.js";
-import { ask, tell } from "./_common.js";
+import { ask, tell, audit } from "./_common.js";
 
 const db = getFirestore();
 const auth = getAuth();
@@ -198,6 +198,7 @@ function restyleModal() {
   close.textContent = "✕";
   close.addEventListener("click", () => window.closeEditModal());
   content.append(aside, main, close);
+  pf3Setup(main);
 
   // Attendance tab (read-only) next to the original two tabs.
   const tabs = main.querySelector(".edit-tabs");
@@ -246,7 +247,9 @@ function fillAside(u) {
   aside.innerHTML = `
     <div class="pfp big">${photoHtml(u, true)}<span class="badge-rank">${esc(rankAbbr(u.rank) || "—")}</span></div>
     <div class="upnote">${u.photo?.source === "upload" ? `◉ OWN PICTURE (PROFILE PAGE) <button type="button" id="pf2PicRm" class="pf2-picrm">REMOVE</button>` : photoOf(u) ? "◉ DISCORD PICTURE" : "○ NO PICTURE — USES DISCORD PICTURE AFTER SIGN-IN"}</div>
-    <div class="name">${esc(memberName(u))}</div><div class="rankfull">${esc(u.rank || "No rank")}</div>
+    <div class="name">${esc(memberName(u))}</div><div class="rankfull">${esc(u.rank || "No rank")}${u.platoon ? " · " + esc(u.platoon) : ""}</div>
+    <div class="pf3-chips"><span style="color:${rc}">${esc(rl)}</span><span style="color:${sc}">● ${sl}</span></div>
+    <div class="pf3-qs"><div><b style="color:${attColor(a)}">${a == null ? "—" : a + "%"}</b><span>ATTENDANCE</span></div><div><b>${u.attendance ?? 0}/3</b><span>THIS MONTH</span></div><div><b>${(u.promotionHistory || []).length}</b><span>PROMOTIONS</span></div><div><b>${(u.commendationHistory || []).length}</b><span>MEDALS</span></div></div>
     <dl class="kv"><dt>ROLE</dt><dd style="color:${rc}">${esc(rl)}</dd><dt>STATUS</dt><dd style="color:${sc}">${sl}</dd>
       <dt>PLATOON</dt><dd>${esc(u.platoon || "—")}</dd><dt>JOINED</dt><dd>${esc((u.joinedAt || "").slice(0, 10) || "—")}</dd>
       <dt>ATTENDANCE</dt><dd style="color:${attColor(a)}">${a == null ? "—" : a + "%"}</dd>
@@ -294,10 +297,283 @@ function openFile(id, pane) {
   if (title) title.textContent = "PERSONNEL FILE — " + memberName(u).toUpperCase();
   fillAside(u);
   window.switchEditTab(pane === "record" ? "history" : "details");
+  pf3Open(u);
+}
+
+
+/* ═══════════ PERSONNEL FILE v3 (approved mock 2026-11-11) ═══════════
+ * Details grouped into 4 boxes · role changed through a small window (what they gain / lose, reason → Audit Log)
+ * · Service Record as one filtered timeline · Attendance with this-month pips and last ops · unsaved-changes bar.
+ * The original form fields, add rows and save logic are reused as they are (moved, not rebuilt).
+ */
+const ROLE_ORDER = ["enlistee", "marine", "recruiter", "nco", "staff_nco", "officer", "developer", "commander", "retired_veteran"];
+const DETAIL_FIELDS = { editRankSelect: "RANK", editFirstName: "FIRST NAME", editLastName: "LAST NAME", editCallsign: "CALLSIGN", editJoinedAt: "JOINED", editGraduation: "BCT", editDiscordId: "DISCORD ID", editDiscordUsername: "DISCORD USERNAME", editPlatoon: "PLATOON", editSquad: "SQUAD", editRoleSelect: "ROLE", editRecruitSource: "RECRUITED VIA" };
+let pf3 = { u: null, init: {}, role: null, filter: "all", add: "promo", ra: null };
+const $id = (i) => document.getElementById(i);
+const fieldOf = (id) => $id(id)?.closest(".edit-field");
+
+function pf3Setup(main) {
+  // ── Details: 4 boxes ──
+  const grid = $id("editPane-details")?.firstElementChild;
+  if (grid && !grid.dataset.pf3) {
+    grid.dataset.pf3 = "1";
+    const box = (title, ids, extra = "") => {
+      const sec = document.createElement("div");
+      sec.className = "pf3-sec";
+      sec.innerHTML = `<h4>${title}${extra}</h4><div class="pf3-fg"></div>`;
+      const fg = sec.querySelector(".pf3-fg");
+      for (const id of ids) { const el = id === "ROLEBOX" ? roleBox() : fieldOf(id); if (el) fg.appendChild(el); }
+      return sec;
+    };
+    const wrap = document.createElement("div");
+    wrap.className = "pf3-groups";
+    wrap.append(
+      box("IDENTITY", ["editFirstName", "editLastName", "editCallsign", "editRecruitSource"]),
+      box("UNIT &amp; ROLE", ["editRankSelect", "ROLEBOX", "editPlatoon", "editSquad"]),
+      box("DATES", ["editJoinedAt", "editGraduation"]),
+      box("DISCORD", ["editDiscordId", "editDiscordUsername"], '<small id="pf3Linked"></small>'),
+    );
+    const roleField = fieldOf("editRoleSelect");
+    if (roleField) { roleField.hidden = true; wrap.appendChild(roleField); }
+    grid.replaceWith(wrap);
+    wrap.addEventListener("input", pf3Dirty);
+    wrap.addEventListener("change", pf3Dirty);
+  }
+  // ── Service record: timeline + one add box ──
+  const hist = $id("editPane-history");
+  if (hist && !$id("pf3Tl")) {
+    const sections = [...hist.querySelectorAll(":scope > .history-section")];
+    const typeOf = (sec) => (sec.querySelector("#histPlatoonList") ? "platoon" : sec.querySelector("#histPromoList") ? "promo" : sec.querySelector("#histWarnList") ? "warn" : sec.querySelector("#histCommendList") ? "commend" : sec.querySelector("#histRibbonList") ? "ribbon" : "");
+    sections.forEach((sec) => { sec.dataset.pf3 = typeOf(sec); sec.classList.add("pf3-addsec"); });
+    const top = document.createElement("div");
+    top.innerHTML = `<div class="pf3-filt" id="pf3Filt" role="group" aria-label="Show"></div><ul class="pf3-tl" id="pf3Tl"></ul>
+      <div class="pf3-add"><span class="pf3-k">+ ADD TO RECORD</span><div class="pf3-filt" id="pf3AddT" role="group" aria-label="Add">${[["promo", "▲ PROMOTION"], ["platoon", "⇄ TRANSFER"], ["warn", "⚠ WARNING"], ["commend", "★ MEDAL"], ["ribbon", "— RIBBON"]].map(([k, l]) => `<button type="button" data-addt="${k}">${l}</button>`).join("")}</div></div>`;
+    hist.prepend(top);
+    const addBox = top.querySelector(".pf3-add");
+    sections.forEach((sec) => addBox.appendChild(sec));
+    top.addEventListener("click", (e) => {
+      const f = e.target.closest("[data-f]"); if (f) { pf3.filter = f.dataset.f; return pf3Timeline(); }
+      const t = e.target.closest("[data-addt]"); if (t) { pf3.add = t.dataset.addt; return pf3AddShow(); }
+      const d = e.target.closest("[data-del]"); if (d) { const [ty, i] = d.dataset.del.split(":"); return ty === "ribbon" ? window.deleteRibbonEntry?.(+i) : window.deleteHistoryEntry?.(ty, +i); }
+      const ed = e.target.closest("[data-edm]"); if (ed) { pf3.add = "commend"; pf3AddShow(); window.editCommendEntry?.(+ed.dataset.edm); addBox.scrollIntoView({ block: "nearest" }); }
+      const rg = e.target.closest("[data-rg]"); if (rg) rg.parentElement.classList.toggle("open");
+    });
+    // The original code re-draws its (hidden) lists after every add / remove → redraw the timeline from the saved record.
+    const mo = new MutationObserver(() => { clearTimeout(pf3.t); pf3.t = setTimeout(pf3Reload, 250); });
+    ["histPlatoonList", "histPromoList", "histWarnList", "histCommendList", "histRibbonList"].forEach((i) => $id(i) && mo.observe($id(i), { childList: true }));
+  }
+  // ── unsaved bar ──
+  const act = main.querySelector(".edit-modal-actions");
+  if (act && !$id("pf3Unsaved")) {
+    const u = document.createElement("span");
+    u.id = "pf3Unsaved";
+    u.setAttribute("role", "status");
+    act.prepend(u);
+  }
+  // ── save: role change reason → Audit Log ──
+  if (!window.__pf3Save && typeof window.saveUserEdit === "function") {
+    window.__pf3Save = window.saveUserEdit;
+    window.saveUserEdit = async function () {
+      const pending = pf3.role;
+      await window.__pf3Save();
+      if (!pending) return;
+      const d = (await getDoc(doc(db, "users", pending.uid)).catch(() => null))?.data?.();
+      if (d?.role === pending.to) {
+        await audit("manpower", "ROLE CHANGED", `${pending.name}: ${roleLabel(pending.from)} → ${roleLabel(pending.to)} · Reason: ${pending.reason}`).catch(() => {});
+        pf3.role = null;
+      }
+    };
+  }
+}
+
+const roleLabel = (r) => (ROLE[r] || [String(r || "—").toUpperCase()])[0];
+function roleBox() {
+  const el = document.createElement("div");
+  el.className = "edit-field";
+  el.innerHTML = `<label>TERMINAL ROLE</label><div class="pf3-role"><span id="pf3RoleTxt">—</span><button type="button" id="pf3RoleBtn">CHANGE ROLE</button></div>`;
+  el.querySelector("#pf3RoleBtn").addEventListener("click", pf3RoleWindow);
+  return el;
+}
+function pf3RoleShow() {
+  const u = pf3.u, sel = $id("editRoleSelect");
+  if (!u || !sel) return;
+  const cur = sel.value || "enlistee", was = u.role || "enlistee";
+  const [, c] = ROLE[cur] || ["", "#94a3b8"];
+  $id("pf3RoleTxt").innerHTML = cur !== was ? `<s style="opacity:.6">${esc(roleLabel(was))}</s> → <b style="color:#ffd166">${esc(roleLabel(cur))}</b> <small>(SAVE TO APPLY)</small>` : `<b style="color:${c}">${esc(roleLabel(cur))}</b>`;
+  const canGive = [...sel.options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value);
+  const btn = $id("pf3RoleBtn");
+  // Above your limit (or retired file frozen for others) → no CHANGE button, same rule as the original.
+  btn.hidden = !canGive.includes(was);
+}
+async function roleAccess() {
+  if (pf3.ra) return pf3.ra;
+  const r = await fetch("/api/terminal/role-access", { cache: "no-store" }).catch(() => null);
+  pf3.ra = r?.ok ? await r.json() : null;
+  return pf3.ra;
+}
+async function pf3RoleWindow() {
+  const u = pf3.u, sel = $id("editRoleSelect");
+  if (!u || !sel) return;
+  const was = u.role || "enlistee";
+  const canGive = new Set([...sel.options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
+  const ra = await roleAccess();
+  const has = (role, key) => { if (!ra) return false; if (role === "commander") return true; const o = ra.current?.[role]; return o && key in o ? o[key] === 1 : !!ra.builtIn?.[role]?.[key]; };
+  let pick = sel.value || was;
+  const ov = document.createElement("div");
+  ov.className = "pf3-ov";
+  const draw = () => {
+    const gain = [], lose = [];
+    if (ra && pick !== was) for (const it of ra.items) { const a = has(was, it.key), b = has(pick, it.key); if (!a && b) gain.push(it.label); if (a && !b) lose.push(it.label); }
+    const up = ROLE_ORDER.indexOf(pick) > ROLE_ORDER.indexOf(was) && pick !== "retired_veteran";
+    ov.innerHTML = `<div class="pf3-win" role="dialog" aria-modal="true" aria-label="Change role"><div class="pf3-wh">CHANGE ROLE — ${esc(memberName(u).toUpperCase())}</div><div class="pf3-wb">
+      <div class="pf3-roles">${ROLE_ORDER.map((r) => { const ok = canGive.has(r) || r === was; return `<button type="button" class="pf3-ro ${r === was ? "cur" : ""} ${r === pick && r !== was ? "on" : ""}" ${ok && r !== was ? `data-pick="${r}"` : "disabled"}>${ok ? "" : "🔒 "}${esc(roleLabel(r))}${r === was ? " · NOW" : ""}</button>`; }).join("")}</div>
+      ${pick === was ? '<p class="pf3-hint">Pick the new role.</p>' : `<div class="pf3-eff"><b>${esc(roleLabel(was))} → ${esc(roleLabel(pick))}</b> ${up ? "▲" : "▼"}
+        ${gain.length ? `<div class="up">+ ${gain.map(esc).join(" · ")}</div>` : ""}${lose.length ? `<div class="dn">− ${lose.map(esc).join(" · ")}</div>` : ""}${!gain.length && !lose.length ? '<div class="pf3-hint">No Terminal pages change.</div>' : ""}
+        ${pick === "retired_veteran" ? '<div class="dn">⚠ Retired: loses the Terminal, hidden from the roster and attendance, personnel file frozen.</div>' : ""}
+        <div class="pf3-hint">From Officer Management → Role Access. Personal access changes still apply. Discord roles follow through Role Sync.</div></div>
+        <label for="pf3Why">REASON (SAVED IN THE AUDIT LOG)</label><input id="pf3Why" maxlength="200" value="${esc(pf3.role?.reason || "")}" autocomplete="off">`}
+      </div><div class="pf3-wf"><button type="button" class="pf3-b" data-x="no">CANCEL</button><button type="button" class="pf3-b gold" data-x="ok" ${pick === was ? "disabled" : ""}>SET ROLE</button></div></div>`;
+    ov.querySelector("#pf3Why")?.focus();
+  };
+  draw();
+  ov.addEventListener("click", (e) => {
+    const p = e.target.closest("[data-pick]"); if (p) { const w = $id("pf3Why")?.value; pick = p.dataset.pick; draw(); if (w && $id("pf3Why")) $id("pf3Why").value = w; return; }
+    const x = e.target.closest("[data-x]")?.dataset.x;
+    if (x === "no" || e.target === ov) return ov.remove();
+    if (x === "ok") {
+      const why = ($id("pf3Why")?.value || "").trim();
+      if (why.length < 3) { $id("pf3Why")?.focus(); $id("pf3Why")?.classList.add("bad"); return; }
+      sel.value = pick;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      pf3.role = { uid: u.id, name: memberName(u), from: was, to: pick, reason: why };
+      ov.remove();
+      pf3RoleShow();
+      pf3Dirty();
+    }
+  });
+  ov.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); ov.remove(); } });
+  $id("editUserModal").appendChild(ov);
+}
+
+function pf3Open(u) {
+  pf3.u = u;
+  pf3.role = null;
+  pf3.init = Object.fromEntries(Object.keys(DETAIL_FIELDS).map((k) => [k, $id(k)?.value ?? ""]));
+  const l = $id("pf3Linked");
+  if (l) l.textContent = /^\d{17,20}$/.test(u.discordId || "") ? "✓ LINKED" : "NOT LINKED";
+  pf3RoleShow();
+  pf3Dirty();
+  pf3.filter = "all";
+  pf3AddShow();
+  pf3Reload();
+  pf3Attendance(u);
+}
+function pf3Dirty() {
+  const changed = Object.keys(DETAIL_FIELDS).filter((k) => $id(k) && ($id(k).value ?? "") !== pf3.init[k]);
+  Object.keys(DETAIL_FIELDS).forEach((k) => fieldOf(k)?.classList.toggle("pf3-chg", changed.includes(k)));
+  const r = $id("pf3RoleBtn")?.closest(".edit-field"); r?.classList.toggle("pf3-chg", changed.includes("editRoleSelect"));
+  const el = $id("pf3Unsaved");
+  if (el) el.textContent = changed.length ? `● ${changed.length} UNSAVED CHANGE${changed.length === 1 ? "" : "S"} — ${changed.map((k) => DETAIL_FIELDS[k]).join(", ")}` : "";
+  if (changed.includes("editRoleSelect") || !changed.length) pf3RoleShow();
+}
+
+/* ── service record timeline ── */
+const KIND = { promo: ["PROMOTED", "#22e07a"], platoon: ["TRANSFER", "#00D9FF"], warn: ["WARNING", "#f59e0b"], commend: ["MEDAL", "#a78bfa"], ribbon: ["RIBBON", "#2dd4bf"] };
+async function pf3Reload() {
+  const u = pf3.u;
+  if (!u) return;
+  const d = (await getDoc(doc(db, "users", u.id)).catch(() => null))?.data?.();
+  if (d) Object.assign(u, { promotionHistory: d.promotionHistory || [], platoonHistory: d.platoonHistory || [], warningHistory: d.warningHistory || [], commendationHistory: d.commendationHistory || [], ribbonHistory: d.ribbonHistory || [] });
+  pf3Timeline();
+}
+function pf3Timeline() {
+  const u = pf3.u, tl = $id("pf3Tl"), fl = $id("pf3Filt");
+  if (!u || !tl || !fl) return;
+  const L = { promo: u.promotionHistory || [], platoon: u.platoonHistory || [], warn: u.warningHistory || [], commend: u.commendationHistory || [], ribbon: u.ribbonHistory || [] };
+  const total = Object.values(L).reduce((a, x) => a + x.length, 0);
+  fl.innerHTML = [["all", "ALL", total], ["promo", "▲ PROMOTIONS", L.promo.length], ["platoon", "⇄ TRANSFERS", L.platoon.length], ["warn", "⚠ WARNINGS", L.warn.length], ["commend", "★ MEDALS", L.commend.length], ["ribbon", "— RIBBONS", L.ribbon.length]]
+    .map(([k, l, n]) => `<button type="button" data-f="${k}" class="${pf3.filter === k ? "on" : ""}" aria-pressed="${pf3.filter === k}">${l} <span>${n}</span></button>`).join("");
+  const frozen = u.role === "retired_veteran";
+  const rows = [];
+  for (const [ty, list] of Object.entries(L)) {
+    if (ty === "ribbon" || (pf3.filter !== "all" && pf3.filter !== ty)) continue;
+    list.forEach((e, i) => rows.push({ ty, i, e, date: String(e.date || "") }));
+  }
+  if (pf3.filter === "all" || pf3.filter === "ribbon") {
+    const g = new Map();
+    L.ribbon.forEach((e, i) => { const k = e.title || e.name || "Ribbon"; g.set(k, [...(g.get(k) || []), { e, i }]); });
+    for (const [name, list] of g) rows.push({ ty: "ribbon", name, list, date: list.map((x) => String(x.e.date || "")).sort().pop() || "" });
+  }
+  rows.sort((a, b) => b.date.localeCompare(a.date));
+  const by = (e) => (e.addedBy ? `<div class="by">${e.auto ? "AUTO · " : ""}BY ${esc(e.addedBy)}</div>` : e.auto ? '<div class="by">AUTO</div>' : "");
+  const del = (ty, i) => (frozen ? "" : `<button type="button" class="x" data-del="${ty}:${i}" aria-label="Remove entry" title="Remove">✕</button>`);
+  tl.innerHTML = rows.map((r) => {
+    const [tag, col] = KIND[r.ty];
+    if (r.ty === "ribbon") return `<li style="--k:${col}" class="rg"><button type="button" class="rgh" data-rg>${'<span class="t">' + tag + "</span>"}<b>${esc(r.name)} ×${r.list.length}</b> <span class="by">▾</span></button>
+      <div class="rgl">${r.list.slice().reverse().map(({ e, i }) => `<div class="rgi"><span class="d">${esc(e.date || "—")}</span> ${esc(e.note || "No citation provided.")}${e.addedBy ? ` <span class="by">· BY ${esc(e.addedBy)}</span>` : ""}${del("ribbon", i)}</div>`).join("")}</div></li>`;
+    const e = r.e;
+    const body = r.ty === "promo" ? `<b>${esc(e.fromRank || "—")} → ${esc(e.toRank || "—")}</b>${e.note ? `<div>${esc(e.note)}</div>` : ""}`
+      : r.ty === "platoon" ? `<b>${esc(e.from || "—")} → ${esc(e.to || "—")}</b>${e.note ? `<div>${esc(e.note)}</div>` : ""}`
+      : r.ty === "warn" ? `<b>${esc(e.severity || "MINOR")}</b><div>${esc(e.note || "—")}</div>`
+      : `<b>${e.medalImg ? `<img src="/images/medal_emojis/${encodeURIComponent(e.medalImg)}" alt="" class="mi">` : ""}★ ${esc(e.title || "Commendation")}</b>${e.note ? `<div>${esc(e.note)}</div>` : ""}`;
+    return `<li style="--k:${col}"><span class="acts">${r.ty === "commend" && !frozen ? `<button type="button" class="x" data-edm="${r.i}" aria-label="Edit medal" title="Edit">✎</button>` : ""}${del(r.ty, r.i)}</span><div class="d">${esc(e.date || "—")}</div><span class="t">${tag}</span>${body}${by(e)}</li>`;
+  }).join("") || '<li class="none">NOTHING ON RECORD YET.</li>';
+}
+function pf3AddShow() {
+  document.querySelectorAll("#editPane-history .pf3-addsec").forEach((sec) => (sec.hidden = sec.dataset.pf3 !== pf3.add));
+  document.querySelectorAll("#pf3AddT [data-addt]").forEach((b) => { b.classList.toggle("on", b.dataset.addt === pf3.add); b.setAttribute("aria-pressed", String(b.dataset.addt === pf3.add)); });
+}
+
+/* ── attendance: this-month pips + last ops ── */
+async function pf3Attendance(u) {
+  const pane = $id("editPane-att");
+  if (!pane) return;
+  const n = Math.max(0, Math.min(3, Number(u.attendance) || 0));
+  pane.insertAdjacentHTML("beforeend", `<div class="pf3-sec"><h4>THIS MONTH <small>3/3 = +1 PT AT THE MONTHLY RESET</small></h4><div class="pf3-pips" role="img" aria-label="${n} of 3">${[1, 2, 3].map((k) => `<i class="${n >= k ? "f" : ""}"></i>`).join("")}</div></div>
+    <div class="pf3-sec"><h4>LAST OPS <small>FROM THE ATTENDANCE TRACKER</small></h4><div id="pf3Ops" class="pf3-ops">LOADING…</div></div>`);
+  const snap = await getDocs(collection(db, "attendance_events")).catch(() => null);
+  const box = $id("pf3Ops");
+  if (!box || pf3.u !== u) return;
+  const joined = String(u.joinedAt || "").slice(0, 10);
+  const evs = (snap?.docs || []).map((d) => d.data()).filter((e) => e.locked && String(e.date || "") >= joined).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 6);
+  box.innerHTML = evs.length ? `<table><thead><tr><th>DATE</th><th>OP</th><th>RESULT</th></tr></thead><tbody>${evs.map((e) => {
+    const r = (e.attendees || []).includes(u.id) ? ["✓ Present", "#22e07a"] : (e.excused || []).includes(u.id) ? ["◐ Excused", "#f59e0b"] : ["✕ Absent", "#ff4d4d"];
+    return `<tr><td>${esc(String(e.date || "").slice(0, 10))}</td><td>${esc(e.title || "Op")}</td><td style="color:${r[1]}">${r[0]}</td></tr>`;
+  }).join("")}</tbody></table>` : '<p class="pf2-note">No locked ops since they joined.</p>';
 }
 
 // ───────── styles ─────────
 const CSS = `
+/* ── v3 (approved mock 2026-11-11) ── */
+#editUserModal .pf3-chips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}#editUserModal .pf3-chips span{padding:2px 8px;border:1px solid currentColor;font:10px "Share Tech Mono",monospace;letter-spacing:1.5px}
+#editUserModal .pf3-qs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0 10px}#editUserModal .pf3-qs>div{border:1px solid rgba(0,217,255,.18);padding:8px;text-align:center}#editUserModal .pf3-qs b{display:block;color:#fff;font:700 17px "Share Tech Mono",monospace}#editUserModal .pf3-qs span{font:9px "Share Tech Mono",monospace;letter-spacing:1.5px;color:#7d8a99}
+#editUserModal .pf3-groups{display:flex;flex-direction:column;gap:12px}
+#editUserModal .pf3-sec{border:1px solid rgba(0,217,255,.18);background:#0e151a;margin-bottom:12px}#editUserModal .pf3-groups .pf3-sec{margin:0}
+#editUserModal .pf3-sec>h4{margin:0;padding:9px 12px;border-bottom:1px solid rgba(0,217,255,.18);font:10.5px "Share Tech Mono",monospace;letter-spacing:2.5px;color:#00D9FF;display:flex;justify-content:space-between}#editUserModal .pf3-sec>h4 small{color:#7d8a99;letter-spacing:1px}
+#editUserModal .pf3-fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;padding:12px}#editUserModal .pf3-fg .edit-field{margin:0}
+#editUserModal .edit-field.pf3-chg input,#editUserModal .edit-field.pf3-chg select,#editUserModal .edit-field.pf3-chg .pf3-role{border-color:#ffd166!important;box-shadow:0 0 0 1px rgba(255,209,102,.35)}
+#editUserModal .pf3-role{display:flex;align-items:center;gap:10px;min-height:38px;border:1px solid rgba(0,217,255,.3);background:rgba(0,0,0,.45);padding:0 10px;font:12px "Share Tech Mono",monospace}#editUserModal .pf3-role span{flex:1;min-width:0}#editUserModal .pf3-role small{color:#7d8a99}
+#editUserModal .pf3-role button,#editUserModal .pf3-b{all:unset;cursor:pointer;font:10px "Share Tech Mono",monospace;letter-spacing:1.5px;padding:4px 10px;border:1px solid #00D9FF;color:#00D9FF}#editUserModal .pf3-role button:focus-visible,#editUserModal .pf3-b:focus-visible,#editUserModal .pf3-ro:focus-visible,#editUserModal .pf3-filt button:focus-visible{outline:2px solid #00D9FF;outline-offset:2px}
+#editUserModal .pf3-ov{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+#editUserModal .pf3-win{width:min(560px,100%);background:#0b0f15;border:1px solid #00D9FF;box-shadow:0 10px 30px rgba(0,0,0,.6)}#editUserModal .pf3-wh{padding:12px 14px;border-bottom:1px solid rgba(0,217,255,.18);color:#fff;font:700 16px Rajdhani,sans-serif;letter-spacing:2px}#editUserModal .pf3-wb{padding:14px;font:12px "Share Tech Mono",monospace}#editUserModal .pf3-wf{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:1px solid rgba(0,217,255,.18)}
+#editUserModal .pf3-roles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}#editUserModal .pf3-ro{all:unset;cursor:pointer;text-align:center;padding:9px 6px;border:1px solid rgba(0,217,255,.18);font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#cfe9f2}#editUserModal .pf3-ro.cur{color:#7d8a99;border-color:#7d8a99}#editUserModal .pf3-ro.on{border-color:#ffd166;background:rgba(255,209,102,.12);color:#ffd166}#editUserModal .pf3-ro:disabled{opacity:.35;cursor:not-allowed}#editUserModal .pf3-ro.cur:disabled{opacity:1}
+#editUserModal .pf3-eff{border:1px solid rgba(0,217,255,.18);padding:10px 12px;margin-bottom:12px;line-height:1.7}#editUserModal .pf3-eff b{color:#fff}#editUserModal .pf3-eff .up{color:#22e07a}#editUserModal .pf3-eff .dn{color:#ff4d4d}#editUserModal .pf3-hint{color:#7d8a99;font-size:11px;margin:0}
+#editUserModal .pf3-wb label{display:block;font-size:9.5px;letter-spacing:2px;color:#7d8a99;margin-bottom:4px}#editUserModal .pf3-wb input{width:100%;height:34px;background:#060a0e;border:1px solid rgba(0,217,255,.35);color:#fff;padding:0 10px;font:inherit}#editUserModal .pf3-wb input.bad{border-color:#ff4d4d}
+#editUserModal .pf3-b.gold{background:#ffd166;border-color:#ffd166;color:#041014}#editUserModal .pf3-b:disabled{opacity:.4;cursor:not-allowed}
+#editUserModal .pf3-filt{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}#editUserModal .pf3-filt button{all:unset;cursor:pointer;padding:5px 10px;border:1px solid rgba(0,217,255,.18);font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}#editUserModal .pf3-filt button.on{color:#fff;border-color:#00D9FF;background:rgba(0,217,255,.1)}#editUserModal .pf3-filt button span{opacity:.7}
+#editUserModal .pf3-tl{list-style:none;margin:0 0 16px 8px;padding:0;border-left:2px solid #1c2a30}
+#editUserModal .pf3-tl>li{position:relative;padding:8px 0 12px 18px;font:12px "Share Tech Mono",monospace;color:#cfe9f2}#editUserModal .pf3-tl>li:before{content:"";position:absolute;left:-7px;top:12px;width:12px;height:12px;border-radius:50%;background:var(--k);box-shadow:0 0 8px var(--k)}#editUserModal .pf3-tl>li.none{color:#7d8a99}#editUserModal .pf3-tl>li.none:before{display:none}
+#editUserModal .pf3-tl .d{font-size:10.5px;color:#7d8a99}#editUserModal .pf3-tl b{color:#fff}#editUserModal .pf3-tl .t{font-size:9.5px;letter-spacing:1.5px;color:var(--k);border:1px solid var(--k);padding:1px 6px;margin-right:6px}#editUserModal .pf3-tl .by{font-size:10px;color:#4b6470}#editUserModal .pf3-tl .mi{width:20px;height:20px;object-fit:contain;vertical-align:middle;margin-right:4px}
+#editUserModal .pf3-tl .acts{float:right;display:flex;gap:4px}#editUserModal .pf3-tl .x{all:unset;cursor:pointer;color:#7d8a99;padding:0 6px}#editUserModal .pf3-tl .x:hover{color:#fff}#editUserModal .pf3-tl .x:focus-visible{outline:2px solid #00D9FF}
+#editUserModal .pf3-tl .rgh{all:unset;cursor:pointer;display:block}#editUserModal .pf3-tl .rgl{display:none;margin-top:6px}#editUserModal .pf3-tl .rg.open .rgl{display:block}#editUserModal .pf3-tl .rgi{padding:4px 0;border-top:1px solid rgba(255,255,255,.05);font-size:11px}#editUserModal .pf3-tl .rgi .x{float:right}
+#editUserModal .pf3-add{border:1px dashed rgba(0,217,255,.35);padding:12px}#editUserModal .pf3-k{display:block;font:9.5px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;margin-bottom:6px}
+#editUserModal .pf3-add .history-section{border:0;background:none;margin:0;padding:0}#editUserModal .pf3-add .history-section-hd,#editUserModal .pf3-add #histPlatoonList,#editUserModal .pf3-add #histPromoList,#editUserModal .pf3-add #histWarnList,#editUserModal .pf3-add #histCommendList,#editUserModal .pf3-add #histRibbonList{display:none!important}
+#editUserModal .pf3-pips{display:flex;gap:6px;padding:12px}#editUserModal .pf3-pips i{width:46px;height:10px;border:1px solid #00D9FF}#editUserModal .pf3-pips i.f{background:#00D9FF;box-shadow:0 0 8px rgba(0,217,255,.5)}
+#editUserModal .pf3-ops{padding:4px 12px 10px;font:12px "Share Tech Mono",monospace}#editUserModal .pf3-ops table{width:100%;border-collapse:collapse}#editUserModal .pf3-ops td,#editUserModal .pf3-ops th{padding:6px 8px;border-bottom:1px solid rgba(0,217,255,.07);text-align:left}#editUserModal .pf3-ops th{font-weight:400;font-size:9.5px;letter-spacing:2px;color:#7d8a99}
+#editUserModal .edit-modal-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#pf3Unsaved{flex:1;color:#ffd166;font:11px "Share Tech Mono",monospace;letter-spacing:1.5px;align-self:center}
+@media (max-width:760px){#editUserModal .pf3-fg{grid-template-columns:1fr}#editUserModal .pf3-roles{grid-template-columns:repeat(2,1fr)}}
+
 #panel-active > :not(#${ROOT_ID}){display:none!important}
 #${ROOT_ID}{--a:#00D9FF;--l:rgba(0,217,255,.18);--l2:rgba(0,217,255,.35);--p:#0b0f15;--p2:#0e131b;--d:#7d8a99;--dd:#4b5765;font-family:'Share Tech Mono',monospace;color:#d6dde6}
 #${ROOT_ID} .h1{font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:4px;color:var(--a);font-size:20px;padding-bottom:10px;border-bottom:1px solid var(--l)}
