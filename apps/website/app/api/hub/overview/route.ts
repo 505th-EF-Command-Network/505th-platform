@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     TerminalDoc.find({ parent: "users" }, { docId: 1, data: 1 }).lean(),
     TerminalDoc.find({ parent: "attendance_events", "data.locked": true }, { data: 1 }).lean(),
     TerminalDoc.find({ parent: "community_events" }, { docId: 1, data: 1 }).lean(),
-    has("tk") ? TerminalDoc.find({ parent: "tickets", "data.waiting": "staff" }, { _id: 1 }).lean() : Promise.resolve([]),
+    has("tk") ? TerminalDoc.find({ parent: "tickets", "data.status": "open", "data.waiting": "staff" }, { _id: 1 }).lean() : Promise.resolve([]),
     has("audit") ? TerminalDoc.find({ parent: "audit_logs" }, { data: 1 }).sort({ createTime: -1 }).limit(8).lean() : Promise.resolve([]),
     TerminalDoc.findById("bot_status/cortana", { data: 1 }).lean(),
   ]);

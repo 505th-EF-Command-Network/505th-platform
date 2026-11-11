@@ -70,7 +70,7 @@ export type RecruitData = { sources: string[]; members: { id: string; name: stri
 export type TicketLine = { who: string; whoId?: string; staff?: boolean; note?: boolean; text: string; atISO: string; images?: string[] };
 export type Ticket = { id: string; number: number; status: string; waiting?: string; typeId: string; typeName: string; typeEmoji?: string; openerId: string; openerName: string;
   openedAtISO: string; lastActivityISO?: string; closedAtISO?: string; closedByName?: string; closeReason?: string; claimedByName?: string; channelDeleted?: boolean; firstReplyMs?: number | null; transcript?: TicketLine[] };
-export type TicketData = { tickets: Ticket[]; types: { id: string; name: string; emoji?: string }[]; openers: Record<string, { name: string; uid: string; rank: string; status: string; past: number; warns: number }> };
+export type TicketData = { tickets: Ticket[]; types: { id: string; name: string; emoji?: string }[]; openers: Record<string, { name: string; uid: string; rank: string; status: string; past: number; warns: number }>; nextNumber: number; canReset: boolean };
 export type SentMsg = { id: string; kind: string; channelName: string; content: string; embed: { title?: string; description?: string; color?: number; image?: string; thumbnail?: boolean } | null; buttons: { label: string; url: string }[]; sentByName: string; sentAtISO: string; jumpUrl: string };
 export type SendData = { channels: { id: string; name: string; parentName: string; canSend: boolean }[]; roles: { id: string; name: string; color: string }[];
   emojis: { id: string; name: string; animated: boolean; url: string }[]; members: { discordId: string; name: string }[]; gallery: { id: string; url: string; name: string }[]; sent: SentMsg[] };

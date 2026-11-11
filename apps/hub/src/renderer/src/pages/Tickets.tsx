@@ -42,9 +42,10 @@ export function Tickets(p: { me: string }) {
   useEffect(() => { chat.current?.scrollTo({ top: chat.current.scrollHeight }); }, [cur?.id, msgs]);
 
   const act = async (body: Record<string, unknown>, ask?: string) => {
-    if (!cur || busy || (ask && !confirm(ask))) return false;
+    if ((!cur && body.action !== "resetnum") || busy || (ask && !confirm(ask))) return false;
     setBusy(true);
-    const r = await window.cn.hub.ticketsAction({ ticketId: cur.id, ...body });
+    const r = await window.cn.hub.ticketsAction(cur && body.action !== "resetnum" ? { ticketId: cur.id, ...body } : body);
+    if (body.action === "purge" && !r.error) setSel(null);
     setBusy(false);
     setToast(r.error ? [r.error, false] : [String(r.msg).toUpperCase(), !r.queued]);
     void load();
@@ -66,6 +67,9 @@ export function Tickets(p: { me: string }) {
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden px-6 py-5" aria-label="Tickets">
       <h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">TICKETS</h1>
       <p className="mb-0 mt-1 text-[11px] tracking-[2px] text-dim">MEMBERS OPEN TICKETS IN DISCORD · REPLY HERE AND CORTANA POSTS IT, SIGNED WITH YOUR NAME</p>
+      {d.canReset && <div className="mt-2 flex items-center gap-2 text-[10.5px] tracking-[1px] text-dim">NEXT TICKET: <b className="font-normal text-white">#{pad(d.nextNumber)}</b>
+        <button type="button" disabled={busy || d.nextNumber === 1} onClick={() => void act({ action: "resetnum" }, `RESET TICKET NUMBERS?\n\nThe next ticket will be #0001.${d.tickets.length ? `\n\n${d.tickets.length} old ticket(s) are still saved — numbers will repeat. Delete them first if you want a clean start.` : ""}`)}
+          className="border border-amber/50 px-2 py-0.5 text-[10px] tracking-[1.5px] text-amber disabled:opacity-40">↺ RESET TO #0001</button></div>}
       <div className="my-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {([[open.length, "OPEN", "#f59e0b"], [open.filter((t) => t.waiting === "staff").length, "WAITING ON STAFF", "#00d9ff"],
           [avg == null ? "—" : avg < 60 ? Math.round(avg) + "m" : `${Math.floor(avg / 60)}h ${Math.round(avg % 60)}m`, "AVG FIRST REPLY (MONTH)", "#fff"],
@@ -100,6 +104,7 @@ export function Tickets(p: { me: string }) {
                 {isOpen ? <>{!cur.claimedByName && <button type="button" disabled={busy} onClick={() => void act({ action: "claim" })} className={btn()}>✋ CLAIM</button>}
                   <button type="button" disabled={busy} onClick={() => setClosing(!closing)} className={btn(true)}>🔒 CLOSE</button></>
                   : <><button type="button" disabled={busy} onClick={() => void act({ action: "transcript" })} className={btn()}>📑 TRANSCRIPT</button>
+                    <button type="button" disabled={busy} onClick={() => void act({ action: "purge" }, `DELETE TICKET #${pad(cur.number)} FOR GOOD?\n\nRemoves the ticket record, its transcript post in #transcripts${cur.channelDeleted ? "" : " and its Discord channel"}.\nThis can't be undone.`)} className={btn(true)}>🗑 DELETE TICKET</button>
                     {!cur.channelDeleted && <><button type="button" disabled={busy} onClick={() => void act({ action: "reopen" })} className={btn()}>🔓 REOPEN</button>
                       <button type="button" disabled={busy} onClick={() => void act({ action: "delete" }, `DELETE THE DISCORD CHANNEL FOR TICKET #${pad(cur.number)}?\n\nThe transcript is saved first. This can't be undone.`)} className={btn(true)}>⛔ DELETE CHANNEL</button></>}</>}
               </div>

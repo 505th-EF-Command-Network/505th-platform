@@ -30,7 +30,7 @@ import { LOGO, auditLog, autoId, cortanaSettings, mentionsIn, nextNumber, nowISO
 type TType = { name: string; emoji?: string; channelId: string; categoryId?: string; purpose?: string; staffRoleIds?: string[]; question?: string; color?: number; btnLabel?: string; btnEmoji?: string; btnStyle?: string; panel?: { channelId?: string; messageId?: string } };
 type Line = { who: string; whoId: string; staff: boolean; text: string; images?: string[]; note?: boolean; atISO: string };
 type Ticket = { number: number; typeId: string; typeName: string; channelId: string; openerId: string; openerName: string; status: "open" | "closed";
-  claimedByName?: string; openedAtISO: string; closedAtISO?: string; closedByName?: string; closeReason?: string; channelDeleted?: boolean; deleteAtISO?: string; lastActivityISO: string; waiting: "staff" | "member"; firstReplyMs?: number; transcriptAtISO?: string; transcript: Line[] };
+  claimedByName?: string; openedAtISO: string; closedAtISO?: string; closedByName?: string; closeReason?: string; channelDeleted?: boolean; deleteAtISO?: string; lastActivityISO: string; waiting: "staff" | "member"; firstReplyMs?: number; transcriptAtISO?: string; transcriptMsg?: { channelId: string; messageId: string }; transcript: Line[] };
 
 const MEMBER_PERMS = [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory, PermissionFlagsBits.AttachFiles, PermissionFlagsBits.EmbedLinks];
 const pad = (n: number) => String(n).padStart(4, "0");
@@ -326,8 +326,30 @@ async function sendTranscript(client: Client<true>, id: string, by: string) {
   const slug = (names.get(tk.openerId) || tk.openerName).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30) || "member";
   const file = new AttachmentBuilder(Buffer.from(transcriptHtml(tk, names), "utf8"), { name: `transcript-${pad(tk.number)}-${slug}.html` });
   const rows = env.SITE_URL ? [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("View on website").setEmoji("📑").setURL(`${env.SITE_URL.replace(/\/$/, "")}/terminal`))] : [];
-  await ch.send({ embeds: [e], files: [file], components: rows, allowedMentions: { parse: [] } });
-  await patch(id, { transcriptAtISO: nowISO() });
+  // A new transcript replaces the old one, so #transcripts never has two for the same ticket.
+  if (tk.transcriptMsg) await deleteMsg(client, tk.transcriptMsg);
+  const msg = await ch.send({ embeds: [e], files: [file], components: rows, allowedMentions: { parse: [] } });
+  await patch(id, { transcriptAtISO: nowISO(), transcriptMsg: { channelId: ch.id, messageId: msg.id } });
+}
+
+async function deleteMsg(client: Client<true>, m: { channelId: string; messageId: string }) {
+  const ch = await client.channels.fetch(m.channelId).catch(() => null);
+  if (ch && "messages" in ch) await (await ch.messages.fetch(m.messageId).catch(() => null))?.delete().catch(() => {});
+}
+
+/** Delete a ticket for good: its Discord channel (if still there), its transcript post in #transcripts, and its record. */
+async function purge(client: Client<true>, id: string, by: string) {
+  const tk = await getTicket(id);
+  if (!tk) throw new PermanentJobError("Ticket not found");
+  if (tk.status === "open") throw new PermanentJobError("Close the ticket first");
+  if (tk.transcriptMsg) await deleteMsg(client, tk.transcriptMsg);
+  openChannels.delete(tk.channelId);
+  if (!tk.channelDeleted) { const ch = await textChan(client, tk.channelId); if (ch) await ch.delete(`Ticket deleted by ${by}`).catch(() => {}); }
+  await TerminalDoc.deleteOne({ _id: `tickets/${id}` });
+  await tlog(client, new EmbedBuilder().setColor(0x6f8a96).setTitle(`🗑 Ticket #${pad(tk.number)} deleted for good`).setDescription(`${tk.typeName} · ${tk.openerName}
+By **${by}**${tk.transcriptMsg ? " · transcript removed" : ""}`));
+  await auditLog("TICKET PURGED", `#${pad(tk.number)} ${tk.typeName} — ${tk.openerName}${tk.transcriptMsg ? " (transcript removed)" : " (old transcript not tracked — delete it by hand)"}`, by);
+  return { transcriptRemoved: !!tk.transcriptMsg };
 }
 
 async function removeChannel(client: Client<true>, id: string, by: string) {
@@ -497,6 +519,7 @@ export function startTickets(client: Client<true>) {
   registerJob("ticket.close", async (job, c) => (await close(c, String(job.data.payload?.ticketId ?? ""), await who(job, "tk"), String(job.data.payload?.reason ?? "")), { ok: true }));
   registerJob("ticket.reopen", async (job, c) => (await reopen(c, String(job.data.payload?.ticketId ?? ""), await who(job, "tk")), { ok: true }));
   registerJob("ticket.transcript", async (job, c) => (await sendTranscript(c, String(job.data.payload?.ticketId ?? ""), await who(job, "tk")), { ok: true }));
+  registerJob("ticket.purge", async (job, c) => ({ ok: true, ...(await purge(c, String(job.data.payload?.ticketId ?? ""), await who(job, "tk"))) }));
   registerJob("ticket.delete", async (job, c) => (await removeChannel(c, String(job.data.payload?.ticketId ?? ""), await who(job, "tk")), { ok: true }));
   registerJob("ticket.add", async (job, c) => (await addPerson(c, String(job.data.payload?.ticketId ?? ""), String(job.data.payload?.userId ?? ""), await who(job, "tk"), true), { ok: true }));
   registerJob("ticket.remove", async (job, c) => (await addPerson(c, String(job.data.payload?.ticketId ?? ""), String(job.data.payload?.userId ?? ""), await who(job, "tk"), false), { ok: true }));

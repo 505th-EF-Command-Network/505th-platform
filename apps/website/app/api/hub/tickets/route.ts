@@ -46,7 +46,9 @@ export async function GET(req: Request) {
       past: tickets.filter((x) => x.openerId === t.openerId).length - 1,
       warns: (cs as U[]).filter((c) => c.data?.discordId === t.openerId && c.data?.action === "warn" && c.data?.active).length });
   }
-  return hubJson({ tickets, types: ty.map((d) => ({ id: String(d.docId), ...((d.data ?? {}) as U) })), openers: Object.fromEntries(openers) });
+  const ctr = (await TerminalDoc.findById("bot_state/counters", { data: 1 }).lean())?.data as U | undefined;
+  return hubJson({ tickets, types: ty.map((d) => ({ id: String(d.docId), ...((d.data ?? {}) as U) })), openers: Object.fromEntries(openers),
+    nextNumber: Number(ctr?.ticket ?? 0) + 1, canReset: can(a.role, a.access, "tkrep") });
 }
 
 /** POST /api/hub/tickets {action, ticketId, …} → sent through Cortana (signed "Rank. F. Callsign"). */
@@ -55,6 +57,14 @@ export async function POST(req: Request) {
   if (!a) return hubJson({ error: "unauthenticated" }, 401);
   if (!can(a.role, a.access, "tk")) return hubJson({ error: "You don't have Tickets access." }, 403);
   const b = (await req.json().catch(() => null)) as U | null;
+  // Reset numbering: the next ticket becomes #0001. Ticket Settings access; not while tickets are open.
+  if (b?.action === "resetnum") {
+    if (!can(a.role, a.access, "tkrep")) return hubJson({ error: "You need Ticket Settings access to reset the number." }, 403);
+    if (await TerminalDoc.exists({ parent: "tickets", "data.status": "open" })) return hubJson({ error: "Close all open tickets first." }, 409);
+    await TerminalDoc.updateOne({ _id: "bot_state/counters" }, { $set: { "data.ticket": 0, parent: "bot_state", docId: "counters", updateTime: new Date() }, $setOnInsert: { createTime: new Date() } }, { upsert: true });
+    await hubAudit({ uid: a.uid, name: a.displayName, role: a.role }, "TICKET NUMBER RESET", "Next ticket is #0001 — via app");
+    return hubJson({ ok: true, queued: false, msg: "Next ticket will be #0001" });
+  }
   const id = String(b?.ticketId ?? "");
   if (!b || !ID.test(id)) return hubJson({ error: "Bad request." }, 400);
   const tk = (await TerminalDoc.findById(`tickets/${id}`, { data: 1 }).lean())?.data as U | undefined;
@@ -78,6 +88,7 @@ export async function POST(req: Request) {
     }
     case "reopen": type = "ticket.reopen"; msg = "Ticket reopened"; audit = "TICKET REOPENED"; break;
     case "transcript": type = "ticket.transcript"; msg = "Transcript posted"; break;
+    case "purge": type = "ticket.purge"; msg = "Ticket deleted for good"; audit = "TICKET PURGED"; break;
     case "delete": type = "ticket.delete"; msg = "Channel deleted"; audit = "TICKET CHANNEL DELETED"; break;
     case "add": case "remove": {
       const userId = String(b.userId ?? "");
