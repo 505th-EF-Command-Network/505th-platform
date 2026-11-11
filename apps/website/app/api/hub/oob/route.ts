@@ -12,8 +12,8 @@ export async function GET(req: Request) {
   const a = await getHubActor(req);
   if (!a) return hubJson({ error: "unauthenticated" }, 401);
   if (!can(a.role, a.access, "oob")) return hubJson({ error: "You don't have Order of Battle access." }, 403);
-  const [doc, us] = await Promise.all([TerminalDoc.findById("settings/unit_cards", { data: 1 }).lean(), TerminalDoc.find({ parent: "users" }, { docId: 1, data: 1 }).lean()]);
-  const members = us.map((d) => ({ id: d.docId, ...((d.data ?? {}) as U) }) as U).filter((u) => u.status !== "pending" && u.status !== "denied")
+  const [doc, us] = await Promise.all([TerminalDoc.findById("settings/unit_cards", { data: 1 }).lean(), TerminalDoc.find({ parent: "users" }, { docId: 1, "data.firstName": 1, "data.middleName": 1, "data.lastName": 1, "data.callsign": 1, "data.name": 1, "data.displayName": 1, "data.rank": 1, "data.status": 1 }).lean()]);
+  const members = us.map((d) => ({ id: d.docId, ...(((d as U).data ?? {}) as U) }) as U).filter((u) => u.status !== "pending" && u.status !== "denied")
     .map((u) => { const n = memberName(u); const abbr = String(u.rank || "").split("/").pop()?.trim() ?? ""; return { id: u.id, name: n, rank: abbr && n.startsWith(abbr + " ") ? abbr : "", short: abbr && n.startsWith(abbr + " ") ? n.slice(abbr.length + 1) : n }; })
     .sort((x, y) => x.name.localeCompare(y.name));
   return hubJson({ data: (doc?.data ?? {}) as U, members });

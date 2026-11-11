@@ -30,9 +30,12 @@ function groupSlots(slots: string[]) {
 }
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
+/** Last data, kept while the app is open, so reopening the page is instant (fresh data loads behind it). */
+let cache: OobData | null = null;
+
 export function Oob() {
-  const [d, setD] = useState<OobData | null>(null);
-  const [data, setData] = useState<Record<string, Slot | boolean>>({});
+  const [d, setD] = useState<OobData | null>(cache);
+  const [data, setData] = useState<Record<string, Slot | boolean>>(() => (cache ? JSON.parse(JSON.stringify(cache.data)) : {}));
   const [error, setError] = useState<string | null>(null);
   const [unit, setUnit] = useState("Battalion Command");
   const [busy, setBusy] = useState(false);
@@ -40,7 +43,7 @@ export function Oob() {
   const load = useCallback(async (keep: boolean) => {
     const r = await window.cn.hub.oob();
     if ("error" in r) return setError(r.error);
-    setD(r); setError(null);
+    cache = r; setD(r); setError(null);
     if (!keep) setData(JSON.parse(JSON.stringify(r.data)));
   }, []);
   const dirty = useMemo(() => (d ? [...new Set([...Object.keys(data), ...Object.keys(d.data)])].filter((k) => !same(data[k], d.data[k])) : []), [d, data]);
