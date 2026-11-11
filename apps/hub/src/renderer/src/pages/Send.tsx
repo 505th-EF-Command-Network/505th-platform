@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SendData, SentMsg } from "../../../preload/api";
 
@@ -90,7 +91,7 @@ export function Send() {
 
   const submit = async () => {
     if (problem || busy) return;
-    if (!editing && v.everyone && !confirm("PING @EVERYONE?\n\nThis notifies every member of the Discord server.")) return;
+    if (!editing && v.everyone && !await askBox("PING @EVERYONE?\n\nThis notifies every member of the Discord server.")) return;
     const body = { content: toCodes(v.content), embed: v.kind === "embed" ? { title: toCodes(v.title).trim(), description: toCodes(v.description), color: v.color, image: v.image.trim(), thumbnail: v.thumbnail } : null,
       buttons: v.buttons.filter((b) => b.label.trim()).map((b) => ({ label: b.label.trim(), url: b.url.trim() })) };
     setBusy(true);
@@ -101,7 +102,7 @@ export function Send() {
     if (!r.error) { setV(blank()); setRefs({}); setEditing(null); void load(); }
   };
   const del = async (m: SentMsg) => {
-    if (!confirm(`DELETE THIS MESSAGE FROM #${m.channelName.toUpperCase()}?\n\nIt is removed from Discord. This can't be undone.`)) return;
+    if (!await askBox(`DELETE THIS MESSAGE FROM #${m.channelName.toUpperCase()}?\n\nIt is removed from Discord. This can't be undone.`)) return;
     const r = await window.cn.hub.sendAction({ action: "delete", recordId: m.id });
     setToast(r.error ? [r.error, false] : [String(r.msg).toUpperCase(), true]); void load();
   };

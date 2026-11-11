@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Aar, AarData } from "../../../preload/api";
 
@@ -109,7 +110,7 @@ export function Aars(p: { me: string }) {
         </div>
         <div className="max-h-[calc(100vh-250px)] min-w-0 overflow-auto border border-cyan/15 bg-[#0b0f15] p-5">
           {cur ? <Reader a={cur} onEdit={() => openWriter(cur)} onDelete={async () => {
-            if (!confirm(`DELETE THIS AAR?\n\n${cur.title}\n\n${isDraft(cur) ? "The draft is deleted." : "It is removed from the archive and the public AAR page."}\n\nTHIS CANNOT BE UNDONE.`)) return;
+            if (!await askBox(`DELETE THIS AAR?\n\n${cur.title}\n\n${isDraft(cur) ? "The draft is deleted." : "It is removed from the archive and the public AAR page."}\n\nTHIS CANNOT BE UNDONE.`)) return;
             const r = await window.cn.hub.aarsAction({ action: "delete", id: cur.id }); setToast(r.error ? [r.error, false] : ["AAR DELETED", true]); setSel(null); void load(); }} />
             : <p className="py-16 text-center text-[11px] tracking-[2px] text-dimmer">PICK A REPORT</p>}
         </div>

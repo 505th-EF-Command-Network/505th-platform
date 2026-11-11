@@ -5,6 +5,7 @@ import { Send } from "./pages/Send";
 import { History } from "./pages/History";
 import { Media } from "./pages/Media";
 import { Guard } from "./components/Guard";
+import { ConfirmHost } from "./components/Confirm";
 import { Bct } from "./pages/Bct";
 import { Aars } from "./pages/Aars";
 import { Events } from "./pages/Events";
@@ -122,6 +123,7 @@ function Shell({ net }: { net: NetState }) {
           : page === "panel-send" ? <Send />
           : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
       </div>
+      <ConfirmHost />
       {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}
       {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}
       {toast && <div role="alert" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-bad bg-panel px-4 py-2 text-[12px] text-bad">{toast}</div>}

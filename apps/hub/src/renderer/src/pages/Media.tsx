@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useState } from "react";
 import type { MediaItem } from "../../../preload/api";
 
@@ -70,7 +71,7 @@ export function Media() {
           <button type="button" onClick={() => void act({ action: "bulk", op: "show", ids }).then(() => setSel(new Set()))} className="border border-cyan/30 px-2.5 py-1 text-[11px] text-white">👁 SHOW</button>
           <button type="button" onClick={() => void act({ action: "bulk", op: "hide", ids }).then(() => setSel(new Set()))} className="border border-cyan/30 px-2.5 py-1 text-[11px] text-white">🚫 HIDE</button>
           <select defaultValue="" aria-label="Move to category" onChange={(e) => { if (e.target.value) void act({ action: "bulk", op: "category", category: e.target.value, ids }).then(() => setSel(new Set())); e.target.value = ""; }} className={inp}><option value="">🏷 CATEGORY…</option>{CATS.map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}</select>
-          <button type="button" onClick={() => { if (confirm(`DELETE ${sel.size} ITEM${sel.size === 1 ? "" : "S"}?\n\nThey are removed from the public pages.\n\nTHIS CANNOT BE UNDONE.`)) void act({ action: "bulk", op: "delete", ids }).then(() => setSel(new Set())); }} className="border border-bad/60 px-2.5 py-1 text-[11px] text-bad">🗑 DELETE</button>
+          <button type="button" onClick={async () => { if (await askBox(`DELETE ${sel.size} ITEM${sel.size === 1 ? "" : "S"}?\n\nThey are removed from the public pages.\n\nTHIS CANNOT BE UNDONE.`)) void act({ action: "bulk", op: "delete", ids }).then(() => setSel(new Set())); }} className="border border-bad/60 px-2.5 py-1 text-[11px] text-bad">🗑 DELETE</button>
           <button type="button" onClick={() => setSel(new Set())} className="border border-cyan/30 px-2.5 py-1 text-[11px] text-white">CLEAR</button>
         </div>)}
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))" }}>
@@ -114,7 +115,7 @@ function Preview({ m, onClose, act }: { m: MediaItem; onClose: () => void; act: 
           <input value={v.description} maxLength={500} onChange={(e) => setV({ ...v, description: e.target.value })} placeholder="Description (optional)" aria-label="Description" className={`${inp} col-span-3`} />
         </div>
         <div className="flex items-center gap-2 border-t border-cyan/15 px-3.5 py-2.5 text-[11px] text-dim">{m.type === "video" ? "YouTube video" : "Image"} · added {day(m.uploadedAt)}<div className="flex-1" />
-          <button type="button" onClick={() => { if (confirm(`DELETE "${m.name}"?\n\nIt is removed from the public page.\n\nTHIS CANNOT BE UNDONE.`)) void act({ action: "bulk", op: "delete", ids: [m.id] }).then(onClose); }} className="border border-bad/60 px-3 py-1.5 tracking-[1.5px] text-bad">🗑 DELETE</button>
+          <button type="button" onClick={async () => { if (await askBox(`DELETE "${m.name}"?\n\nIt is removed from the public page.\n\nTHIS CANNOT BE UNDONE.`)) void act({ action: "bulk", op: "delete", ids: [m.id] }).then(onClose); }} className="border border-bad/60 px-3 py-1.5 tracking-[1.5px] text-bad">🗑 DELETE</button>
           <button type="button" onClick={onClose} className="border border-cyan/30 px-3 py-1.5 tracking-[1.5px] text-white">CLOSE</button>
           <button type="button" disabled={!dirty} onClick={() => void act({ action: "edit", id: m.id, ...v }).then((r) => r.ok && onClose())} className="border border-gold bg-gold px-3 py-1.5 font-bold tracking-[1.5px] text-black disabled:opacity-40">✓ SAVE</button>
         </div>

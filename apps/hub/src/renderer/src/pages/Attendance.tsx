@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AttEvent, AttRoll, Attendance as AttData } from "../../../preload/api";
 import { memberName, rankOrder } from "./Personnel";
@@ -60,7 +61,6 @@ export function Attendance(p: { onPage: (id: string) => void }) {
     setD((o) => o && { ...o, events: o.events.map((x) => x.id !== e.id ? x : { ...x, attendees: next === "p" ? [...x.attendees, uid] : x.attendees.filter((y) => y !== uid), excused: next === "e" ? [...x.excused, uid] : x.excused.filter((y) => y !== uid) }) });
     void window.cn.hub.attendanceAction({ action: "set", id: e.id, uid, state: next }).then((r) => { if (r.error) { setToast([r.error, false]); void load(); } });
   };
-  const ask = (t: string) => confirm(t);
 
   const roll = useMemo(() => (d ? [...d.roll].sort((a, b) => plOrder(a.platoon) - plOrder(b.platoon) || rankOrder(a.rank) - rankOrder(b.rank)) : []), [d]);
   if (error && !d) return <main className="grid flex-1 place-items-center text-[13px] text-bad">⚠ {error}</main>;
@@ -169,7 +169,7 @@ export function Attendance(p: { onPage: (id: string) => void }) {
                     <div className="min-w-0 flex-1"><h2 className="m-0 font-head text-[20px] font-bold tracking-[1px] text-white">{e.title}</h2>
                       <span className="text-[10.5px] tracking-[1px] text-dim">{fmtD(e.date, { weekday: "short", day: "2-digit", month: "short", year: "numeric" })} · <span style={{ color: tc }}>{tl}</span>{e.createdBy ? ` · CREATED BY ${e.createdBy.toUpperCase()}` : ""}{e.linked && <span className="text-ok"> · LINKED TO DISCORD EVENT ✓</span>}</span></div>
                     {!e.locked && <button type="button" onClick={() => setHead({ title: e.title, date: e.date, type: e.type })} className="border border-cyan/25 px-2.5 py-1.5 text-[10.5px] tracking-[1.5px] text-white hover:border-cyan">✎ RENAME / DATE</button>}
-                    <button type="button" disabled={e.locked || busy} title={e.locked ? "Unlock first" : undefined} onClick={() => { if (ask(`DELETE EVENT?\n\n${e.title}\n\nThe roll call for this event is removed. Stats are recounted.`)) void run({ action: "delete", id: e.id }).then((r) => r.ok && setCur(null)); }}
+                    <button type="button" disabled={e.locked || busy} title={e.locked ? "Unlock first" : undefined} onClick={async () => { if (await askBox(`DELETE EVENT?\n\n${e.title}\n\nThe roll call for this event is removed. Stats are recounted.`)) void run({ action: "delete", id: e.id }).then((r) => r.ok && setCur(null)); }}
                       className="border border-bad/50 px-2.5 py-1.5 text-[10.5px] tracking-[1.5px] text-bad disabled:opacity-30">🗑 DELETE</button>
                   </>)}
                 </div>
@@ -183,7 +183,7 @@ export function Attendance(p: { onPage: (id: string) => void }) {
                     <button key={k} type="button" aria-pressed={flt === k} onClick={() => setFlt(k)} className={chip(flt === k)} style={k === "S" && flt !== k ? { color: "#a78bfa" } : undefined}>{l}</button>))}
                   <div className="flex-1" />
                   {e.linked && <button type="button" disabled={e.locked || busy} onClick={() => void run({ action: "tickgoing", id: e.id })} className="border border-cyan/25 px-2.5 py-1.5 text-[10.5px] tracking-[1.5px] text-white disabled:opacity-30">✓ TICK ALL SIGNED UP ({going.size})</button>}
-                  <button type="button" disabled={e.locked || busy} onClick={() => { if (ask("Clear everyone back to absent?")) void run({ action: "clear", id: e.id }); }} className="border border-cyan/25 px-2.5 py-1.5 text-[10.5px] tracking-[1.5px] text-white disabled:opacity-30">CLEAR ALL</button>
+                  <button type="button" disabled={e.locked || busy} onClick={async () => { if (await askBox("Clear everyone back to absent?")) void run({ action: "clear", id: e.id }); }} className="border border-cyan/25 px-2.5 py-1.5 text-[10.5px] tracking-[1.5px] text-white disabled:opacity-30">CLEAR ALL</button>
                 </div>
                 <table className="w-full border-collapse text-[13px]">
                   <thead><tr className="text-left text-[10px] tracking-[2px] text-cyan">{["MEMBER", "SQUAD", "DISCORD SIGN-UP", "LAST 3 OPS", "THIS OP"].map((h) => <th key={h} className="border-y border-cyan/15 px-3 py-2 font-normal">{h}</th>)}</tr></thead>
@@ -211,9 +211,9 @@ export function Attendance(p: { onPage: (id: string) => void }) {
                 <div className={`flex items-center gap-3 border-t px-4 py-3 text-[11px] ${e.locked ? "border-ok/40 bg-ok/5" : "border-gold/40 bg-gold/5"}`}>
                   {!d.canLock ? <span className="text-dim">🔒 LOCK / UNLOCK: STAFF NCO AND ABOVE</span>
                     : e.locked ? <><span className="flex-1 text-ok">🔒 LOCKED — PERMANENT RECORD, STATS COUNTED{e.lockedBy ? ` · BY ${e.lockedBy.toUpperCase()}` : ""}. UNLOCK TO FIX, THEN LOCK AGAIN.</span>
-                        <button type="button" disabled={busy} onClick={() => { if (ask(`UNLOCK THIS EVENT?\n\n${e.title}\n\nYou can then correct it. Lock it again afterwards so stats are recounted.`)) void run({ action: "unlock", id: e.id }); }} className="border border-cyan/40 px-3 py-2 tracking-[1.5px] text-white">🔓 UNLOCK TO CORRECT</button></>
+                        <button type="button" disabled={busy} onClick={async () => { if (await askBox(`UNLOCK THIS EVENT?\n\n${e.title}\n\nYou can then correct it. Lock it again afterwards so stats are recounted.`)) void run({ action: "unlock", id: e.id }); }} className="border border-cyan/40 px-3 py-2 tracking-[1.5px] text-white">🔓 UNLOCK TO CORRECT</button></>
                     : <><span className="flex-1 text-[#c6d0da]">🔒 LOCK recounts everyone's stats from all locked ops: {cnt.p} present → +1 op attended · everyone → +1 op eligible · ATT this month updates · unlock any time to fix</span>
-                        <button type="button" disabled={busy} onClick={() => { if (ask(`LOCK ATTENDANCE?\n\n${e.title}\n\n${e.attendees.length} present. This finalises the event and recounts every member's stats.`)) void run({ action: "lock", id: e.id }); }} className="border border-gold bg-gold px-4 py-2 font-bold tracking-[1.5px] text-black">{busy ? "◷ WORKING…" : "🔒 LOCK EVENT"}</button></>}
+                        <button type="button" disabled={busy} onClick={async () => { if (await askBox(`LOCK ATTENDANCE?\n\n${e.title}\n\n${e.attendees.length} present. This finalises the event and recounts every member's stats.`)) void run({ action: "lock", id: e.id }); }} className="border border-gold bg-gold px-4 py-2 font-bold tracking-[1.5px] text-black">{busy ? "◷ WORKING…" : "🔒 LOCK EVENT"}</button></>}
                 </div>
               </>);
             })()}

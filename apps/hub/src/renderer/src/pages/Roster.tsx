@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Roster as RosterData, RosterRow } from "../../../preload/api";
 import { FileWindow, memberName, rankOrder, short } from "./Personnel";
@@ -57,7 +58,7 @@ export function Roster(p: { me: string }) {
   useEffect(() => { const c = () => setMenu(null); addEventListener("click", c); return () => removeEventListener("click", c); }, []);
 
   const act = async (action: "pip" | "pt", r: RosterRow) => {
-    if (action === "pt" && r.attendance < 3 && !confirm(`GIVE +1 PT?\n\n${nm(r)} is ${r.attendance}/3 this month — this is a manual award (ATT is not reset).`)) return;
+    if (action === "pt" && r.attendance < 3 && !await askBox(`GIVE +1 PT?\n\n${nm(r)} is ${r.attendance}/3 this month — this is a manual award (ATT is not reset).`)) return;
     setBusy(r.id);
     const res = await window.cn.hub.rosterAction({ action, id: r.id, expectAtt: r.attendance });
     setBusy(null);

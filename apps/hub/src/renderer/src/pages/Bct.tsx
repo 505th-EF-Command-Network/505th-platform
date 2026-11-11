@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import type { BctData, BctPerson } from "../../../preload/api";
@@ -69,7 +70,7 @@ export function Bct() {
         <div key={u.id} className="flex items-center gap-2.5 border border-cyan/15 bg-[#0e151a] p-3" style={{ borderLeft: "2px solid #ff4d4d" }}>
           <span className="grid h-[38px] w-[38px] shrink-0 place-items-center border border-cyan/25 font-head font-bold text-bad">{u.initials}</span>
           <div className="min-w-0 flex-1"><div className="text-[13.5px] text-white">{u.fullName}</div><div className="text-[9.5px] tracking-[1px] text-dim">DENIED {ymd(u.deniedAt)} BY {u.deniedBy || "—"} · {u.denyReason}</div></div>
-          {d.canAct && <button type="button" onClick={() => { if (confirm(`MOVE BACK TO WAITING?\n\n${u.fullName} goes back to "Waiting for approval".`)) void act({ action: "reopen", id: u.id }); }} className="border border-amber px-2 py-1 text-[9.5px] tracking-[1.5px] text-amber">REOPEN</button>}
+          {d.canAct && <button type="button" onClick={async () => { if (await askBox(`MOVE BACK TO WAITING?\n\n${u.fullName} goes back to "Waiting for approval".`)) void act({ action: "reopen", id: u.id }); }} className="border border-amber px-2 py-1 text-[9.5px] tracking-[1.5px] text-amber">REOPEN</button>}
         </div>))}</div>}
       {win?.kind === "approve" && <Approve d={d} u={win.u} onClose={() => setWin(null)} go={async (f) => { const r = await act({ action: "approve", id: win.u.id, ...f }); if (r.ok) setWin(null); }} />}
       {win?.kind === "deny" && <Deny d={d} u={win.u} onClose={() => setWin(null)} go={async (f) => { const r = await act({ action: "deny", id: win.u.id, ...f }); if (r.ok) setWin(null); }} />}

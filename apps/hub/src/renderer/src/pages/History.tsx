@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HistData } from "../../../preload/api";
 import { FileWindow } from "./Personnel";
@@ -38,7 +39,7 @@ export function History(p: { me: string }) {
   }, [load]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
   const run = async (body: Record<string, unknown>, ask?: string) => {
-    if (ask && !confirm(ask)) return;
+    if (ask && !await askBox(ask)) return;
     setMore(false); setBusy(true);
     const r = await window.cn.hub.historyAction(body);
     setBusy(false); setToast(r.error ? [r.error, false] : [String(r.msg).toUpperCase(), true]); void load();

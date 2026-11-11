@@ -66,3 +66,8 @@ body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 7
 @keyframes growx { from { transform: scaleX(0); } }
 @keyframes growy { from { transform: scaleY(0); } }
 @media (prefers-reduced-motion: reduce) { .topscan::after, .widget::after, .wob, .grow-x, .grow-y { animation: none !important; } }
+
+/* 505th confirm box pop-in */
+.cfm-pop{animation:cfm-pop .18s ease-out}
+@keyframes cfm-pop{from{transform:scale(.96);opacity:0}}
+@media (prefers-reduced-motion:reduce){.cfm-pop{animation:none}}

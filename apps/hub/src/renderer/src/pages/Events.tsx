@@ -1,3 +1,4 @@
+import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EvButton, EvData, EvItem } from "../../../preload/api";
 import { Rsvp } from "../components/Rsvp";
@@ -236,18 +237,18 @@ function Detail(p: { e: EvItem; d: EvData; busy: string | null; onReload: () => 
                 <ul className="m-0 list-none p-0">{sys.map(([k, v, col]) => <li key={k} className="flex justify-between gap-3 border-b border-cyan/10 py-1.5 text-[12px]"><span className="text-dim">{k}</span><span className="text-right" style={{ color: col }}>{v}</span></li>)}</ul>
                 {bad && d.canEdit && <div className="mt-3 border border-amber/50 bg-amber/5 p-2.5 text-[12px] text-amber">⚠ Something is out of sync.
                   <div className="mt-2 flex gap-2"><button type="button" disabled={!!p.busy} onClick={() => p.onAct("refresh")} className={`${btn} border-cyan/40 text-white`}>↻ FIX</button>
-                    <button type="button" disabled={!!p.busy} onClick={() => { if (confirm(`REPOST WITH PING?\n\n${e.title}\n\nThe sign-up post is posted again and the usual roles are pinged.`)) p.onAct("refresh", { ping: true }); }} className={`${btn} border-cyan/40 text-white`}>↻ REPOST WITH PING</button></div></div>}
+                    <button type="button" disabled={!!p.busy} onClick={async () => { if (await askBox(`REPOST WITH PING?\n\n${e.title}\n\nThe sign-up post is posted again and the usual roles are pinged.`)) p.onAct("refresh", { ping: true }); }} className={`${btn} border-cyan/40 text-white`}>↻ REPOST WITH PING</button></div></div>}
               </div>
             </div>
           </>}
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-cyan/20 px-4 py-3">
-          {d.canEdit && e.status !== "cancelled" && e.status !== "completed" && <button type="button" disabled={!!p.busy} onClick={() => { if (confirm(`CANCEL EVENT?\n\n${e.title}\n\nCortana marks the Discord event and sign-up post as cancelled.`)) p.onAct("cancel"); }} className={`${btn} border-bad/60 text-bad`}>CANCEL EVENT</button>}
-          {d.canEdit && <button type="button" disabled={!!p.busy} onClick={() => { if (confirm(`DELETE EVENT?\n\n${e.title}\n\nThe Discord event and the sign-up post are deleted, and the event is removed from the website. Sign-ups are lost.\n\nTHIS CANNOT BE UNDONE.`)) p.onAct("delete"); }} className={`${btn} border-bad/60 text-bad`}>{p.busy === "delete" ? "DELETING…" : "🗑 DELETE"}</button>}
+          {d.canEdit && e.status !== "cancelled" && e.status !== "completed" && <button type="button" disabled={!!p.busy} onClick={async () => { if (await askBox(`CANCEL EVENT?\n\n${e.title}\n\nCortana marks the Discord event and sign-up post as cancelled.`)) p.onAct("cancel"); }} className={`${btn} border-bad/60 text-bad`}>CANCEL EVENT</button>}
+          {d.canEdit && <button type="button" disabled={!!p.busy} onClick={async () => { if (await askBox(`DELETE EVENT?\n\n${e.title}\n\nThe Discord event and the sign-up post are deleted, and the event is removed from the website. Sign-ups are lost.\n\nTHIS CANNOT BE UNDONE.`)) p.onAct("delete"); }} className={`${btn} border-bad/60 text-bad`}>{p.busy === "delete" ? "DELETING…" : "🗑 DELETE"}</button>}
           <div className="flex-1" />
           {isOpen(e) && d.canEdit && <button type="button" disabled={!!p.busy} title="Update the Discord sign-up post — re-posts it (no ping) if it was deleted" onClick={() => p.onAct("refresh")} className={`${btn} border-cyan/40 text-white`}>{p.busy === "refresh" ? "◷ REFRESHING…" : "↻ REFRESH POST"}</button>}
           {e.attendanceEventId && <button type="button" onClick={p.onAtt} className={`${btn} border-cyan/40 text-cyan`}>▣ ATTENDANCE CHECK</button>}
-          {d.canEdit && e.status !== "cancelled" && e.status !== "completed" && start <= now && <button type="button" disabled={!!p.busy} onClick={() => { if (confirm(`END EVENT?\n\n${e.title}\n\nThe event is marked completed. Cortana logs the sign-ups to the mission log, removes the sign-up post and ends the Discord event.`)) p.onAct("end"); }} className={`${btn} border-ok/60 text-ok`}>{p.busy === "end" ? "ENDING…" : "✓ END EVENT"}</button>}
+          {d.canEdit && e.status !== "cancelled" && e.status !== "completed" && start <= now && <button type="button" disabled={!!p.busy} onClick={async () => { if (await askBox(`END EVENT?\n\n${e.title}\n\nThe event is marked completed. Cortana logs the sign-ups to the mission log, removes the sign-up post and ends the Discord event.`)) p.onAct("end"); }} className={`${btn} border-ok/60 text-ok`}>{p.busy === "end" ? "ENDING…" : "✓ END EVENT"}</button>}
           {d.canEdit && e.status !== "cancelled" && e.status !== "completed" && <button type="button" onClick={p.onEdit} className={`${btn} border-gold bg-gold font-bold text-black`}>✎ EDIT</button>}
         </div>
       </div>
