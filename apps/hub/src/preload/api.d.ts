@@ -66,6 +66,14 @@ export type MediaItem = { id: string; type: "image" | "video"; url: string; name
 export type OobData = { data: Record<string, { status?: string; name?: string; userId?: string } | boolean>; members: { id: string; name: string; rank: string; short: string }[] };
 export type NetState = { state: "off" | "connecting" | "live"; reason: string | null };
 
+export type RecruitData = { sources: string[]; members: { id: string; name: string; source: string; joined: string; instructor: string }[] };
+export type TicketLine = { who: string; whoId?: string; staff?: boolean; note?: boolean; text: string; atISO: string; images?: string[] };
+export type Ticket = { id: string; number: number; status: string; waiting?: string; typeId: string; typeName: string; typeEmoji?: string; openerId: string; openerName: string;
+  openedAtISO: string; lastActivityISO?: string; closedAtISO?: string; closedByName?: string; closeReason?: string; claimedByName?: string; channelDeleted?: boolean; firstReplyMs?: number | null; transcript?: TicketLine[] };
+export type TicketData = { tickets: Ticket[]; types: { id: string; name: string; emoji?: string }[]; openers: Record<string, { name: string; uid: string; rank: string; status: string; past: number; warns: number }> };
+export type SentMsg = { id: string; kind: string; channelName: string; content: string; embed: { title?: string; description?: string; color?: number; image?: string; thumbnail?: boolean } | null; buttons: { label: string; url: string }[]; sentByName: string; sentAtISO: string; jumpUrl: string };
+export type SendData = { channels: { id: string; name: string; parentName: string; canSend: boolean }[]; roles: { id: string; name: string; color: string }[];
+  emojis: { id: string; name: string; animated: boolean; url: string }[]; members: { discordId: string; name: string }[]; gallery: { id: string; url: string; name: string }[]; sent: SentMsg[] };
 declare global {
   interface Window {
     cn: {
@@ -109,6 +117,11 @@ declare global {
         mediaAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         oob(): Promise<OobData | { error: string }>;
         oobAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        recruit(): Promise<RecruitData | { error: string }>;
+        tickets(): Promise<TicketData | { error: string }>;
+        ticketsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; queued?: boolean; msg?: string; error?: string }>;
+        send(): Promise<SendData | { error: string }>;
+        sendAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
       };
     };

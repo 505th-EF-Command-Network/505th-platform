@@ -1,6 +1,6 @@
 /**
  * Channel + role lists for the website's pickers (Send Message, Events, Info Posts, Role Map).
- * Written to `discord_channels/<id>` and `discord_roles/<id>`; old ones are removed.
+ * Written to `discord_channels/<id>`, `discord_roles/<id>` and `discord_emojis/<id>`; old ones are removed.
  */
 import { ChannelType, PermissionFlagsBits, type Client } from "discord.js";
 import { TerminalDoc } from "@505th/db";
@@ -44,7 +44,10 @@ export async function syncGuild(client: Client<true>) {
     }));
   await replaceAll("discord_channels", channels);
   await replaceAll("discord_roles", roles);
-  log.info(`Synced ${channels.length} channels, ${roles.length} roles.`);
+  const emojis = [...guild.emojis.cache.values()].filter((e) => e.available !== false && e.name)
+    .map((e) => ({ id: e.id, data: { name: e.name!, animated: !!e.animated, url: e.imageURL({ size: 64 }) } }));
+  await replaceAll("discord_emojis", emojis);
+  log.info(`Synced ${channels.length} channels, ${roles.length} roles, ${emojis.length} emoji.`);
 }
 
 let timer: NodeJS.Timeout | undefined;

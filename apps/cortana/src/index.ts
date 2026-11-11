@@ -106,7 +106,7 @@ client.once(Events.ClientReady, async (ready) => {
   onDbChange((top) => { if (top === "settings") void applyPresence(); });
 });
 
-for (const evt of [Events.ChannelCreate, Events.ChannelDelete, Events.ChannelUpdate, Events.GuildRoleCreate, Events.GuildRoleDelete, Events.GuildRoleUpdate] as const) {
+for (const evt of [Events.ChannelCreate, Events.ChannelDelete, Events.ChannelUpdate, Events.GuildRoleCreate, Events.GuildRoleDelete, Events.GuildRoleUpdate, Events.GuildEmojiCreate, Events.GuildEmojiDelete, Events.GuildEmojiUpdate] as const) {
   client.on(evt, () => scheduleSync(client));
 }
 

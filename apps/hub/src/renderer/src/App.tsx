@@ -1,4 +1,7 @@
 import { Oob } from "./pages/Oob";
+import { Recruit } from "./pages/Recruit";
+import { Tickets } from "./pages/Tickets";
+import { Send } from "./pages/Send";
 import { History } from "./pages/History";
 import { Media } from "./pages/Media";
 import { Guard } from "./components/Guard";
@@ -114,6 +117,9 @@ function Shell({ net }: { net: NetState }) {
           : page === "panel-att-history" ? <History me={data.me.role} />
           : page === "panel-media" ? <Media />
           : page === "panel-unitcards" ? <Oob />
+          : page === "panel-recruit-source" ? <Recruit />
+          : page === "panel-tickets" ? <Tickets me={data.me.role} />
+          : page === "panel-send" ? <Send />
           : <ComingSoon title={PAGES[page] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
       </div>
       {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}
