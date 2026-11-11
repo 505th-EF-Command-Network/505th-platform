@@ -216,6 +216,40 @@ async function leaveWriter() {
   clearTimeout(timer); w = null; load();
 }
 
+const CSS = `
+#${ROOT} .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}#${ROOT} .sp{flex:1}
+#${ROOT} .h1{font:700 20px Rajdhani,sans-serif;letter-spacing:4px;color:#00D9FF}
+#${ROOT} .lab{font:10px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;margin-left:8px}
+#${ROOT} .in{height:34px;background:#060a0e;border:1px solid rgba(0,217,255,.3);color:#fff;padding:0 10px;font:13px "Share Tech Mono",monospace;width:100%}#${ROOT} .bar>.in{max-width:220px}
+#${ROOT} textarea.in{height:76px;padding:8px 10px;resize:vertical;line-height:1.5}#${ROOT} .in:focus{outline:none;border-color:#00D9FF;box-shadow:0 0 8px rgba(0,217,255,.35)}
+#${ROOT} label{display:block;font:9.5px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;margin:0 0 4px}#${ROOT} .req{color:#ffd166;font-style:normal}
+#${ROOT} .chip{all:unset;cursor:pointer;padding:5px 10px;border:1px solid rgba(0,217,255,.18);font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}#${ROOT} .chip.on{color:#fff;border-color:#00D9FF;background:rgba(0,217,255,.1)}#${ROOT} .chip span{opacity:.7}
+#${ROOT} .chip:focus-visible,#${ROOT} .it:focus-visible,#${ROOT} .nav button:focus-visible,#${ROOT} .x:focus-visible{outline:2px solid #00D9FF;outline-offset:2px}
+#${ROOT} .split{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;min-height:540px}
+#${ROOT} .list{background:#0b0f15;border:1px solid rgba(0,217,255,.18);max-height:calc(100vh - 260px);overflow:auto}
+#${ROOT} .it{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:10px 12px;border-bottom:1px solid rgba(0,217,255,.07);border-left:3px solid var(--rc)}#${ROOT} .it.on{background:rgba(0,217,255,.07)}#${ROOT} .it b{display:block;color:#fff;font:700 14px Rajdhani,sans-serif;letter-spacing:.5px}#${ROOT} .it small{color:#7d8a99;font:10.5px "Share Tech Mono",monospace}
+#${ROOT} .read{background:#0b0f15;border:1px solid rgba(0,217,255,.18);padding:18px;min-width:0;max-height:calc(100vh - 260px);overflow:auto}
+#${ROOT} .read h2{margin:6px 0 2px;color:#fff;font:700 24px Rajdhani,sans-serif;letter-spacing:2px}#${ROOT} .read h4{margin:16px 0 6px;font:10.5px "Share Tech Mono",monospace;letter-spacing:2.5px;color:#00D9FF}
+#${ROOT} .tags span{display:inline-block;margin:0 6px 4px 0;padding:2px 8px;border:1px solid currentColor;font:10px "Share Tech Mono",monospace;letter-spacing:1.5px}
+#${ROOT} .k{font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
+#${ROOT} .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}#${ROOT} .stats div{border:1px solid rgba(0,217,255,.18);padding:8px;text-align:center}#${ROOT} .stats b{display:block;color:#fff;font:700 18px "Share Tech Mono",monospace}#${ROOT} .stats span{font:9px "Share Tech Mono",monospace;letter-spacing:1.5px;color:#7d8a99}
+#${ROOT} .rf{margin:0 0 8px}#${ROOT} .rf span{font:9.5px "Share Tech Mono",monospace;letter-spacing:1.5px;color:#7d8a99}#${ROOT} .rf p{margin:2px 0 0;color:#c6d0da;white-space:pre-wrap}
+#${ROOT} .objs{list-style:none;margin:0;padding:0}#${ROOT} .objs li{margin:3px 0}
+#${ROOT} .rimg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}#${ROOT} .rimg img{width:100%;aspect-ratio:16/10;object-fit:cover;border:1px solid rgba(0,217,255,.18)}
+#${ROOT} .b.red{border-color:#ff4d4d;color:#ff4d4d}#${ROOT} a.b{text-decoration:none}
+#${ROOT} .saved{color:#22e07a;font:11px "Share Tech Mono",monospace;letter-spacing:1px}
+#${ROOT} .form{display:grid;grid-template-columns:180px minmax(0,1fr);gap:14px}
+#${ROOT} .nav{background:#0b0f15;border:1px solid rgba(0,217,255,.18);align-self:start;position:sticky;top:10px}#${ROOT} .nav button{all:unset;cursor:pointer;display:block;width:100%;box-sizing:border-box;padding:9px 12px;color:#7d8a99;border-left:2px solid transparent;font:11px "Share Tech Mono",monospace;letter-spacing:1.5px}#${ROOT} .nav button.on{color:#fff;border-left-color:#00D9FF;background:rgba(0,217,255,.06)}#${ROOT} .nav button.ok:after{content:" ✓";color:#22e07a}
+#${ROOT} .card{background:#0b0f15;border:1px solid rgba(0,217,255,.18)}#${ROOT} .wsec{padding:16px;margin-bottom:12px}#${ROOT} .st{color:#fff;letter-spacing:2px;font:700 15px Rajdhani,sans-serif}
+#${ROOT} .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}#${ROOT} .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px}
+#${ROOT} .oed{list-style:none;margin:0;padding:8px 10px;border:1px solid rgba(0,217,255,.18)}#${ROOT} .oed li{display:flex;align-items:center;gap:8px;margin:4px 0}#${ROOT} .oed .ck{flex:1;display:flex;gap:8px;align-items:center;font:12px "Share Tech Mono",monospace;letter-spacing:0;color:#d6dde6;margin:0}
+#${ROOT} .x{all:unset;cursor:pointer;color:#7d8a99;padding:0 6px}#${ROOT} .x:hover{color:#ff4d4d}
+#${ROOT} .drop{display:block;border:1px dashed rgba(0,217,255,.4);padding:22px;text-align:center;color:#7d8a99;cursor:pointer;font-size:11px}#${ROOT} .drop:hover{border-color:#00D9FF;color:#fff}
+#${ROOT} .chk{border:1px solid rgba(0,217,255,.18);padding:12px;margin-top:12px}#${ROOT} .chk b{color:#fff;letter-spacing:1px}
+#${ROOT} .empty{padding:30px;text-align:center;color:#7d8a99;font:11px "Share Tech Mono",monospace;letter-spacing:2px}
+@media (max-width:900px){#${ROOT} .split,#${ROOT} .form{grid-template-columns:1fr}#${ROOT} .list,#${ROOT} .read{max-height:none}#${ROOT} .g2,#${ROOT} .g3{grid-template-columns:1fr}#${ROOT} .nav{position:static;display:flex;overflow-x:auto}#${ROOT} .nav button{white-space:nowrap;border-left:0;border-bottom:2px solid transparent}#${ROOT} .nav button.on{border-bottom-color:#00D9FF}#${ROOT} .stats{grid-template-columns:repeat(2,1fr)}}
+`;
+
 /* ───────── events ───────── */
 onReady(() => {
   const root = mountPanel("panel-aar", ROOT, () => load().catch((e) => notify("AAR LOAD FAILED: " + e.message, 1)));
@@ -276,36 +310,4 @@ onReady(() => {
   window.addEventListener("beforeunload", (e) => { if (w?.dirty && w.status !== "draft") e.preventDefault(); });
 });
 
-const CSS = `
-#${ROOT} .bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}#${ROOT} .sp{flex:1}
-#${ROOT} .h1{font:700 20px Rajdhani,sans-serif;letter-spacing:4px;color:#00D9FF}
-#${ROOT} .lab{font:10px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;margin-left:8px}
-#${ROOT} .in{height:34px;background:#060a0e;border:1px solid rgba(0,217,255,.3);color:#fff;padding:0 10px;font:13px "Share Tech Mono",monospace;width:100%}#${ROOT} .bar>.in{max-width:220px}
-#${ROOT} textarea.in{height:76px;padding:8px 10px;resize:vertical;line-height:1.5}#${ROOT} .in:focus{outline:none;border-color:#00D9FF;box-shadow:0 0 8px rgba(0,217,255,.35)}
-#${ROOT} label{display:block;font:9.5px "Share Tech Mono",monospace;letter-spacing:2px;color:#7d8a99;margin:0 0 4px}#${ROOT} .req{color:#ffd166;font-style:normal}
-#${ROOT} .chip{all:unset;cursor:pointer;padding:5px 10px;border:1px solid rgba(0,217,255,.18);font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}#${ROOT} .chip.on{color:#fff;border-color:#00D9FF;background:rgba(0,217,255,.1)}#${ROOT} .chip span{opacity:.7}
-#${ROOT} .chip:focus-visible,#${ROOT} .it:focus-visible,#${ROOT} .nav button:focus-visible,#${ROOT} .x:focus-visible{outline:2px solid #00D9FF;outline-offset:2px}
-#${ROOT} .split{display:grid;grid-template-columns:330px minmax(0,1fr);gap:14px;min-height:540px}
-#${ROOT} .list{background:#0b0f15;border:1px solid rgba(0,217,255,.18);max-height:calc(100vh - 260px);overflow:auto}
-#${ROOT} .it{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:10px 12px;border-bottom:1px solid rgba(0,217,255,.07);border-left:3px solid var(--rc)}#${ROOT} .it.on{background:rgba(0,217,255,.07)}#${ROOT} .it b{display:block;color:#fff;font:700 14px Rajdhani,sans-serif;letter-spacing:.5px}#${ROOT} .it small{color:#7d8a99;font:10.5px "Share Tech Mono",monospace}
-#${ROOT} .read{background:#0b0f15;border:1px solid rgba(0,217,255,.18);padding:18px;min-width:0;max-height:calc(100vh - 260px);overflow:auto}
-#${ROOT} .read h2{margin:6px 0 2px;color:#fff;font:700 24px Rajdhani,sans-serif;letter-spacing:2px}#${ROOT} .read h4{margin:16px 0 6px;font:10.5px "Share Tech Mono",monospace;letter-spacing:2.5px;color:#00D9FF}
-#${ROOT} .tags span{display:inline-block;margin:0 6px 4px 0;padding:2px 8px;border:1px solid currentColor;font:10px "Share Tech Mono",monospace;letter-spacing:1.5px}
-#${ROOT} .k{font:10.5px "Share Tech Mono",monospace;letter-spacing:1px;color:#7d8a99}
-#${ROOT} .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}#${ROOT} .stats div{border:1px solid rgba(0,217,255,.18);padding:8px;text-align:center}#${ROOT} .stats b{display:block;color:#fff;font:700 18px "Share Tech Mono",monospace}#${ROOT} .stats span{font:9px "Share Tech Mono",monospace;letter-spacing:1.5px;color:#7d8a99}
-#${ROOT} .rf{margin:0 0 8px}#${ROOT} .rf span{font:9.5px "Share Tech Mono",monospace;letter-spacing:1.5px;color:#7d8a99}#${ROOT} .rf p{margin:2px 0 0;color:#c6d0da;white-space:pre-wrap}
-#${ROOT} .objs{list-style:none;margin:0;padding:0}#${ROOT} .objs li{margin:3px 0}
-#${ROOT} .rimg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}#${ROOT} .rimg img{width:100%;aspect-ratio:16/10;object-fit:cover;border:1px solid rgba(0,217,255,.18)}
-#${ROOT} .b.red{border-color:#ff4d4d;color:#ff4d4d}#${ROOT} a.b{text-decoration:none}
-#${ROOT} .saved{color:#22e07a;font:11px "Share Tech Mono",monospace;letter-spacing:1px}
-#${ROOT} .form{display:grid;grid-template-columns:180px minmax(0,1fr);gap:14px}
-#${ROOT} .nav{background:#0b0f15;border:1px solid rgba(0,217,255,.18);align-self:start;position:sticky;top:10px}#${ROOT} .nav button{all:unset;cursor:pointer;display:block;width:100%;box-sizing:border-box;padding:9px 12px;color:#7d8a99;border-left:2px solid transparent;font:11px "Share Tech Mono",monospace;letter-spacing:1.5px}#${ROOT} .nav button.on{color:#fff;border-left-color:#00D9FF;background:rgba(0,217,255,.06)}#${ROOT} .nav button.ok:after{content:" ✓";color:#22e07a}
-#${ROOT} .card{background:#0b0f15;border:1px solid rgba(0,217,255,.18)}#${ROOT} .wsec{padding:16px;margin-bottom:12px}#${ROOT} .st{color:#fff;letter-spacing:2px;font:700 15px Rajdhani,sans-serif}
-#${ROOT} .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}#${ROOT} .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 14px}
-#${ROOT} .oed{list-style:none;margin:0;padding:8px 10px;border:1px solid rgba(0,217,255,.18)}#${ROOT} .oed li{display:flex;align-items:center;gap:8px;margin:4px 0}#${ROOT} .oed .ck{flex:1;display:flex;gap:8px;align-items:center;font:12px "Share Tech Mono",monospace;letter-spacing:0;color:#d6dde6;margin:0}
-#${ROOT} .x{all:unset;cursor:pointer;color:#7d8a99;padding:0 6px}#${ROOT} .x:hover{color:#ff4d4d}
-#${ROOT} .drop{display:block;border:1px dashed rgba(0,217,255,.4);padding:22px;text-align:center;color:#7d8a99;cursor:pointer;font-size:11px}#${ROOT} .drop:hover{border-color:#00D9FF;color:#fff}
-#${ROOT} .chk{border:1px solid rgba(0,217,255,.18);padding:12px;margin-top:12px}#${ROOT} .chk b{color:#fff;letter-spacing:1px}
-#${ROOT} .empty{padding:30px;text-align:center;color:#7d8a99;font:11px "Share Tech Mono",monospace;letter-spacing:2px}
-@media (max-width:900px){#${ROOT} .split,#${ROOT} .form{grid-template-columns:1fr}#${ROOT} .list,#${ROOT} .read{max-height:none}#${ROOT} .g2,#${ROOT} .g3{grid-template-columns:1fr}#${ROOT} .nav{position:static;display:flex;overflow-x:auto}#${ROOT} .nav button{white-space:nowrap;border-left:0;border-bottom:2px solid transparent}#${ROOT} .nav button.on{border-bottom-color:#00D9FF}#${ROOT} .stats{grid-template-columns:repeat(2,1fr)}}
-`;
+
