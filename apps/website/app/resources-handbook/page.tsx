@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import HandbookToc from "@/components/handbook/HandbookToc";
 import SiteShell from "@/components/SiteShell";
 import { shellC } from "@/components/shell-styles";
 import "@/styles/tw/resources-handbook.css";
+import "@/styles/tw/handbook2.css";
 
 export const metadata: Metadata = { title: "General Handbook - 505th" };
 
-/** Converted 1:1 from the live resources-handbook.html (content after the shared shell). */
+/** Handbook redesign approved 2026-11-11 (sticky contents, section cards, collapsible topics, rank grid). Originally converted 1:1 from the live resources-handbook.html (content after the shared shell). */
 export default function ResourcesHandbookPage() {
   return (
     <SiteShell styles={shellC}>
@@ -53,6 +55,9 @@ export default function ResourcesHandbookPage() {
               </a>
             </div>
           </div>
+          <div className="hb2">
+            <HandbookToc />
+            <div className="hb2-body">
           <section className="handbook-section [margin-bottom:4rem] [padding-bottom:2rem] [border-bottom:2px_solid_var(--accent)] [&:last-of-type]:[border-bottom:none]" id="community-guidelines">
             <h2 className="section-title flex items-center [gap:1.5rem] [padding:1.5rem_2rem] [background:var(--bg-card)] cursor-pointer [transition:all_0.3s_ease] [color:var(--text-primary)] [font-size:1.2rem] [font-weight:600] [letter-spacing:2px] hover:[background:var(--bg-elevated)] hover:[border-left:4px_solid_var(--accent)] hover:[padding-left:calc(2rem_-_4px)] [&.active]:[background:var(--primary-dark)] [&.active]:[border-left:4px_solid_var(--accent)] [&.active]:[padding-left:calc(2rem_-_4px)] max-[768px]:[font-size:1rem] max-[768px]:[padding:1.25rem_1.5rem] [.page-content_&]:[display:flex] [.page-content_&]:[align-items:center] [.page-content_&]:[gap:2rem] [.page-content_&]:[color:var(--accent)] [.page-content_&]:[font-size:2.5rem] [.page-content_&]:[letter-spacing:4px] [.page-content_&]:[margin-bottom:2rem] [.page-content_&]:[text-shadow:0_0_15px_var(--accent-glow)] max-[768px]:[.page-content_&]:[flex-direction:column] max-[768px]:[.page-content_&]:[gap:1rem] max-[768px]:[.page-content_&]:[font-size:1.8rem] max-[480px]:[.page-content_&]:[font-size:1.5rem] max-[480px]:[.page-content_&]:[letter-spacing:2px]">
               <span className="section-number [.page-content_&]:[background:var(--primary)] [.page-content_&]:[border:2px_solid_var(--accent)] [.page-content_&]:[padding:0.5rem_1.5rem] [.page-content_&]:[font-size:1.5rem] max-[768px]:[.page-content_&]:[padding:0.4rem_1rem] max-[768px]:[.page-content_&]:[font-size:1.2rem]">
@@ -702,6 +707,8 @@ export default function ResourcesHandbookPage() {
             </h2>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header enlisted [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">PVT</div>
+
                 <h3>
                   Pvt – Private
                 </h3>
@@ -720,6 +727,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header enlisted [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">PFC</div>
+
                 <h3>
                   PFC – Private First Class
                 </h3>
@@ -738,6 +747,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header enlisted [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">LCPL</div>
+
                 <h3>
                   LCpl – Lance Corporal
                 </h3>
@@ -756,6 +767,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">CPL</div>
+
                 <h3>
                   Cpl – Corporal
                 </h3>
@@ -774,6 +787,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">SGT</div>
+
                 <h3>
                   Sgt – Sergeant
                 </h3>
@@ -792,6 +807,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">SSGT</div>
+
                 <h3>
                   SSgt – Staff Sergeant
                 </h3>
@@ -810,6 +827,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">GSGT</div>
+
                 <h3>
                   GSgt – Gunnery Sergeant
                 </h3>
@@ -834,6 +853,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">MSGT</div>
+
                 <h3>
                   MSgt – Master Sergeant
                 </h3>
@@ -858,6 +879,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">1STSGT</div>
+
                 <h3>
                   First Sergeant
                 </h3>
@@ -882,6 +905,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">MGYSGT</div>
+
                 <h3>
                   Master Gunnery Sergeant
                 </h3>
@@ -906,6 +931,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">SGTMAJ</div>
+
                 <h3>
                   Sergeant Major
                 </h3>
@@ -938,6 +965,8 @@ export default function ResourcesHandbookPage() {
             </h2>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">2NDLT</div>
+
                 <h3>
                   2nd Lt – Second Lieutenant
                 </h3>
@@ -962,6 +991,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">1STLT</div>
+
                 <h3>
                   1st Lt – First Lieutenant
                 </h3>
@@ -986,6 +1017,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">CAPT</div>
+
                 <h3>
                   Captain
                 </h3>
@@ -1010,6 +1043,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">MAJ</div>
+
                 <h3>
                   Major
                 </h3>
@@ -1034,6 +1069,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">LTCOL</div>
+
                 <h3>
                   Lt Col – Lieutenant Colonel
                 </h3>
@@ -1058,6 +1095,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header senior-officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">COL</div>
+
                 <h3>
                   Colonel
                 </h3>
@@ -1082,6 +1121,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header general [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">BGEN</div>
+
                 <h3>
                   Brig Gen – Brigadier General
                 </h3>
@@ -1106,6 +1147,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header general [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">MAJGEN</div>
+
                 <h3>
                   Maj Gen – Major General
                 </h3>
@@ -1130,6 +1173,8 @@ export default function ResourcesHandbookPage() {
             </div>
             <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)]">
               <div className="rank-header general [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                <div className="rk-ins" aria-hidden="true">LTGEN</div>
+
                 <h3>
                   Lt Gen – Lieutenant General
                 </h3>
@@ -1144,6 +1189,8 @@ export default function ResourcesHandbookPage() {
               </div>
             </div>
           </section>
+            </div>
+          </div>
           <div className="closing-quote [background:var(--bg-elevated)] [border:3px_solid_var(--accent)] [padding:3rem] [margin-top:4rem] text-center [box-shadow:0_0_40px_var(--accent-glow)] max-[768px]:[padding:2rem]">
             <p>
               "Men, here is where we show those split-chin, squid-head, sons of bitches that they could not have picked a worse enemy than the human race. We are going to blow the hell out of those dumb bugs until we don't have anything left to shoot 'em with! And then, we are going to strangle them with their own living guts! Am I right, Marines?"

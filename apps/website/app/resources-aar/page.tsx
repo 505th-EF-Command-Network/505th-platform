@@ -8,7 +8,7 @@ import { getPublicAars } from "@/lib/aar/public";
 export const metadata: Metadata = { title: "After Action Reports — 505th Expeditionary Force" };
 export const dynamic = "force-dynamic";
 
-/** Converted 1:1 from the live resources-aar.html (content after the shared shell). */
+/** Public AAR archive — redesign approved 2026-11-11 (stats + success rate, chip filters, featured latest, monthly archive). */
 export default async function ResourcesAarPage() {
   const aars = await getPublicAars().catch(() => []);
   return (
@@ -25,107 +25,29 @@ export default async function ResourcesAarPage() {
               OPERATIONAL MISSION ARCHIVE // 505TH EXPEDITIONARY FORCE
             </p>
           </section>
-          <div className="aar-stats-bar flex [gap:2rem] [margin-bottom:2rem] [padding:1rem_1.5rem] [background:var(--bg-card)] [border-left:3px_solid_var(--accent)] max-[600px]:[flex-wrap:wrap] max-[600px]:[gap:1rem]" id="aarStatsBar">
-            <div className="aar-stat flex flex-col items-center">
-              <span className="aar-stat-num [font-size:1.6rem] [font-weight:700] [color:var(--accent)] [line-height:1]" id="statTotal">
-                —
-              </span>
-              <span className="aar-stat-label [font-size:0.9rem] [letter-spacing:0.1em] [color:var(--text-secondary)] uppercase">
-                Total Operations
-              </span>
-            </div>
-            <div className="aar-stat flex flex-col items-center">
-              <span className="aar-stat-num [font-size:1.6rem] [font-weight:700] [color:var(--accent)] [line-height:1]" id="statMajor">
-                —
-              </span>
-              <span className="aar-stat-label [font-size:0.9rem] [letter-spacing:0.1em] [color:var(--text-secondary)] uppercase">
-                Main Ops
-              </span>
-            </div>
-            <div className="aar-stat flex flex-col items-center">
-              <span className="aar-stat-num [font-size:1.6rem] [font-weight:700] [color:var(--accent)] [line-height:1]" id="statRegular">
-                —
-              </span>
-              <span className="aar-stat-label [font-size:0.9rem] [letter-spacing:0.1em] [color:var(--text-secondary)] uppercase">
-                Deployments
-              </span>
-            </div>
-            <div className="aar-stat flex flex-col items-center">
-              <span className="aar-stat-num [font-size:1.6rem] [font-weight:700] [color:var(--accent)] [line-height:1]" id="statPatrol">
-                —
-              </span>
-              <span className="aar-stat-label [font-size:0.9rem] [letter-spacing:0.1em] [color:var(--text-secondary)] uppercase">
-                Patrols
-              </span>
-            </div>
+          <div className="aar2-stats">
+            <div className="aar2-stat"><b id="statTotal">0</b><span>TOTAL OPERATIONS</span></div>
+            <div className="aar2-stat"><b id="statMajor">0</b><span>MAIN OPS</span></div>
+            <div className="aar2-stat"><b id="statRegular">0</b><span>DEPLOYMENTS</span></div>
+            <div className="aar2-stat ok"><b id="statRate">—</b><span>SUCCESS RATE</span></div>
           </div>
-          <div className="aar-filters flex [gap:1rem] [flex-wrap:wrap] [margin-bottom:2.5rem] items-center max-[600px]:[flex-direction:column] max-[600px]:[align-items:flex-start]">
-            <label>
-              UNIT
-            </label>
-            <select className="aar-filter-select [background:var(--bg-card)] [border:1px_solid_var(--accent)] [color:var(--text-primary)] [font-family:'Rajdhani',sans-serif] [font-size:1.1rem] [padding:0.4rem_0.8rem] [letter-spacing:0.05em] cursor-pointer [outline:none] focus:[border-color:var(--accent)] focus:[box-shadow:0_0_8px_var(--accent-glow)]" id="filterUnit">
-              <option value="">
-                All Units
-              </option>
-              <option value="alpha">
-                Alpha Company
-              </option>
-              <option value="forcerecon">
-                JTF-23 Force Recon
-              </option>
-              <option value="corpsman">
-                Hospital Corpsman
-              </option>
-              <option value="airwing">
-                54th Air Wing
-              </option>
-              <option value="combined">
-                Combined Arms
-              </option>
-            </select>
-            <label>
-              TYPE
-            </label>
-            <select className="aar-filter-select [background:var(--bg-card)] [border:1px_solid_var(--accent)] [color:var(--text-primary)] [font-family:'Rajdhani',sans-serif] [font-size:1.1rem] [padding:0.4rem_0.8rem] [letter-spacing:0.05em] cursor-pointer [outline:none] focus:[border-color:var(--accent)] focus:[box-shadow:0_0_8px_var(--accent-glow)]" id="filterType">
-              <option value="">
-                All Types
-              </option>
-              <option value="main_op">
-                Main Op
-              </option>
-              <option value="patrol">
-                Patrol
-              </option>
-              <option value="deployment">
-                Deployment
-              </option>
-              <option value="fun_op">
-                Fun Op
-              </option>
-            </select>
-            <label>
-              RESULT
-            </label>
-            <select className="aar-filter-select [background:var(--bg-card)] [border:1px_solid_var(--accent)] [color:var(--text-primary)] [font-family:'Rajdhani',sans-serif] [font-size:1.1rem] [padding:0.4rem_0.8rem] [letter-spacing:0.05em] cursor-pointer [outline:none] focus:[border-color:var(--accent)] focus:[box-shadow:0_0_8px_var(--accent-glow)]" id="filterResult">
-              <option value="">
-                All Results
-              </option>
-              <option value="success">
-                Mission Success
-              </option>
-              <option value="partial">
-                Partial Success
-              </option>
-              <option value="failure">
-                Mission Failure
-              </option>
-            </select>
-            <input className="aar-search [background:var(--bg-card)] [border:1px_solid_rgba(0,217,255,0.3)] [color:var(--text-primary)] [font-family:'Rajdhani',sans-serif] [font-size:1.1rem] [padding:0.4rem_0.8rem] [width:220px] [letter-spacing:0.05em] [outline:none] [margin-left:auto] placeholder:[color:rgba(255,255,255,0.3)] focus:[border-color:var(--accent)] focus:[box-shadow:0_0_8px_var(--accent-glow)] max-[600px]:[margin-left:0] max-[600px]:[width:100%]" id="aarSearch" placeholder="Search operations..." type="text" />
+          <div className="aar2-filters" role="group" aria-label="Filter reports">
+            <span className="aar2-k">UNIT</span>
+            <button type="button" className="on" data-f="unit" data-v="">ALL</button>
+            <button type="button" data-f="unit" data-v="combined">BATTALION</button>
+            <button type="button" data-f="unit" data-v="alpha">ALPHA</button>
+            <button type="button" data-f="unit" data-v="forcerecon">JTF-23</button>
+            <button type="button" data-f="unit" data-v="corpsman">CORPSMAN</button>
+            <button type="button" data-f="unit" data-v="airwing">54TH AIR</button>
+            <span className="aar2-k">RESULT</span>
+            <button type="button" className="on" data-f="result" data-v="">ALL</button>
+            <button type="button" data-f="result" data-v="success">✓ SUCCESS</button>
+            <button type="button" data-f="result" data-v="partial">◐ PARTIAL</button>
+            <button type="button" data-f="result" data-v="failure">✕ FAILED</button>
+            <input className="aar2-search" id="aarSearch" placeholder="Search operations..." type="search" aria-label="Search operations" />
           </div>
-          <div className="aar-grid grid [grid-template-columns:repeat(auto-fill,minmax(340px,1fr))] [gap:1.5rem] [margin-bottom:3rem]" id="aarGrid">
-            <div className="aar-loading text-center [padding:4rem] [color:var(--accent)] [letter-spacing:0.15em] [font-size:1.15rem] [grid-column:1_/_-1]">
-              RETRIEVING OPERATIONAL DATA...
-            </div>
+          <div id="aarGrid" aria-live="polite">
+            <div className="aar-loading">RETRIEVING OPERATIONAL DATA...</div>
           </div>
         </div>
       </main>

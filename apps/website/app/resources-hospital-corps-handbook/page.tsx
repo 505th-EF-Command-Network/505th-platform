@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import HandbookToc from "@/components/handbook/HandbookToc";
 import SiteShell from "@/components/SiteShell";
 import { shellC } from "@/components/shell-styles";
 import "@/styles/tw/resources-hospital-corps-handbook.css";
+import "@/styles/tw/handbook2.css";
 
 export const metadata: Metadata = { title: "Hospital Corps Handbook - 505th" };
 
-/** Converted 1:1 from the live resources-hospital-corps-handbook.html (content after the shared shell). */
+/** Handbook redesign approved 2026-11-11 (sticky contents, section cards, collapsible topics, rank grid). Originally converted 1:1 from the live resources-hospital-corps-handbook.html (content after the shared shell). */
 export default function ResourcesHospitalCorpsHandbookPage() {
   return (
     <SiteShell styles={shellC}>
@@ -32,6 +34,9 @@ export default function ResourcesHospitalCorpsHandbookPage() {
               is to preserve the fighting strength of Marine forces across all theaters of conflict. We provide rapid, skillful, and effective medical care on the battlefield; stabilize and evacuate the wounded. Through unwavering professionalism, advanced medical expertise, and fearless commitment under fire, the Marine Hospital Corps stands as the frontline shield between life and death — saving Marines, sustaining missions, and upholding the highest ideals of service to humanity.
             </p>
           </div>
+          <div className="hb2 hc">
+            <HandbookToc />
+            <div className="hb2-body">
           <div className="hc-tabs flex justify-center [gap:0] [margin:2rem_0_2.5rem]">
             <button className="hc-tab active [font-family:'Rajdhani',sans-serif] [font-size:1.1rem] [font-weight:700] [letter-spacing:3px] uppercase [background:rgba(0,0,0,.3)] [border:2px_solid_rgba(0,217,255,.15)] [color:#aaa] [padding:14px_32px] cursor-pointer [transition:all_.2s] first:[border-right:none] hover:[background:rgba(0,217,255,.06)] hover:[color:#ddd] [&.active]:[background:rgba(0,217,255,.08)] [&.active]:[color:var(--accent)] [&.active]:[border-color:var(--accent)] [&.active]:[text-shadow:0_0_10px_rgba(0,217,255,.3)]" id="tabHandbook">
               HOSPITAL CORPS HANDBOOK
@@ -54,6 +59,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </h3>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header enlisted [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HR</div>
+
                     <h3>
                       E1 — HR Hospitalman Recruit
                     </h3>
@@ -72,6 +79,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header enlisted [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HA</div>
+
                     <h3>
                       E2 — HA Hospitalman Apprentice
                     </h3>
@@ -90,6 +99,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header enlisted [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HM</div>
+
                     <h3>
                       E3 — HM Hospitalman
                     </h3>
@@ -113,6 +124,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </h3>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HM3</div>
+
                     <h3>
                       E4 — HM3 Hospital Corpsman Third Class
                     </h3>
@@ -131,6 +144,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HM2</div>
+
                     <h3>
                       E5 — HM2 Hospital Corpsman Second Class
                     </h3>
@@ -149,6 +164,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HM1</div>
+
                     <h3>
                       E6 — HM1 Hospital Corpsman First Class
                     </h3>
@@ -172,6 +189,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </h3>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HMC</div>
+
                     <h3>
                       E7 — HMC Chief Hospital Corpsman
                     </h3>
@@ -190,6 +209,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HMCS</div>
+
                     <h3>
                       E8 — HMCS Senior Chief Hospital Corpsman
                     </h3>
@@ -208,6 +229,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header senior-nco [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">HMCM</div>
+
                     <h3>
                       E9 — HMCM Master Chief Hospital Corpsman
                     </h3>
@@ -231,6 +254,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </h3>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">ENS</div>
+
                     <h3>
                       O1 — ENS Ensign
                     </h3>
@@ -249,6 +274,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">LT</div>
+
                     <h3>
                       O3 — LT Lieutenant
                     </h3>
@@ -267,6 +294,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header senior-officer [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">CAPT</div>
+
                     <h3>
                       O6 — CAPT Captain
                     </h3>
@@ -285,6 +314,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                 </div>
                 <div className="rank-card [background:var(--bg-card)] [border:2px_solid_var(--accent)] [margin-bottom:1.5rem] overflow-hidden [transition:all_0.3s_ease] hover:[box-shadow:0_0_30px_var(--accent-glow)] hover:[transform:translateX(10px)] [.hc-tab-content_&]:[text-align:left]">
                   <div className="rank-header general [padding:1.5rem] [border-bottom:2px_solid_var(--accent)] [&.enlisted]:[background:linear-gradient(90deg,var(--bg-elevated),var(--bg-card))] [&.nco]:[background:linear-gradient(90deg,var(--primary-dark),var(--bg-card))] [&.senior-nco]:[background:linear-gradient(90deg,var(--primary),var(--bg-card))] [&.officer]:[background:linear-gradient(90deg,#1a3d5c,var(--bg-card))] [&.senior-officer]:[background:linear-gradient(90deg,#2a4d6c,var(--bg-card))] [&.general]:[background:linear-gradient(90deg,#3a5d7c,var(--bg-card))]">
+                    <div className="rk-ins" aria-hidden="true">RDML</div>
+
                     <h3>
                       O7 — RDML Rear Admiral
                     </h3>
@@ -1141,6 +1172,8 @@ export default function ResourcesHospitalCorpsHandbookPage() {
                   </a>
                 </li>
               </ul>
+            </div>
+          </div>
             </div>
           </div>
           <div className="closing-quote [background:var(--bg-elevated)] [border:3px_solid_var(--accent)] [padding:3rem] [margin-top:4rem] text-center [box-shadow:0_0_40px_var(--accent-glow)] max-[768px]:[padding:2rem]">

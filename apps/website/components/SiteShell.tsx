@@ -13,6 +13,7 @@
  * loads its own stylesheet, as on the live site.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import CmsApply from "@/components/CmsApply";
 import { usePathname } from "next/navigation";
 import type { ShellStyles } from "./shell-styles";
 import { DISCORD_INVITE, NAV_SECTIONS, locate, type PanelKey } from "./nav-data";
@@ -591,6 +592,7 @@ export default function SiteShell({ children, styles }: { children: ReactNode; s
       </div>
 
       {children}
+      <CmsApply />
 
       <footer className={tw("page-footer")}>
         <p>© 2026 505th Expeditionary Force • 505th Dev Team</p>

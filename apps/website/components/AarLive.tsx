@@ -34,29 +34,54 @@ export default function AarLive({ aars }: { aars: PublicAar[] }) {
     set("statTotal", aars.length);
     set("statMajor", aars.filter((a) => a.operationType === "main_op").length);
     set("statRegular", aars.filter((a) => a.operationType === "deployment").length);
-    set("statPatrol", aars.filter((a) => a.operationType === "patrol").length);
+    const rated = aars.filter((a) => a.result);
+    const rate = $("statRate");
+    if (rate) rate.textContent = rated.length ? Math.round((rated.filter((a) => a.result === "success").length / rated.length) * 100) + "%" : "—";
 
     const grid = $("aarGrid");
     const modal = $("aarModal");
     const content = $("aarModalContent");
     if (!grid) return;
 
-    const renderGrid = (list: PublicAar[]) => {
-      grid.innerHTML = list.length
-        ? list.map((a) => `
-          <button type="button" class="aar-card" data-id="${esc(a.id)}" style="text-align:left;font:inherit;color:inherit;width:100%">
-            <div class="aar-card-header">
-              <img class="aar-unit-logo" src="${esc(UNIT_LOGOS[String(a.unit)] || "/images/logo.png")}" alt="${esc(UNIT_LABELS[String(a.unit)] || "")}">
-              <div class="aar-card-meta"><div class="aar-op-name">${esc(a.title || "Unnamed Operation")}</div><div class="aar-date">📅 ${fmt(a.dateISO)}</div></div>
-            </div>
-            <div class="aar-badges">
-              <span class="aar-badge badge-${esc(a.operationType || "regular")}">${esc(TYPE_LABELS[String(a.operationType)] || "Deployment")}</span>
-              <span class="aar-badge badge-${esc(a.result || "success")}">${esc(RESULT_LABELS[String(a.result)] || "Success")}</span>
-            </div>
-            <p class="aar-summary">${esc(a.summary || "No summary provided.")}</p>
-            <div class="aar-card-footer"><span>CO: ${esc(a.commander || "Unknown")}</span><span class="aar-read-more">READ REPORT →</span></div>
-          </button>`).join("")
-        : '<div class="aar-empty"><div class="aar-empty-icon">📋</div><p>No reports found.</p></div>';
+    const RES_ICON: Record<string, string> = { success: "✓ SUCCESS", partial: "◐ PARTIAL", failure: "✕ FAILED" };
+    const resChip = (r: unknown) => `<span class="aar2-chip r-${esc(r || "none")}">${esc(RES_ICON[String(r)] || "—")}</span>`;
+    const typeChip = (t: unknown) => `<span class="aar2-chip t">${esc((TYPE_LABELS[String(t)] || "Deployment").toUpperCase())}</span>`;
+    const meta = (a: PublicAar) => `<div class="aar2-meta"><span>👥 ${esc(a.personnel ?? "—")}</span><span>✚ ${esc(a.casualties ?? "—")} CAS</span>${a.location ? `<span>📍 ${esc(a.location)}</span>` : ""}</div>`;
+    const sub = (a: PublicAar) => `📅 ${fmt(a.dateISO)} · ${esc((UNIT_LABELS[String(a.unit)] || "505th").toUpperCase())}`;
+    const month = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase() : "UNDATED");
+
+    const featured = (a: PublicAar) => {
+      const img = ((a.attachments as string[]) || [])[0];
+      return `<div class="aar2-k">▸ LATEST REPORT</div>
+        <button type="button" class="aar2-feat r-${esc(a.result || "none")}" data-id="${esc(a.id)}">
+          <div class="aar2-feat-img">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : `<img class="logo" src="${esc(UNIT_LOGOS[String(a.unit)] || "/images/logo.png")}" alt="">`}</div>
+          <div class="aar2-feat-tx">
+            <div>${typeChip(a.operationType)} ${resChip(a.result)}</div>
+            <h2>${esc(a.title || "Unnamed Operation")}</h2>
+            <div class="aar2-sub">${sub(a)} · CO: ${esc(a.commander || "Unknown")}</div>
+            <p>${esc(a.summary || "No summary provided.")}</p>
+            ${meta(a)}
+            <span class="aar2-btn">READ FULL REPORT →</span>
+          </div>
+        </button>`;
+    };
+    const card = (a: PublicAar) => `
+      <button type="button" class="aar2-card r-${esc(a.result || "none")}" data-id="${esc(a.id)}">
+        <div class="aar2-row"><img class="aar2-logo" src="${esc(UNIT_LOGOS[String(a.unit)] || "/images/logo.png")}" alt="">${resChip(a.result)}</div>
+        <h3>${esc(a.title || "Unnamed Operation")}</h3>
+        <div class="aar2-sub">${sub(a)} · ${esc((TYPE_LABELS[String(a.operationType)] || "Deployment").toUpperCase())}</div>
+        <p>${esc(a.summary || "No summary provided.")}</p>
+        <div class="aar2-foot">${meta(a)}<span class="aar2-read">READ →</span></div>
+      </button>`;
+
+    const renderGrid = (list: PublicAar[], filtered: boolean) => {
+      if (!list.length) { grid.innerHTML = '<div class="aar-empty"><div class="aar-empty-icon">📋</div><p>No reports found.</p></div>'; return; }
+      const [first, ...rest] = filtered ? [null, ...list] : list;
+      let html = first ? featured(first) : "";
+      const groups = new Map<string, PublicAar[]>();
+      for (const a of rest as PublicAar[]) { const m = month(a.dateISO); groups.set(m, [...(groups.get(m) || []), a]); }
+      for (const [m, items] of groups) html += `<div class="aar2-k">▸ ARCHIVE · ${esc(m)}</div><div class="aar2-grid">${items.map(card).join("")}</div>`;
+      grid.innerHTML = html;
     };
 
     const sec = (title: string, v: unknown) => (v ? `<div class="aar-modal-section"><div class="aar-modal-section-title">${title}</div><p class="aar-modal-text">${txt(v)}</p></div>` : "");
@@ -104,12 +129,22 @@ export default function AarLive({ aars }: { aars: PublicAar[] }) {
     };
     const close = () => modal?.classList.remove("active");
 
+    const f = { unit: "", result: "" };
     const apply = () => {
-      const v = (id: string) => ((($(id) as HTMLInputElement | HTMLSelectElement | null)?.value) || "");
-      const unit = v("filterUnit"), type = v("filterType"), result = v("filterResult"), q = v("aarSearch").toLowerCase();
-      renderGrid(aars.filter((a) => (!unit || a.unit === unit) && (!type || a.operationType === type) && (!result || a.result === result)
-        && (!q || String(a.title || "").toLowerCase().includes(q) || String(a.summary || "").toLowerCase().includes(q))));
+      const q = (($("aarSearch") as HTMLInputElement | null)?.value || "").toLowerCase();
+      const filtered = !!(f.unit || f.result || q);
+      renderGrid(aars.filter((a) => (!f.unit || a.unit === f.unit) && (!f.result || a.result === f.result)
+        && (!q || String(a.title || "").toLowerCase().includes(q) || String(a.summary || "").toLowerCase().includes(q))), filtered);
     };
+    const onChip = (e: Event) => {
+      const b = (e.target as HTMLElement).closest("button[data-f]") as HTMLButtonElement | null;
+      if (!b) return;
+      const key = b.dataset.f as "unit" | "result";
+      f[key] = b.dataset.v || "";
+      document.querySelectorAll(`.aar2-filters button[data-f="${key}"]`).forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", String(x === b)); });
+      apply();
+    };
+    const bar = document.querySelector(".aar2-filters");
 
     const onGrid = (e: Event) => { const c = (e.target as HTMLElement).closest("[data-id]") as HTMLElement | null; if (c) open(c.dataset.id!); };
     const onModal = (e: Event) => { if (e.target === modal || (e.target as HTMLElement).closest("[data-close], #aarModalClose")) close(); };
@@ -117,15 +152,14 @@ export default function AarLive({ aars }: { aars: PublicAar[] }) {
     grid.addEventListener("click", onGrid);
     modal?.addEventListener("click", onModal);
     document.addEventListener("keydown", onKey);
-    const filters = ["filterUnit", "filterType", "filterResult"].map($).filter(Boolean) as HTMLElement[];
-    filters.forEach((el) => el.addEventListener("change", apply));
+    bar?.addEventListener("click", onChip);
     $("aarSearch")?.addEventListener("input", apply);
-    renderGrid(aars);
+    renderGrid(aars, false);
     return () => {
       grid.removeEventListener("click", onGrid);
       modal?.removeEventListener("click", onModal);
       document.removeEventListener("keydown", onKey);
-      filters.forEach((el) => el.removeEventListener("change", apply));
+      bar?.removeEventListener("click", onChip);
       $("aarSearch")?.removeEventListener("input", apply);
     };
   }, [aars]);

@@ -1,0 +1,54 @@
+/* ── Handbook redesign (approved mock 2026-11-11) — shared by General + Hospital Corps handbooks ──
+   Plain (unlayered) CSS on purpose: it overrides the 1:1-converted utility classes on the same elements. */
+.hb2{--hc:var(--accent,#00D9FF);display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:start;position:relative;z-index:1}
+.hb2.hc{--hc:#ff5a6e}
+.toc-section,.hc-tabs{display:none!important}
+.hb2 .hc-tab-content{display:block!important}
+
+/* contents */
+.hb2-toc{position:sticky;top:90px;padding:12px;background:var(--bg-card,#141B1F);border:1px solid rgba(0,217,255,.15);max-height:calc(100vh - 110px);overflow:auto}
+.hb2-k{font:.7rem monospace;letter-spacing:2px;color:var(--text-secondary,#a8b5bf)}
+.hb2-prog{height:3px;background:#0f2128;margin:6px 0 10px}.hb2-prog i{display:block;height:100%;background:var(--hc);transition:width .15s}
+.hb2-toc a{display:flex;gap:8px;padding:7px 8px;color:var(--text-secondary,#a8b5bf);text-decoration:none;font-size:.95rem;border-left:2px solid transparent;line-height:1.25}
+.hb2-toc a span{font:.75rem monospace;color:#4b6470;min-width:20px}
+.hb2-toc a:hover{color:#fff}
+.hb2-toc a.on{color:#fff;border-left-color:var(--hc);background:color-mix(in srgb,var(--hc) 8%,transparent)}
+.hb2-toc a:focus-visible,.hb2-all:focus-visible,.hb2 .subsection>h3[role=button]:focus-visible{outline:2px solid var(--hc);outline-offset:2px}
+.hb2-all{all:unset;cursor:pointer;display:block;margin-top:10px;padding:6px 8px;font:700 .65rem monospace;letter-spacing:2px;color:var(--hc);border:1px solid color-mix(in srgb,var(--hc) 40%,transparent);text-align:center}
+
+/* section cards */
+.hb2-body{min-width:0}
+.hb2 .handbook-section{background:var(--bg-card,#141B1F);border:1px solid rgba(0,217,255,.15);padding:20px 22px;margin:0 0 14px;scroll-margin-top:90px}
+.hb2 .handbook-section>.section-title{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:0 0 10px;background:none;border:0;border-bottom:1px solid rgba(0,217,255,.15);font:700 1.25rem "Orbitron","Share Tech Mono",monospace;letter-spacing:2px;color:#fff;text-shadow:none;cursor:default;flex-direction:row}
+.hb2 .handbook-section>.section-title:hover{background:none;padding-left:0;border-left:0}
+.hb2 .section-number{color:var(--hc);font-size:1.1rem}
+.hb2 .subsection{border:1px solid rgba(0,217,255,.12);background:rgba(8,16,20,.6);padding:12px 14px;margin:10px 0}
+.hb2 .subsection>h3[role=button]{cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0;font-size:1.05rem;letter-spacing:1px;color:#fff;user-select:none}
+.hb2 .subsection>h3[role=button]:after{content:"−";font:700 1.1rem monospace;color:var(--hc)}
+.hb2 .subsection>h3[role=button]+*{margin-top:.6rem}
+.hb2 .subsection.hb2-closed>h3:after{content:"+"}
+.hb2 .subsection.hb2-closed>:not(h3:first-child){display:none!important}
+
+/* rank grid */
+.hb2 .handbook-section:has(>.rank-card),.hb2 .subsection:has(>.rank-card){display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.hb2 .handbook-section:has(>.rank-card)>:not(.rank-card),.hb2 .subsection:has(>.rank-card)>:not(.rank-card){grid-column:1/-1}
+.hb2 .rank-card{margin:0;border:1px solid rgba(0,217,255,.18);background:#081014;transform:none!important;box-shadow:none;transition:border-color .2s}
+.hb2 .rank-card:hover{border-color:var(--hc);transform:none!important}
+.hb2 .rank-header{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(0,217,255,.12)}
+.hb2 .rank-header h3{margin:0;font-size:.95rem;letter-spacing:.5px;color:#fff;line-height:1.2}
+.hb2 .rk-ins{flex:0 0 auto;min-width:48px;height:40px;padding:0 4px;display:grid;place-items:center;border:1px solid color-mix(in srgb,var(--hc) 45%,transparent);font:700 .7rem "Share Tech Mono",monospace;color:var(--hc);letter-spacing:.5px}
+.hb2 .rank-body{padding:10px 12px;font-size:.9rem}
+.hb2 .rank-body p{margin:.2rem 0;color:var(--text-secondary,#a8b5bf)}
+.hb2 .rank-body strong{color:#fff}
+
+@media (max-width:900px){
+  .hb2{grid-template-columns:1fr}
+  .hb2-toc{position:sticky;top:56px;z-index:5;display:flex;gap:4px;overflow-x:auto;max-height:none;padding:6px;scrollbar-width:none}
+  .hb2-toc::-webkit-scrollbar{display:none}
+  .hb2-toc .hb2-k{display:none}
+  .hb2-toc .hb2-prog{position:absolute;left:0;right:0;bottom:0;margin:0}
+  .hb2-toc a{white-space:nowrap;border-left:0;border-bottom:2px solid transparent}
+  .hb2-toc a.on{border-bottom-color:var(--hc)}
+  .hb2-all{margin:0;white-space:nowrap}
+  .hb2 .handbook-section{padding:16px 14px}
+}
