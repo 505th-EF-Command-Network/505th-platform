@@ -418,7 +418,7 @@ async function pf3RoleWindow() {
   const was = u.role || "enlistee";
   const canGive = new Set([...sel.options].filter((o) => !o.hidden && !o.disabled).map((o) => o.value));
   const ra = await roleAccess();
-  const has = (role, key) => { if (!ra) return false; if (role === "commander") return true; const o = ra.current?.[role]; return o && key in o ? o[key] === 1 : !!ra.builtIn?.[role]?.[key]; };
+  const has = (role, key) => { if (!ra) return false; if (role === "commander" || role === "developer") return true; const o = ra.current?.[role]; return o && key in o ? o[key] === 1 : !!ra.builtIn?.[role]?.[key]; };
   let pick = sel.value || was;
   const ov = document.createElement("div");
   ov.className = "pf3-ov";

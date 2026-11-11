@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { can, checkAccessEdit, effectiveAccess, normaliseOverrides, writeNeeds } from "./access";
+import { can, checkAccessEdit, effectiveAccess, normaliseOverrides, setRoleDefaults, writeNeeds } from "./access";
 import { assignableRoles, checkWrite, checkRead } from "./fs-core";
 
 test("role defaults match the approved table", () => {
@@ -78,4 +78,13 @@ test("role access table changes role defaults; personal overrides still win; loc
   assert.deepEqual(normaliseOverrides("nco", { pers: 1 }), {}); // equals new role default → not an override
   setRoleDefaults({});
   assert.equal(can("nco", {}, "pers"), false);
+});
+
+test("developer always has everything (role table and overrides can't remove)", () => {
+  setRoleDefaults({ developer: { tk: 0, ev: 0 } });
+  assert.equal(can("developer", { tk: 0, send: 0 }, "tk"), true);
+  assert.equal(can("developer", { tk: 0, send: 0 }, "send"), true);
+  assert.equal(can("developer", {}, "ev"), true);
+  assert.equal(can("developer", {}, "cmd_suspend"), true);
+  setRoleDefaults({});
 });

@@ -29,10 +29,12 @@ const item = (k) => data.items.find((i) => i.key === k);
 /** Role default right now: Role Access table, else built-in. */
 const roleDef = (role, key) => { const o = raSaved[role]; if (o && key in o) return o[key] === 1; return ra ? !!ra.builtIn[role]?.[key] : (LV[role] ?? 0) >= (item(key)?.min ?? 99); };
 const def = (r, it) => (it.locked ? (LV[r.role] ?? 0) >= it.min : roleDef(r.role, it.key));
-const has = (r, it) => (r.role === "commander" ? true : it.locked ? def(r, it) : it.key in r.overrides ? r.overrides[it.key] === 1 : def(r, it));
+const FULL = new Set(["commander", "developer"]);
+const has = (r, it) => (FULL.has(r.role) ? true : it.locked ? def(r, it) : it.key in r.overrides ? r.overrides[it.key] === 1 : def(r, it));
 const meHas = (k) => !!data.me.access[k];
 function lockedWhy(r, it) {
   if (r.role === "commander") return "THE COMMANDER ALWAYS HAS FULL ACCESS";
+  if (r.role === "developer") return "DEVELOPERS ALWAYS HAVE FULL ACCESS";
   if (r.uid === data.me.uid) return "YOU CAN'T EDIT YOUR OWN ACCESS";
   if (it.locked) return "COMMAND PAGES: DEVELOPER / COMMANDER ONLY";
   if (!data.assignable.includes(r.role)) return "THIS MEMBER OUTRANKS YOUR AUTHORITY";
@@ -109,7 +111,7 @@ const raChanged = (role, key) => { const o = raWork[role]; return !!o && key in 
 const raDiff = () => {
   const out = [];
   for (const r of ra.roles) for (const it of ra.items) {
-    if (it.locked || r.key === "commander") continue;
+    if (it.locked || FULL.has(r.key)) continue;
     const was = raSaved[r.key] && it.key in raSaved[r.key] ? raSaved[r.key][it.key] === 1 : !!ra.builtIn[r.key][it.key];
     const will = raHas(r.key, it.key);
     if (was !== will) {
@@ -134,10 +136,10 @@ function renderRoles() {
     for (const it of list) {
       h += `<tr><td class="mh"><b>${esc(it.label)}</b>${it.locked ? ' <span class="dim">🔒 DEV / CMD ONLY</span>' : ""}</td>`;
       for (const r of ra.roles) {
-        const fixed = it.locked || r.key === "commander" || !ed;
-        const on = r.key === "commander" ? true : it.locked ? !!ra.builtIn[r.key][it.key] : raHas(r.key, it.key);
-        const chg = !it.locked && r.key !== "commander" && raChanged(r.key, it.key);
-        const tip = r.key === "commander" ? "COMMANDER ALWAYS HAS EVERYTHING" : it.locked ? "DEVELOPER / COMMANDER ONLY" : !ed ? "ONLY DEVELOPERS / COMMAND CAN CHANGE THIS" : chg ? "CHANGED FROM BUILT-IN — CLICK TO CHANGE" : "BUILT-IN DEFAULT — CLICK TO CHANGE";
+        const fixed = it.locked || FULL.has(r.key) || !ed;
+        const on = FULL.has(r.key) ? true : it.locked ? !!ra.builtIn[r.key][it.key] : raHas(r.key, it.key);
+        const chg = !it.locked && !FULL.has(r.key) && raChanged(r.key, it.key);
+        const tip = r.key === "commander" ? "COMMANDER ALWAYS HAS EVERYTHING" : r.key === "developer" ? "DEVELOPERS ALWAYS HAVE EVERYTHING" : it.locked ? "DEVELOPER / COMMANDER ONLY" : !ed ? "ONLY DEVELOPERS / COMMAND CAN CHANGE THIS" : chg ? "CHANGED FROM BUILT-IN — CLICK TO CHANGE" : "BUILT-IN DEFAULT — CLICK TO CHANGE";
         h += `<td><button class="c ${on ? "on" : ""} ${chg ? "chgd" : ""} ${fixed ? "lk" : ""}" ${fixed ? 'aria-disabled="true"' : `data-ra="${r.key}:${it.key}"`} role="checkbox" aria-checked="${on}" aria-label="${RL[r.key]} — ${esc(it.label)}" title="${tip}">${on ? "✓" : it.locked && r.key !== "commander" ? "🔒" : ""}</button></td>`;
       }
       h += "</tr>";

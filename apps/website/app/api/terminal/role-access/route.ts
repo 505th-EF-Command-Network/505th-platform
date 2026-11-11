@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { TerminalDoc } from "@505th/db";
-import { ACCESS, EDITABLE_ROLES, builtInDefault, can, cleanRoleDefaults, getRoleDefaults, hasTerminal, setRoleDefaults } from "@/lib/terminal/access";
+import { ACCESS, EDITABLE_ROLES, FULL_ROLES, builtInDefault, can, cleanRoleDefaults, getRoleDefaults, hasTerminal, setRoleDefaults } from "@/lib/terminal/access";
 import { FsError, getActor } from "@/lib/terminal/fs";
 import { loadRoleDefaults } from "@/lib/terminal/role-defaults";
 
@@ -33,11 +33,11 @@ export async function GET() {
     const r = String(d.role ?? "");
     if (hasTerminal(r) && d.status !== "pending" && d.status !== "denied" && d.suspended !== true) count[r] = (count[r] ?? 0) + 1;
   }
-  const builtIn = Object.fromEntries([...EDITABLE_ROLES, "commander"].map((r) => [r, Object.fromEntries(ACCESS.map((a) => [a.key, r === "commander" || builtInDefault(r, a.key)]))]));
+  const builtIn = Object.fromEntries([...EDITABLE_ROLES, "developer", "commander"].map((r) => [r, Object.fromEntries(ACCESS.map((a) => [a.key, FULL_ROLES.has(r) || builtInDefault(r, a.key)]))]));
   return json({
     canEdit: can(actor.role, actor.access, "set"),
     items: ACCESS,
-    roles: [...EDITABLE_ROLES, "commander"].map((key) => ({ key, count: count[key] ?? 0 })),
+    roles: [...EDITABLE_ROLES, "developer", "commander"].map((key) => ({ key, count: count[key] ?? 0 })),
     builtIn,
     current: getRoleDefaults(),
   });

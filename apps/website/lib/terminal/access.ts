@@ -109,7 +109,9 @@ export function cleanOverrides(raw: unknown): Overrides {
  * sync and pure; the server (getActor) and Cortana load it with setRoleDefaults() before checking.
  * Commander and locked items are never changed. Per-person overrides still win.
  */
-export const EDITABLE_ROLES = ["recruiter", "nco", "staff_nco", "officer", "developer"] as const;
+export const EDITABLE_ROLES = ["recruiter", "nco", "staff_nco", "officer"] as const;
+/** Roles that always have every item. Role Access table and personal overrides can't take anything away (2026-11-11). */
+export const FULL_ROLES = new Set(["commander", "developer"]);
 let ROLE_DEFAULTS: Record<string, Overrides> = {};
 
 /** Built-in (code) default for a role. */
@@ -141,7 +143,7 @@ export function roleDefault(role: string | null | undefined, key: string): boole
 export function can(role: string | null | undefined, overrides: unknown, key: string): boolean {
   const item = BY_KEY.get(key);
   if (!item || !hasTerminal(role)) return false;
-  if (role === "commander") return true;
+  if (FULL_ROLES.has(role ?? "")) return true;
   const gr = (overrides as { __grants?: unknown } | null)?.__grants;
   if (Array.isArray(gr) && GRANT_SET.has(key) && gr.includes(key)) return true;
   const lvl = roleLevel(role);
