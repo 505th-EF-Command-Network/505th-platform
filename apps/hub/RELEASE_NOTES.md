@@ -1,3 +1,10 @@
+505th Command Network v0.4.1
+- Dashboard widgets now scroll — nothing gets cut off
+- Alerts: icons, and repeats grouped (×3)
+- Live Activity: names no longer shown twice
+- Recently Sent: shows @names and #channels instead of codes
+- Settings: tidier profile card
+
 505th Command Network v0.4.0
 - NEW Settings: General, Appearance, Accessibility, Notifications, Security, My Devices, Shortcuts, Backup & Reset, About — with search (Ctrl+F)
 - NEW themes (505th Cyan, Gold Command, Olive Drab, Night Ops), accent colour, backgrounds, glow, corners, density
