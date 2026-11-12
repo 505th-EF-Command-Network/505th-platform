@@ -7,7 +7,7 @@
 import { addCss, esc, notify } from "./_common.js";
 
 const API = "/api/terminal/cortana-control";
-let S = null, host = null, busy = false, poll = null;
+let S = null, host = null, poll = null;
 const t = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—");
 const ago = (iso) => { if (!iso) return ""; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h` : `${Math.floor(m / 1440)} d`; };
 async function call(method, body) {
@@ -16,8 +16,10 @@ async function call(method, body) {
   if (!r.ok) throw new Error(b.error || `Error ${r.status}`);
   return b;
 }
+let lastLoad = 0;
 async function load() {
-  try { S = await call("GET"); } catch (e) { S = { error: e.message }; }
+  lastLoad = Date.now();
+  try { S = await call("GET"); } catch (e) { if (!S) S = { error: e.message }; }
   draw();
   const running = S?.control && ["running", "restarting"].includes(S.control.state) && Date.now() - Date.parse(S.control.atISO) < 10 * 60_000;
   clearTimeout(poll);
@@ -63,23 +65,34 @@ function draw() {
   </div>`;
 }
 
-function modal(title, color, body, go) {
-  return new Promise((resolve) => {
-    const ov = document.createElement("div");
-    ov.className = "v2m";
-    ov.innerHTML = `<div class="mw" style="width:min(460px,100%);border-color:${color}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="hd"><div><h2 style="color:${color}">${title}</h2></div><button class="b" data-z="x" aria-label="Close">✕</button></div>
-      <div class="bd">${body}<div class="cx-err" role="alert" style="color:#ff8080;font-size:12px;margin-top:8px"></div></div>
-      <div class="mf"><span class="hint"></span><button class="b" data-z="x">CANCEL</button><button class="b" data-z="ok" style="border-color:${color};color:${color}">${go}</button></div></div>`;
-    document.body.appendChild(ov);
-    const prev = document.activeElement;
-    const close = (v) => { ov.remove(); prev?.focus?.(); resolve(v); };
-    ov.querySelector("input,select,textarea,button")?.focus();
-    ov.addEventListener("keydown", (e) => { if (e.key === "Escape") close(null); });
-    ov.addEventListener("click", (e) => { const z = e.target.closest("[data-z]")?.dataset.z; if (e.target === ov || z === "x") close(null); if (z === "ok") resolve({ ov, close, err: (m) => (ov.querySelector(".cx-err").textContent = m) }); });
-  });
+/** Pop-up box. onOk(ov) → resolve true to close; throw an Error to show its message and keep the box open. */
+function modal(title, color, body, go, onOk, onOpen) {
+  const ov = document.createElement("div");
+  ov.className = "v2m";
+  ov.innerHTML = `<div class="mw" style="width:min(460px,100%);border-color:${color}" role="dialog" aria-modal="true" aria-label="${esc(title.replace(/&amp;/g, "&"))}"><div class="hd"><div><h2 style="color:${color}">${title}</h2></div><button class="b" data-z="x" aria-label="Close">✕</button></div>
+    <div class="bd">${body}<div class="cx-err" role="alert" style="color:#ff8080;font-size:12px;margin-top:8px"></div></div>
+    <div class="mf"><span class="hint"></span><button class="b" data-z="x">CANCEL</button><button class="b" data-z="ok" style="border-color:${color};color:${color}">${go}</button></div></div>`;
+  document.body.appendChild(ov);
+  const prev = document.activeElement;
+  const close = () => { ov.remove(); prev?.focus?.(); };
+  onOpen?.(ov);
+  ov.querySelector("input,select,textarea")?.focus();
+  let working = false;
+  const ok = async () => {
+    if (working) return; working = true;
+    const btn = ov.querySelector('[data-z="ok"]'); btn.disabled = true;
+    try { if (await onOk(ov)) close(); }
+    catch (e) { ov.querySelector(".cx-err").textContent = "✕ " + e.message; }
+    finally { working = false; btn.disabled = false; }
+  };
+  ov.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); if (e.key === "Enter" && e.target.tagName === "INPUT") ok(); });
+  // Closes on ✕ / CANCEL / Esc, or a click that starts AND ends on the dark background — dragging out of a box doesn't close it.
+  let downOnBg = false;
+  ov.addEventListener("mousedown", (e) => { downOnBg = e.target === ov; });
+  ov.addEventListener("click", (e) => { const z = e.target.closest("[data-z]")?.dataset.z; if ((e.target === ov && downOnBg) || z === "x") close(); if (z === "ok") ok(); downOnBg = false; });
 }
 
-async function doAction(kind) {
+function doAction(kind) {
   const isSd = kind === "shutdown";
   const body = isSd
     ? `Cortana stops completely: Discord commands, tickets, live updates and Network Status checks all stop.
@@ -92,31 +105,28 @@ async function doAction(kind) {
        <label class="cx-l" for="cxP">CONTROL PASSWORD</label><input class="cx-f" id="cxP" type="password" autocomplete="off">`;
   const title = isSd ? "⏻ SHUT DOWN CORTANA?" : kind === "update" ? "⇩ UPDATE &amp; RESTART CORTANA?" : "↻ RESTART CORTANA?";
   const color = isSd ? "#ff4d4d" : kind === "update" ? "#c9a227" : "#00D9FF";
-  let m;
-  while ((m = await modal(title, color, body, isSd ? "⏻ SHUT DOWN" : kind === "update" ? "⇩ UPDATE" : "↻ RESTART"))) {
-    const q = (s) => m.ov.querySelector(s);
+  modal(title, color, body, isSd ? "⏻ SHUT DOWN" : kind === "update" ? "⇩ UPDATE" : "↻ RESTART", async (ov) => {
+    const q = (x) => ov.querySelector(x);
     try {
       const r = await call("POST", { action: kind, password: q("#cxP").value, ...(isSd ? { reason: q("#cxR").value, details: q("#cxD").value, confirm: q("#cxC").value.trim() } : {}) });
-      m.close(true); notify(r.msg.toUpperCase()); setTimeout(load, 1500); return;
-    } catch (e) { m.err(e.message); q("#cxP").value = ""; m.ov.remove(); }
-    // re-open with the error shown on the next loop round
-    const again = await modal(title, color, body.replace("</label>", "</label>") + `<div style="color:#ff8080;font-size:12px;margin-top:8px">✕ ${esc(lastErr = "")}</div>`, "TRY AGAIN");
-    if (!again) return; again.close(null);
-  }
+      notify(r.msg.toUpperCase()); setTimeout(load, 1500); return true;
+    } catch (e) { q("#cxP").value = ""; throw e; }
+  });
 }
-let lastErr = "";
 
-async function doPassword() {
+function doPassword() {
   const body = `Only you (the server owner) can set this. Commander and Developers need it to update, restart or shut down Cortana.
     <label class="cx-l" for="cxP1">NEW PASSWORD (AT LEAST 10 CHARACTERS)</label><input class="cx-f" id="cxP1" type="password" autocomplete="new-password">
     <label class="cx-l" for="cxP2">TYPE IT AGAIN</label><input class="cx-f" id="cxP2" type="password" autocomplete="new-password">
     <div style="margin-top:10px"><button class="b sm" type="button" id="cxGen">⚄ GENERATE A STRONG ONE</button></div><div id="cxShow" style="margin-top:10px"></div>
     <div class="cx-w">Saved scrambled — nobody can see it again. Never paste it in chat or Discord.</div>`;
-  const m0 = modal("🔑 CONTROL PASSWORD", "#00D9FF", body, "SAVE");
-  // generate button (wired after the modal is in the page)
-  setTimeout(() => {
-    const ov = document.querySelector(".v2m:last-of-type");
-    ov?.querySelector("#cxGen")?.addEventListener("click", () => {
+  modal("🔑 CONTROL PASSWORD", "#00D9FF", body, "SAVE", async (ov) => {
+    const a = ov.querySelector("#cxP1").value, b = ov.querySelector("#cxP2").value;
+    if (a !== b) throw new Error("The two passwords don't match.");
+    const r = await call("POST", { action: "password", password: a });
+    notify("✓ " + r.msg.toUpperCase()); load(); return true;
+  }, (ov) => {
+    ov.querySelector("#cxGen").addEventListener("click", () => {
       const abc = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789", a = new Uint32Array(16);
       crypto.getRandomValues(a);
       const s = Array.from(a, (x) => abc[x % abc.length]).join("").replace(/(.{4})(?!$)/g, "$1-");
@@ -124,28 +134,22 @@ async function doPassword() {
       ov.querySelector("#cxShow").innerHTML = `<div class="cx-pw">${s}</div><div style="display:flex;gap:8px;margin-top:6px;align-items:center"><button class="b sm" type="button" id="cxCopy">⧉ COPY</button><span class="dim" style="font-size:11px">Shown once — save it in your password manager, then SAVE.</span></div>`;
       ov.querySelector("#cxCopy").onclick = () => navigator.clipboard?.writeText(s).then(() => notify("✓ COPIED")).catch(() => {});
     });
-  }, 0);
-  const m = await m0;
-  if (!m) return;
-  const a = m.ov.querySelector("#cxP1").value, b = m.ov.querySelector("#cxP2").value;
-  if (a !== b) { m.close(null); return notify("THE TWO PASSWORDS DON'T MATCH", 1); }
-  try { const r = await call("POST", { action: "password", password: a }); m.close(true); notify("✓ " + r.msg.toUpperCase()); load(); }
-  catch (e) { m.close(null); notify(e.message.toUpperCase(), 1); }
+  });
 }
 
 /** Called by network-v2.js after each draw: <div id="ctlBox"> is the card's place. */
 export function mountControl(el) {
-  const first = host !== el && !host?.isConnected;
   host = el;
   if (!el.dataset.wired) {
     el.dataset.wired = "1";
     el.addEventListener("click", (e) => {
       const x = e.target.closest("[data-x]")?.dataset.x;
-      if (!x || busy) return;
-      if (x === "pw") return void doPassword();
-      busy = true; doAction(x).finally(() => (busy = false));
+      if (!x) return;
+      if (x === "pw") return doPassword();
+      doAction(x);
     });
   }
-  if (first || !S) load(); else draw();
+  if (S) draw(); // last known state at once — no "LOADING" flash when the page redraws
+  if (!S || Date.now() - lastLoad > 20_000) load();
 }
 export const refreshControl = () => load();
