@@ -57,10 +57,11 @@ export function alertKind(a: Summary["alerts"][number]): NotifyEvent {
   return "rank";
 }
 
-/** Do not disturb: night = 23:00–08:00, custom = your own times (UK time). */
+/** Do not disturb: on = always (tray toggle), night = 23:00–08:00, custom = your own times (UK time). */
 export function quietNow(s: AppSettings) {
   const n = s.notify;
   if (n.dnd === "off") return false;
+  if (n.dnd === "on") return true;
   const [from, to] = n.dnd === "night" ? ["23:00", "08:00"] : [n.dndFrom, n.dndTo];
   const now = new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   return from <= to ? now >= from! && now < to! : now >= from! || now < to!;

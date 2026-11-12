@@ -1,3 +1,9 @@
+/** Network Status v2 (lib/net/core.ts). Beat = [minuteOfDay or minute, ms (-1 = no answer), 0 up | 1 slow | 2 down]. */
+export type NetBeat = [number, number, number];
+export interface NetMonitor { id: string; name: string; group: string; type: string; target: string; builtin: boolean; third: boolean; paused: boolean; muted: boolean; slowMs: number; status: "up" | "slow" | "down" | "paused" | "stale" | "pending"; ms: number | null; info: string; error: string; checkedAtISO: string; downSinceISO: string; certValidToISO: string; last: NetBeat[]; up24: number | null; up30: number | null; avg24: number | null }
+export interface NetData { canEdit: boolean; cortanaChecking: boolean; lastCheckISO: string; monitors: NetMonitor[] }
+export interface NetIncident { id: string; startedAtISO: string; endedAtISO: string; error: string; note: string }
+export interface NetDetail { points: NetBeat[]; uptime: number | null; avg: number | null; incidents: NetIncident[] }
 export type AppUser = { uid: string; name: string; role: string; deviceName: string; discordUsername: string; platoon: string; access: Record<string, boolean> };
 export type AuthState =
   | { status: "loading" }
@@ -51,7 +57,7 @@ export type ShortcutId = "palette" | "rail" | "filter" | "messages" | "refresh" 
 /** My Settings / My Notifications / My Shortcuts — same shape as website lib/hub/settings.ts. */
 export type AppSettings = {
   startup: boolean; closeToTray: boolean; openOn: "dashboard" | "last"; textSize: "s" | "m" | "l" | "xl"; anim: "on" | "reduced" | "off"; contrast: boolean; time: "uk" | "local" | "both";
-  notify: { popup: boolean; taskbar: boolean; edge: boolean; sound: boolean; dnd: "off" | "night" | "custom"; dndFrom: string; dndTo: string; opMins: number; newDevice: boolean;
+  notify: { popup: boolean; taskbar: boolean; edge: boolean; sound: boolean; dnd: "off" | "on" | "night" | "custom"; dndFrom: string; dndTo: string; opMins: number; newDevice: boolean;
     ev: Record<NotifyEvent, { popup: boolean; bell: boolean; flash: boolean }> };
   keys: Record<ShortcutId, string>;
 };
@@ -138,6 +144,11 @@ declare global {
         unread(n: number): Promise<void>;
         onAction(cb: (a: { id: string; action: string }) => void): () => void;
       };
+      tray: {
+        info(i: { name: string; role: string; msgs: number; tickets: number; dnd: boolean; startup: boolean }): Promise<void>;
+        onPage(cb: (page: string) => void): () => void;
+        onToggle(cb: (what: "dnd" | "startup") => void): () => void;
+      };
       hub: {
         summary(): Promise<Summary | { error: string }>;
         members(): Promise<{ members: MemberTile[]; canEdit: boolean } | { error: string }>;
@@ -171,6 +182,9 @@ declare global {
         projects(): Promise<ProjData | { error: string }>;
         messages(conv?: string): Promise<MsgData | { error: string }>;
         messagesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
+        network(): Promise<NetData | { error: string }>;
+        network(mon: string, range: string): Promise<NetDetail | { error: string }>;
+        networkAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string; id?: string }>;
         hubAccess(): Promise<HubAccessData | { error: string }>;
         hubAccessAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         policy(): Promise<{ version: string; accepted: boolean; atISO: string } | { error: string }>;

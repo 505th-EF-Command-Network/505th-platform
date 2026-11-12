@@ -74,9 +74,9 @@ function Notifs({ s, onChange }: { s: AppSettings; onChange: (s: AppSettings) =>
       <Row t="Flash the taskbar button" d="Amber flash until you open the Hub"><Toggle on={n.taskbar} onChange={(v) => set({ taskbar: v })} label="Taskbar flash" /></Row>
       <Row t="Flash the screen edge (urgent only)" d="Op starting · direct message"><Toggle on={n.edge} onChange={(v) => set({ edge: v })} label="Screen edge flash" /></Row>
       <Row t="Sound" d="Short two-tone ding — off by default"><Toggle on={n.sound} onChange={(v) => set({ sound: v })} label="Sound" /></Row>
-      <Row t="Do not disturb" d={n.dnd === "night" ? "23:00–08:00 UK — alerts wait in the 🔔 bell" : n.dnd === "custom" ? "Your times (UK) — alerts wait in the 🔔 bell" : "Alerts always pop up"}>
+      <Row t="Do not disturb" d={n.dnd === "on" ? "On — alerts wait in the 🔔 bell" : n.dnd === "night" ? "23:00–08:00 UK — alerts wait in the 🔔 bell" : n.dnd === "custom" ? "Your times (UK) — alerts wait in the 🔔 bell" : "Alerts always pop up"}>
         <div className="flex items-center gap-2">{n.dnd === "custom" && <><input type="time" value={n.dndFrom} onChange={(e) => set({ dndFrom: e.target.value })} aria-label="Quiet from" className="border border-cyan/20 bg-[#070a0f] px-1.5 py-0.5 text-[11px] text-white [color-scheme:dark]" />–<input type="time" value={n.dndTo} onChange={(e) => set({ dndTo: e.target.value })} aria-label="Quiet until" className="border border-cyan/20 bg-[#070a0f] px-1.5 py-0.5 text-[11px] text-white [color-scheme:dark]" /></>}
-          <Seg v={n.dnd} label="Do not disturb" opts={[["off", "OFF"], ["night", "23:00–08:00"], ["custom", "CUSTOM"]]} onChange={(v) => set({ dnd: v })} /></div></Row>
+          <Seg v={n.dnd} label="Do not disturb" opts={[["off", "OFF"], ["on", "ON"], ["night", "23:00–08:00"], ["custom", "CUSTOM"]]} onChange={(v) => set({ dnd: v })} /></div></Row>
       <Row t="Tell me when a new device signs in" d="Bell alert + pop-up on your other devices"><Toggle on={n.newDevice} onChange={(v) => set({ newDevice: v })} label="New device alert" /></Row>
     </Group>
     <Group t="WHAT">

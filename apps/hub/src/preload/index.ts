@@ -40,6 +40,11 @@ contextBridge.exposeInMainWorld("cn", {
     unread: (n: number) => ipcRenderer.invoke("notify:unread", n),
     onAction: on("notify:action"),
   },
+  tray: {
+    info: (i: Record<string, unknown>) => ipcRenderer.invoke("tray:info", i),
+    onPage: on("tray:page"),
+    onToggle: on("tray:toggle"),
+  },
   hub: {
     summary: () => ipcRenderer.invoke("hub:summary"),
     members: () => ipcRenderer.invoke("hub:members"),
@@ -66,6 +71,8 @@ contextBridge.exposeInMainWorld("cn", {
     devices: () => ipcRenderer.invoke("hub:devices"),
     hubAccess: () => ipcRenderer.invoke("hub:hub-access"),
     hubAccessAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:hub-access-action", body),
+    network: (mon?: string, range?: string) => ipcRenderer.invoke("hub:network", mon, range),
+    networkAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:network-action", body),
     policy: () => ipcRenderer.invoke("hub:policy"),
     policyAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:policy-action", body),
     messages: (conv?: string) => ipcRenderer.invoke("hub:messages", conv),

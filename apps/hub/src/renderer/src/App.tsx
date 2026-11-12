@@ -6,9 +6,10 @@ import { Projects } from "./pages/Projects";
 import { Settings } from "./pages/Settings";
 import { Messages } from "./pages/Messages";
 import { HubAccess } from "./pages/HubAccess";
+import { Network } from "./pages/Network";
 import { PolicyGate } from "./components/Policy";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { applySettings, isKey, mergeSettings } from "./settings";
+import { alertKind, applySettings, isKey, mergeSettings, quietNow } from "./settings";
 import { useNotifier } from "./useNotifier";
 import type { AppSettings } from "../../preload/api";
 import { History } from "./pages/History";
@@ -122,6 +123,22 @@ function Shell({ net }: { net: NetState }) {
   useEffect(() => { if (!settings) return; applySettings(settings); try { localStorage.setItem("cn:openLast", settings.openOn === "last" ? "1" : "0"); } catch { /* storage off */ } }, [settings]);
   const changeSettings = (s: AppSettings) => { setSettings(s); save({ settings: s }); };
   useNotifier(data, ov, setPage);
+  // Tray menu (right-click the tray icon): keep its badges / switches up to date, and act on its clicks.
+  useEffect(() => {
+    if (!data || !settings) return;
+    void window.cn.tray.info({ name: data.me.name, role: data.me.role, msgs: data.alerts.filter((a) => !a.read && alertKind(a) === "message").length,
+      tickets: ov?.counts.tickets ?? 0, dnd: quietNow(settings), startup: settings.startup });
+  }, [data, ov, settings]);
+  const setRef = useRef(settings); setRef.current = settings;
+  useEffect(() => {
+    const offP = window.cn.tray.onPage((p) => setPage(p));
+    const offT = window.cn.tray.onToggle((w) => {
+      const s = setRef.current; if (!s) return;
+      changeSettings(w === "dnd" ? { ...s, notify: { ...s.notify, dnd: quietNow(s) ? "off" : "on" } } : { ...s, startup: !s.startup });
+    });
+    return () => { offP(); offT(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setPage]);
   // My Shortcuts: Open Messages · Refresh (the others live in the top bar and side menu).
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -161,6 +178,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-projects" ? <Projects />
           : pg === "panel-msg2" ? <Messages me={data.me.role} />
           : pg === "panel-hubaccess" ? <HubAccess />
+          : pg === "panel-network" ? <Network />
           : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} />
           : <ComingSoon title={PAGES[pg] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
           </div>))}

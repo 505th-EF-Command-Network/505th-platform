@@ -10,6 +10,7 @@ import { release } from "node:os";
 import { PROTOCOL, createAuth, type AuthState } from "./auth";
 import { createNotifier, type NotifyOpts, type Toast } from "./notify";
 import { createUpdater } from "./updater";
+import { createTrayMenu, type TrayInfo, type TrayNet } from "./tray-menu";
 import { createRealtime, type RealtimeState } from "./realtime";
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -28,6 +29,29 @@ const notifier = createNotifier({
   getWin: () => win,
   onAction: (id, action) => { send("notify:action", { id, action }); if (action === "open" || action === "reply" || action === "view") { win?.show(); win?.focus(); } },
   onQuit: () => { quitting = true; app.quit(); },
+  onTrayMenu: (at) => { trayMenu.open(at); void refreshTrayNet(); },
+});
+const showWin = () => { if (!win) return; win.show(); if (win.isMinimized()) win.restore(); win.focus(); };
+// Tray menu: Network Status count is fetched when the menu opens (shown from the last fetch).
+let trayNet: TrayNet = null;
+async function refreshTrayNet() {
+  if (auth.getState().status !== "signed-in") return;
+  const r = (await call("/api/hub/network").catch(() => null)) as { monitors?: { status: string }[] } | null;
+  const ms = r?.monitors?.filter((m) => m.status !== "paused");
+  if (ms) trayNet = { total: ms.length, up: ms.filter((m) => m.status === "up" || m.status === "slow").length, down: ms.filter((m) => m.status === "down" || m.status === "stale").length };
+}
+const trayMenu = createTrayMenu({
+  live: () => realtime.getState().state === "live",
+  version: () => app.getVersion(),
+  net: () => trayNet,
+  logo: () => notifier.logoUrl(),
+  onAction: (a) => {
+    if (a === "quit") { quitting = true; app.quit(); return; }
+    if (a === "update") { showWin(); void updater.check(true); return; }
+    if (a === "dnd" || a === "startup") { send("tray:toggle", a); return; }
+    showWin();
+    if (a.startsWith("page/")) send("tray:page", a.slice(5));
+  },
 });
 const send = (ch: string, v: unknown) => win?.webContents.send(ch, v);
 const fromMain = (e: IpcMainInvokeEvent) => !!win && e.sender === win.webContents;
@@ -47,7 +71,7 @@ const updater = createUpdater({
 const auth = createAuth((s: AuthState) => {
   send("auth:state", s);
   if (s.status === "signed-in") { realtime.start(); updater.start(); }
-  if (s.status === "signed-out") realtime.stop();
+  if (s.status === "signed-out") { realtime.stop(); trayMenu.setInfo(null); trayNet = null; }
 });
 
 function createWindow() {
@@ -169,6 +193,16 @@ for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/m
     return call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   });
 }
+// Network Status: GET can ask one monitor's chart (?mon=id&range=24H).
+ipcMain.handle("hub:network", (e, mon: unknown, range: unknown) => {
+  if (!fromMain(e)) return null;
+  const ok = typeof mon === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(mon) && typeof range === "string" && /^(1H|24H|7D|30D|90D)$/.test(range);
+  return call(`/api/hub/network${ok ? `?mon=${mon}&range=${range}` : ""}`);
+});
+ipcMain.handle("hub:network-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/network", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 // Messages: GET can ask for one chat's messages (?conv=id).
 ipcMain.handle("hub:messages", (e, conv: unknown) => (fromMain(e) ? call(`/api/hub/messages${typeof conv === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(conv) ? `?conv=${conv}` : ""}`) : null));
 ipcMain.handle("hub:messages-action", (e, body: unknown) => {
@@ -197,6 +231,11 @@ ipcMain.handle("notify:show", (e, t: unknown, o: unknown) => {
   notifier.show({ id: String(x.id).slice(0, 80), title: String(x.title).slice(0, 120), body: String(x.body ?? "").slice(0, 300), icon: String(x.icon ?? "").slice(0, 4),
     color: String(x.color ?? ""), urgent: x.urgent === true, actions: Array.isArray(x.actions) ? x.actions.slice(0, 3).map((a) => ({ id: String(a.id).replace(/[^\w-]/g, "").slice(0, 20), label: String(a.label).slice(0, 20) })) : [] },
     { popup: y.popup === true, taskbar: y.taskbar === true, edge: y.edge === true });
+});
+ipcMain.handle("tray:info", (e, i: unknown) => {
+  if (!fromMain(e)) return;
+  const v = i as Partial<TrayInfo> | null;
+  trayMenu.setInfo(v && typeof v === "object" ? { name: String(v.name ?? "").slice(0, 60), role: String(v.role ?? "").slice(0, 20), msgs: Number(v.msgs) || 0, tickets: Number(v.tickets) || 0, dnd: v.dnd === true, startup: v.startup === true } : null);
 });
 ipcMain.handle("notify:unread", (e, n: unknown) => { if (fromMain(e)) notifier.setUnread(Number(n) || 0); });
 ipcMain.handle("update:get", (e) => (fromMain(e) ? updater.getState() : null));

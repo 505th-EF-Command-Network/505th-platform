@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, Tray, app, globalShortcut, nativeImage, screen, type NativeImage } from "electron";
+import { BrowserWindow, Tray, type Rectangle, app, globalShortcut, nativeImage, screen, type NativeImage } from "electron";
 import { join } from "node:path";
 
 /**
@@ -11,7 +11,7 @@ import { join } from "node:path";
  */
 export type Toast = { id: string; title: string; body: string; icon?: string; color?: string; actions?: { id: string; label: string }[]; urgent?: boolean };
 export type NotifyOpts = { popup: boolean; taskbar: boolean; edge: boolean };
-type Hooks = { getWin: () => BrowserWindow | null; onAction: (toastId: string, action: string) => void; onQuit: () => void };
+type Hooks = { getWin: () => BrowserWindow | null; onAction: (toastId: string, action: string) => void; onQuit: () => void; onTrayMenu: (at: Rectangle) => void };
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const W = 380, GAP = 10;
@@ -112,7 +112,8 @@ div{position:fixed;inset:0;border:8px solid #f59e0b;box-shadow:inset 0 0 40px #f
     const img = getLogo();
     tray = new Tray(img.isEmpty() ? nativeImage.createEmpty() : img.resize({ width: 16, height: 16 }));
     const showWin = () => { const w = h.getWin(); if (w) { w.show(); if (w.isMinimized()) w.restore(); w.focus(); } };
-    tray.setContextMenu(Menu.buildFromTemplate([{ label: "Open 505th Command Network", click: showWin }, { type: "separator" }, { label: "Quit", click: h.onQuit }]));
+    // Right-click → the 505th-style tray menu (tray-menu.ts).
+    tray.on("right-click", () => tray && h.onTrayMenu(tray.getBounds()));
     tray.on("click", showWin);
     setUnread(unread);
   }
@@ -130,5 +131,5 @@ div{position:fixed;inset:0;border:8px solid #f59e0b;box-shadow:inset 0 0 40px #f
     } catch { /* taken by another app */ }
   }
 
-  return { show, setUnread, startTray, setToggleKey, stop: () => { globalShortcut.unregisterAll(); tray?.destroy(); tray = null; cards.forEach((c) => !c.win.isDestroyed() && c.win.close()); } };
+  return { show, setUnread, logoUrl: () => { getLogo(); return logoData; }, startTray, setToggleKey, stop: () => { globalShortcut.unregisterAll(); tray?.destroy(); tray = null; cards.forEach((c) => !c.win.isDestroyed() && c.win.close()); } };
 }
