@@ -68,7 +68,7 @@ function draw() {
     <span class="lv" style="color:${!D.cortanaChecking ? "#ff4d4d" : L === true ? "#22e07a" : "#f59e0b"}">${!D.cortanaChecking ? "✕ CORTANA ISN'T CHECKING" : L === true ? "● LIVE" : "● POLLING"} · <span id="ntAgo">${ago < 2 ? "updated now" : `updated ${ago}s ago`}</span></span>
     ${D.canEdit ? '<button class="b" data-x="add">＋ ADD MONITOR</button>' : ""}<button class="b" data-x="check">↻ CHECK NOW</button></div>
   <div class="sum"><div><b style="color:#22e07a">${c("up")}</b><span>UP</span></div><div><b style="color:#ff4d4d">${c("down") + c("stale")}</b><span>DOWN / NO DATA</span></div><div><b style="color:#f59e0b">${c("slow")}</b><span>SLOW</span></div><div><b style="color:#00D9FF">${all}</b><span>UPTIME · 30 DAYS · ALL</span></div></div>
-  <div class="lay"><div class="list"><div class="lh"><input class="fld" id="ntQ" placeholder="🔍 Search monitors…" aria-label="Search monitors" value="${esc(q)}"></div><div class="ls">${list}</div></div>
+  <div class="lay"><div class="list"><div class="ls">${list}</div></div>
   <div class="det">${!m ? '<div class="card dim">PICK A MONITOR</div>' : `
     <div class="card"><div class="dh"><div style="min-width:0"><h2>${esc(m.name)}</h2><div class="dim" style="font-size:12px">${esc(m.target || m.info || m.type.toUpperCase())}${m.info && m.target ? ` · ${esc(m.info)}` : ""}</div>
       <div class="acts">${D.canEdit ? `<button class="b sm" data-x="pause">${m.paused ? "▶ RESUME" : "⏸ PAUSE"}</button><button class="b sm" data-x="edit">✎ EDIT</button><button class="b sm" data-x="mute">${m.muted ? "🔔 ALERTS ON" : "🔕 MUTE ALERTS"}</button>${m.builtin ? "" : '<button class="b sm red" data-x="del">🗑 DELETE</button>'}` : ""}

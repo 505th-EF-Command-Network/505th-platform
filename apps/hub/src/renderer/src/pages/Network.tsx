@@ -126,7 +126,6 @@ export function Network() {
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr] gap-3">
         <div className="flex min-h-[400px] flex-col border border-line bg-panel">
-          <div className="border-b border-line p-2"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 Search monitors…" aria-label="Search monitors" className="w-full border border-line bg-[#070a0f] px-2.5 py-1.5 text-[12px] outline-none" /></div>
           <div className="overflow-auto">{groups.map(([g, list]) => (
             <div key={g}><div className="px-3 pb-1 pt-2.5 text-[9.5px] tracking-[2px] text-dim">{g}</div>
               {list.map((x) => (
