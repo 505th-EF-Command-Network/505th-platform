@@ -4,6 +4,7 @@
  * (the terminal's generic data access can't touch "secure"). A job without a valid ticket is refused.
  *   bot.update   → git pull (newest code) → npm install only if package-lock.json changed → restart (PM2)
  *   bot.restart  → restart (PM2)
+ *   bot.pcshutdown / bot.pccancel → the whole home server PC (Windows shutdown /s /t 60 · shutdown /a)
  *   bot.shutdown → post in the log channel, stop (exit 0 → PM2 leaves it stopped). Start again on the home server: pm2 start Cortana_V2
  * Steps are written to bot_status/control so the page shows them live. Version info → bot_status/version (every 30 min).
  */
@@ -87,6 +88,7 @@ export function startControl(client: Client<true>) {
     }
     const st = (await TerminalDoc.findById("bot_status/cortana", { data: 1 }).lean())?.data as Record<string, any> | undefined;
     if (st?.shutdown) await TerminalDoc.updateOne({ _id: "bot_status/cortana" }, { $set: { "data.lastShutdown": st.shutdown }, $unset: { "data.shutdown": 1 } }).catch(() => {});
+    if (c?.pc?.state === "countdown") await patchDoc("bot_status", "control", { pc: { ...c.pc, state: "done" } });
     await checkVersion();
   })();
   const t = setInterval(() => void checkVersion(), 30 * 60_000);
@@ -137,6 +139,27 @@ export function startControl(client: Client<true>) {
     await auditLog("CORTANA SHUT DOWN", `${reason} — by ${by}`, by, "security");
     await postLog(c, "⏻ Cortana shut down", `**By:** ${by}\n**Reason:** ${reason}\n\nStart again on the home server: \`pm2 start Cortana_V2\``, 0xff4d4d);
     exitSoon(0, "shutdown"); // exit 0 → PM2 leaves it stopped (stop_exit_codes: [0])
+    return { ok: true };
+  });
+
+  // 🖥 Home server PC (Windows): shut down with a 60 s countdown (owner only, checked by the website) · cancel during the countdown.
+  registerJob("bot.pcshutdown", async (job, c) => {
+    const { by, reason } = await takeTicket(job, "pcshutdown");
+    if (!win) throw new PermanentJobError("Home server shutdown only works on Windows.");
+    const until = new Date(Date.now() + 60_000).toISOString();
+    await run("shutdown", ["/s", "/t", "60", "/c", `505th: home server shutting down from the website by ${by}. Reason: ${reason}`.slice(0, 500)]);
+    await patchDoc("bot_status", "control", { pc: { state: "countdown", by, reason, untilISO: until, atISO: new Date().toISOString() } });
+    await auditLog("HOME SERVER SHUT DOWN", `${reason} — by ${by} (60 s countdown)`, by, "security");
+    await postLog(c, "🖥 Home server shutting down", `**By:** ${by}\n**Reason:** ${reason}\n\nThe PC turns off <t:${Math.floor(Date.parse(until) / 1000)}:R>. Cortana, PM2 and everything on it go offline.\nTo start again: power on the PC, then \`pm2 start Cortana_V2\` (or pm2 resurrect).`, 0xff4d4d);
+    return { ok: true, untilISO: until };
+  });
+  registerJob("bot.pccancel", async (job, c) => {
+    const { by } = await takeTicket(job, "pccancel");
+    if (!win) throw new PermanentJobError("Only works on Windows.");
+    try { await run("shutdown", ["/a"]); } catch (e) { throw new PermanentJobError(`Couldn't cancel — ${(e as Error).message}`); }
+    await patchDoc("bot_status", "control", { pc: { state: "cancelled", by, atISO: new Date().toISOString() } });
+    await auditLog("HOME SERVER SHUTDOWN CANCELLED", `by ${by}`, by, "security");
+    await postLog(c, "✓ Home server shutdown cancelled", `**By:** ${by}`, 0x22e07a);
     return { ok: true };
   });
 

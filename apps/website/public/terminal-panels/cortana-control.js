@@ -7,7 +7,7 @@
 import { addCss, esc, notify } from "./_common.js";
 
 const API = "/api/terminal/cortana-control";
-let S = null, host = null, poll = null;
+let S = null, host = null, poll = null, cdTimer = null;
 const t = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—");
 const ago = (iso) => { if (!iso) return ""; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h` : `${Math.floor(m / 1440)} d`; };
 async function call(method, body) {
@@ -21,7 +21,7 @@ async function load() {
   lastLoad = Date.now();
   try { S = await call("GET"); } catch (e) { if (!S) S = { error: e.message }; }
   draw();
-  const running = S?.control && ["running", "restarting"].includes(S.control.state) && Date.now() - Date.parse(S.control.atISO) < 10 * 60_000;
+  const running = (S?.control && ["running", "restarting"].includes(S.control.state) && Date.now() - Date.parse(S.control.atISO) < 10 * 60_000) || (S?.pc?.state === "countdown" && Date.parse(S.pc.untilISO) > Date.now());
   clearTimeout(poll);
   if (running && host?.isConnected) poll = setTimeout(load, 2000);
 }
@@ -49,16 +49,20 @@ function draw() {
   const recent = c && Date.now() - Date.parse(c.atISO) < 30 * 60_000;
   const lock = S.lockedUntilISO ? ` disabled title="Locked after wrong passwords until ${t(S.lockedUntilISO)}"` : "";
   const off = sd || !S.online ? " disabled" : "";
+  const pc = S.pc, pcLeft = pc?.state === "countdown" ? Math.max(0, Math.ceil((Date.parse(pc.untilISO) - Date.now()) / 1000)) : 0;
+  clearInterval(cdTimer);
+  if (pcLeft > 0) cdTimer = setInterval(() => { const el = document.getElementById("cxCd"); const n = Math.ceil((Date.parse(pc.untilISO) - Date.now()) / 1000); if (!el || n <= 0) { clearInterval(cdTimer); draw(); } else el.textContent = n; }, 1000);
   host.innerHTML = `<div class="ctl ${sd ? "dn" : ""}"><h3>⚙ CORTANA · HOME SERVER</h3><div class="sb">Runs on the home server with PM2 · Cortana_V2</div>
     <div class="rw"><span>STATUS</span>${st}</div>
     ${sd ? `<div class="rw"><span>REASON</span><b>${esc(sd.reason)}</b></div><div class="rw"><span>TO START AGAIN</span><b>On the home server: <span style="color:#00D9FF">pm2 start Cortana_V2</span></b></div>` : ""}
     <div class="rw"><span>RUNNING</span><b>${v.commit ? `${esc(v.commit)} · "${esc(v.subject)}"` : "—"}</b></div>
     <div class="rw"><span>NEWEST ON GITHUB</span><b ${v.behind ? 'style="color:#f59e0b"' : ""}>${v.fetchError ? `<span style="color:#ff8080">Couldn't check GitHub</span>` : v.behind ? `${esc(v.newest)} · "${esc(v.newestSubject)}" · ${v.behind} new` : v.commit ? "✓ up to date" : "—"}${v.checkedAtISO ? ` <small class="dim">· checked ${t(v.checkedAtISO)}</small>` : ""}</b></div>
     ${!sd && S.lastShutdown ? `<div class="rw"><span>LAST SHUT DOWN</span><b class="dim">${t(S.lastShutdown.atISO)} · ${esc(S.lastShutdown.by)} · ${esc(S.lastShutdown.reason)}</b></div>` : ""}
+    ${pcLeft > 0 ? `<div class="cx-w" style="border-left-color:#ff4d4d;background:rgba(255,77,77,.08);color:#ffb3b3;display:flex;align-items:center;gap:10px;flex-wrap:wrap" role="alert"><span>🖥 <b style="color:#fff">Home server shutting down in <span id="cxCd">${pcLeft}</span> s</b> · by ${esc(pc.by)} · ${esc(pc.reason)}</span>${S.canControl ? '<button class="b sm" data-x="pccancel" style="margin-left:auto;border-color:#22e07a;color:#22e07a">✕ CANCEL SHUTDOWN</button>' : ""}</div>` : ""}
     ${S.canControl || S.owner ? `<div class="bt">
       ${S.canControl ? `<button class="b sm g" data-x="update"${lock}${off}>⇩ UPDATE &amp; RESTART</button><button class="b sm" data-x="restart"${lock}${off}>↻ RESTART</button>` : ""}
       ${S.owner ? `<button class="b sm" data-x="pw">🔑 ${S.hasPassword ? "CHANGE" : "SET"} CONTROL PASSWORD</button>` : ""}
-      ${S.canControl ? `<button class="b sm r" data-x="shutdown"${lock}${off}>⏻ SHUT DOWN</button>` : ""}</div>
+      ${S.canControl ? `<button class="b sm r" data-x="shutdown"${lock}${off}>⏻ STOP CORTANA</button><button class="b sm" style="border-color:rgba(255,77,77,.55);color:#ff4d4d" data-x="pcshutdown"${lock}${off}>🖥 SHUT DOWN HOME SERVER</button>` : ""}</div>
       ${S.canControl && !S.hasPassword ? `<div class="cx-w">No Control Password yet — ${S.owner ? "set one with 🔑 first." : "the server owner needs to set it first."}</div>` : ""}
       ${S.lockedUntilISO ? `<div class="cx-w">Locked after 5 wrong passwords until ${t(S.lockedUntilISO)}.</div>` : ""}` : ""}
     ${recent && c.steps.length ? `<div class="lg" aria-live="polite"><div class="dim" style="font-size:10px;letter-spacing:2px">${esc(String(c.action).toUpperCase())} · ${esc(c.by)} · ${t(c.atISO)}</div>${c.steps.map((s) => { const [i, col] = ICON[s.s] || ICON.skip; return `<div style="color:${col}"><i>${i}</i><span>${esc(s.t)}${s.d ? ` <span class="dim">— ${esc(s.d)}</span>` : ""}</span></div>`; }).join("")}${c.state === "restarting" ? '<div style="color:#7d8a99"><i>·</i><span>waiting to come back online…</span></div>' : ""}</div>` : ""}
@@ -93,19 +97,19 @@ function modal(title, color, body, go, onOk, onOpen) {
 }
 
 function doAction(kind) {
-  const isSd = kind === "shutdown";
+  const isPc = kind === "pcshutdown", isSd = kind === "shutdown" || isPc;
   const body = isSd
-    ? `Cortana stops completely: Discord commands, tickets, live updates and Network Status checks all stop.
-       <div class="cx-w">⚠ The website <b>cannot</b> start it again. On the home server: <b style="color:#fff">pm2 start Cortana_V2</b></div>
+    ? `${isPc ? "The <b>whole home server PC</b> turns off after a <b>60-second countdown</b> (you can cancel during it). Cortana, PM2 and everything on that PC go offline. The website and Hub keep working." : "Only the <b>Cortana bot</b> stops: Discord commands, tickets, live updates and Network Status checks. The home server PC stays on."}
+       <div class="cx-w">⚠ The website <b>cannot</b> start it again. ${isPc ? "Someone must <b>power the PC on</b>, then" : "On the home server:"} <b style="color:#fff">pm2 start Cortana_V2</b></div>
        <label class="cx-l" for="cxR">REASON (REQUIRED)</label><select class="cx-f" id="cxR"><option value="">— pick a reason —</option><option>Maintenance / server work</option><option>Bot misbehaving / spamming</option><option>Security concern</option><option>Other</option></select>
        <textarea class="cx-f" id="cxD" maxlength="300" rows="2" style="margin-top:6px;resize:none" placeholder="Details (required for Other)" aria-label="Details"></textarea>
        <label class="cx-l" for="cxP">CONTROL PASSWORD</label><input class="cx-f" id="cxP" type="password" autocomplete="off">
        <label class="cx-l" for="cxC">TYPE SHUTDOWN</label><input class="cx-f" id="cxC" autocomplete="off" style="letter-spacing:3px">`
     : `${kind === "update" ? "Cortana gets the newest code from GitHub, installs packages if they changed, then restarts (about 30 s offline). If anything fails it stops and the old Cortana keeps running." : "Cortana restarts — about 10–20 seconds offline."}
        <label class="cx-l" for="cxP">CONTROL PASSWORD</label><input class="cx-f" id="cxP" type="password" autocomplete="off">`;
-  const title = isSd ? "⏻ SHUT DOWN CORTANA?" : kind === "update" ? "⇩ UPDATE &amp; RESTART CORTANA?" : "↻ RESTART CORTANA?";
+  const title = isPc ? "🖥 SHUT DOWN THE HOME SERVER?" : isSd ? "⏻ STOP CORTANA?" : kind === "update" ? "⇩ UPDATE &amp; RESTART CORTANA?" : "↻ RESTART CORTANA?";
   const color = isSd ? "#ff4d4d" : kind === "update" ? "#c9a227" : "#00D9FF";
-  modal(title, color, body, isSd ? "⏻ SHUT DOWN" : kind === "update" ? "⇩ UPDATE" : "↻ RESTART", async (ov) => {
+  modal(title, color, body, isPc ? "🖥 SHUT DOWN PC" : isSd ? "⏻ STOP CORTANA" : kind === "update" ? "⇩ UPDATE" : "↻ RESTART", async (ov) => {
     const q = (x) => ov.querySelector(x);
     try {
       const r = await call("POST", { action: kind, password: q("#cxP").value, ...(isSd ? { reason: q("#cxR").value, details: q("#cxD").value, confirm: q("#cxC").value.trim() } : {}) });
@@ -146,6 +150,7 @@ export function mountControl(el) {
       const x = e.target.closest("[data-x]")?.dataset.x;
       if (!x) return;
       if (x === "pw") return doPassword();
+      if (x === "pccancel") return void call("POST", { action: "pccancel" }).then((r) => { notify(r.msg.toUpperCase()); setTimeout(load, 1500); }).catch((er) => notify(er.message.toUpperCase(), 1));
       doAction(x);
     });
   }
