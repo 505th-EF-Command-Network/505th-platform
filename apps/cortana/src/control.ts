@@ -17,6 +17,7 @@ import { EmbedBuilder, type Client } from "discord.js";
 import { TerminalDoc } from "@505th/db";
 import { log } from "./log.ts";
 import { markOffline } from "./health.ts";
+import { alertStaff } from "./monitors.ts";
 import { patchDoc } from "./store.ts";
 import { LOGO, auditLog, cortanaSettings } from "./util.ts";
 import { PermanentJobError, registerJob, type Job } from "./worker.ts";
@@ -60,6 +61,13 @@ async function postLog(client: Client<true>, title: string, text: string, color:
   if (ch && "send" in ch) await ch.send({ embeds: [new EmbedBuilder().setColor(color).setTitle(title).setDescription(text).setFooter({ text: "505th Cortana Control", iconURL: LOGO }).setTimestamp()], allowedMentions: { parse: [] } }).catch(() => {});
 }
 
+/** Discord log channel post + 🔔 505th Command Network alert (Commander + Developers; pops up in the Hub). */
+async function announce(client: Client<true>, title: string, text: string, color: number, bell: string) {
+  await postLog(client, title, text, color);
+  await alertStaff(title.replace(/^\S+\s/, ""), bell).catch(() => {});
+}
+const dur = (ms: number) => { const m = Math.max(1, Math.round(ms / 60000)); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+
 /** Running version + how far behind GitHub (git fetch). */
 export async function checkVersion() {
   try {
@@ -80,6 +88,20 @@ export function startControl(client: Client<true>) {
   // After a restart from the website: mark it finished. After a shut down: keep the record as "last shut down".
   void (async () => {
     const c = (await TerminalDoc.findById("bot_status/control", { data: 1 }).lean())?.data as Record<string, any> | undefined;
+    const st0 = (await TerminalDoc.findById("bot_status/cortana", { data: 1 }).lean())?.data as Record<string, any> | undefined;
+    // ✅ Back online — say why it was off and for how long.
+    {
+      const stopped = Date.parse(String(st0?.stoppedAtISO ?? "")) || 0;
+      const off = stopped && Date.now() - stopped < 7 * 864e5 ? Date.now() - stopped : 0;
+      const pc = c?.pc?.state === "countdown" ? c.pc : null;
+      const why = pc ? (pc.kind === "pcrestart" ? `after the home server restart by ${pc.by}` : `after the home server was shut down by ${pc.by} and powered on again`)
+        : st0?.shutdown ? `after being stopped by ${st0.shutdown.by} (${st0.shutdown.reason})`
+        : c?.state === "restarting" ? (c.action === "update" ? `after Update & Restart by ${c.by}` : `after a restart by ${c.by}`)
+        : st0?.stopReason === "SIGINT" || st0?.stopReason === "SIGTERM" ? "after being stopped on the home server"
+        : off ? "after an unexpected stop" : "";
+      await announce(client, "✅ Cortana back online", `${why ? `Back ${why}.` : "Cortana started."}${off ? `\n**Offline for:** ${dur(off)}` : ""}`, 0x22e07a,
+        `${why ? `Back ${why}` : "Cortana started"}${off ? ` · offline ${dur(off)}` : ""}.`);
+    }
     if (c?.state === "restarting") {
       steps = Array.isArray(c.steps) ? c.steps : [];
       step("Back online", "ok");
@@ -93,16 +115,17 @@ export function startControl(client: Client<true>) {
   })();
   const t = setInterval(() => void checkVersion(), 30 * 60_000);
 
-  registerJob("bot.restart", async (job) => {
+  registerJob("bot.restart", async (job, c) => {
     const { by } = await takeTicket(job, "restart");
     steps = []; step("Restarting Cortana", "run");
     await setSteps("restart", by, "restarting");
     log.warn(`Restart from the website by ${by}.`);
+    await announce(c, "↻ Cortana restarting", `**By:** ${by}\nBack in about 20 seconds.`, 0x00d9ff, `Restart by ${by} — back in about 20 seconds.`);
     exitSoon(1, "restart"); // non-zero → PM2 starts it again
     return { ok: true };
   });
 
-  registerJob("bot.update", async (job) => {
+  registerJob("bot.update", async (job, cl) => {
     const { by } = await takeTicket(job, "update");
     steps = [];
     const fail = async (t: string, e: unknown) => {
@@ -127,6 +150,7 @@ export function startControl(client: Client<true>) {
     step("Restarting Cortana", "run");
     await setSteps("update", by, "restarting");
     await auditLog("CORTANA UPDATE", "Update & Restart from the website", by, "security");
+    await announce(cl, "⇩ Cortana updating", `**By:** ${by}\n${steps.map((x) => `${x.s === "ok" ? "✓" : x.s === "skip" ? "–" : "◷"} ${x.t}${x.d ? ` — ${x.d}` : ""}`).join("\n")}\nBack in about 30 seconds.`, 0xc9a227, `Update & Restart by ${by} — back in about 30 seconds.`);
     exitSoon(1, "update");
     return { ok: true };
   });
@@ -137,7 +161,7 @@ export function startControl(client: Client<true>) {
     log.warn(`SHUT DOWN from the website by ${by}: ${reason}`);
     await patchDoc("bot_status", "cortana", { shutdown: { by, reason, atISO: at } });
     await auditLog("CORTANA SHUT DOWN", `${reason} — by ${by}`, by, "security");
-    await postLog(c, "⏻ Cortana shut down", `**By:** ${by}\n**Reason:** ${reason}\n\nStart again on the home server: \`pm2 start Cortana_V2\``, 0xff4d4d);
+    await announce(c, "⏻ Cortana shut down", `**By:** ${by}\n**Reason:** ${reason}\n\nStart again on the home server: \`pm2 start Cortana_V2\``, 0xff4d4d, `Stopped by ${by}: ${reason}. Start again on the home server.`);
     exitSoon(0, "shutdown"); // exit 0 → PM2 leaves it stopped (stop_exit_codes: [0])
     return { ok: true };
   });
@@ -150,6 +174,7 @@ export function startControl(client: Client<true>) {
     await run("shutdown", [restart ? "/r" : "/s", "/t", "60", "/c", `505th: home server ${restart ? "restarting" : "shutting down"} from the website by ${by}. Reason: ${reason}`.slice(0, 500)]);
     await patchDoc("bot_status", "control", { pc: { state: "countdown", kind, by, reason, untilISO: until, atISO: new Date().toISOString() } });
     await auditLog(restart ? "HOME SERVER RESTART" : "HOME SERVER SHUT DOWN", `${reason} — by ${by} (60 s countdown)`, by, "security");
+    await alertStaff(restart ? "Home server restarting" : "Home server shutting down", `${restart ? "Restart" : "Shut down"} in 60 s by ${by}: ${reason}. Cancel on Network Status → Cortana v2.`).catch(() => {});
     await postLog(c, restart ? "🔄 Home server restarting" : "🖥 Home server shutting down",
       `**By:** ${by}\n**Reason:** ${reason}\n\nThe PC ${restart ? "restarts" : "turns off"} <t:${Math.floor(Date.parse(until) / 1000)}:R>.${restart ? " Cortana comes back by itself if PM2 starts with Windows." : "\nTo start again: power on the PC, then \`pm2 start Cortana_V2\`."}`, restart ? 0xf59e0b : 0xff4d4d);
     return { ok: true, untilISO: until };
@@ -162,7 +187,7 @@ export function startControl(client: Client<true>) {
     try { await run("shutdown", ["/a"]); } catch (e) { throw new PermanentJobError(`Couldn't cancel — ${(e as Error).message}`); }
     await patchDoc("bot_status", "control", { pc: { state: "cancelled", by, atISO: new Date().toISOString() } });
     await auditLog("HOME SERVER SHUTDOWN CANCELLED", `by ${by}`, by, "security");
-    await postLog(c, "✓ Home server shutdown cancelled", `**By:** ${by}`, 0x22e07a);
+    await announce(c, "✓ Home server shutdown cancelled", `**By:** ${by}`, 0x22e07a, `Cancelled by ${by} — the home server stays on.`);
     return { ok: true };
   });
 

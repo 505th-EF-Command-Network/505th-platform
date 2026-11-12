@@ -144,7 +144,7 @@ async function alertDiscord(client: Client<true>, title: string, text: string, c
   if (ch && "send" in ch) await ch.send({ embeds: [new EmbedBuilder().setColor(color).setTitle(title).setDescription(text).setFooter({ text: "505th Network Status", iconURL: LOGO }).setTimestamp()], allowedMentions: { parse: [] } }).catch(() => {});
 }
 /** 🔔 alert (+ Hub pop-up) to the Commander and Developer(s). */
-async function alertStaff(title: string, body: string) {
+export async function alertStaff(title: string, body: string) {
   const who = await TerminalDoc.find({ parent: "users", "data.role": { $in: ["commander", "developer"] } }, { docId: 1 }).lean();
   const now = new Date();
   for (const u of who) {
