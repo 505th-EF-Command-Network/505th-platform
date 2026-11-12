@@ -8,7 +8,7 @@
  *  3. ATT this month = events already locked this month (normally 0).
  * settings/roster_meta.lastAttendanceReset = "YYYY-MM" stops it running twice (website backup uses the same lock).
  */
-import { TerminalDoc } from "@505th/db";
+import { AccessAttempt, TerminalDoc } from "@505th/db";
 import { log } from "./log.ts";
 import { auditLog } from "./util.ts";
 
@@ -108,9 +108,19 @@ export async function runMonthlyReset(month: string, by: string) {
   }
 }
 
+/** 00:00 UK time on the 1st of "YYYY-MM" (handles GMT / BST). */
+function monthStartUk(m: string) {
+  const utc = new Date(`${m}-01T00:00:00Z`);
+  const ukHour = Number(utc.toLocaleString("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }));
+  return new Date(utc.getTime() - (ukHour ? 3600_000 : 0));
+}
+
 export function startMonthlyReset() {
   const tick = async () => {
     const m = ukMonth();
+    // Access Log (denied sign-ins) starts fresh each month: remove anything from before the 1st (UK).
+    const r = await AccessAttempt.deleteMany({ at: { $lt: monthStartUk(m) } }).catch(() => null);
+    if (r?.deletedCount) log.info(`Access Log: cleared ${r.deletedCount} attempts from before ${m}`);
     const meta = (await TerminalDoc.findById(META, { data: 1 }).lean().catch(() => null))?.data as Record<string, any> | undefined;
     if (meta?.lastAttendanceReset && meta.lastAttendanceReset >= m) return;
     await runMonthlyReset(m, "Cortana").catch((e) => log.error("Monthly reset failed", e));

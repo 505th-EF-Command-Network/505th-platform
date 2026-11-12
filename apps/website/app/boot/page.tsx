@@ -22,6 +22,9 @@ export default async function BootPage() {
     : viewer.terminal;
   const dest = member ? "/profile" : "/terminal";
   const h = await headers();
+  // Only DENIED attempts are saved (Security → Access Log). Normal sign-ins aren't stored. Cleared on the 1st of each month by Cortana.
+  let incident = Math.random().toString(36).slice(2, 8).toUpperCase();
+  if (result === "DENIED") {
   await connectDb();
   const attempt = await AccessAttempt.create({
     discordId: viewer.discordId,
@@ -33,6 +36,8 @@ export default async function BootPage() {
     ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined,
     userAgent: h.get("user-agent")?.slice(0, 200) ?? undefined,
   });
+  incident = String(attempt._id).slice(-6).toUpperCase();
+  }
 
   const m = viewer.member;
   return (
@@ -45,7 +50,7 @@ export default async function BootPage() {
       tag={m ? `CLEARANCE: ${m.roleLabel.toUpperCase()}` : "CLEARANCE: NONE"}
       avatar={viewer.avatar}
       discordId={viewer.discordId}
-      incident={String(attempt._id).slice(-6).toUpperCase()}
+      incident={incident}
       time={new Date().toISOString().replace("T", " ").slice(0, 19)}
       dest={dest}
     />

@@ -106,7 +106,21 @@ async function check(m: Mon, client: Client<true>): Promise<Res> {
         return j.ready ? { ms: Date.now() - t0, info: "uploads ready" } : { ms: null, error: "Not set up — add the CLOUDINARY_* keys on Vercel" };
       } catch (e) { return { ms: null, error: (e as Error).message }; }
     }
-    case "db": return timed(async () => { await TerminalDoc.db.db!.command({ ping: 1 }); });
+    case "db": {
+      const r = await timed(async () => { await TerminalDoc.db.db!.command({ ping: 1 }); });
+      if (r.ms == null) return r;
+      // Storage used (Atlas free tier M0 = 512 MB). Checked every 10 minutes.
+      if (Date.now() - dbSize.at > 10 * 60_000) {
+        try {
+          const st = (await TerminalDoc.db.db!.command({ dbStats: 1, scale: 1 })) as { storageSize?: number; indexSize?: number };
+          dbSize = { at: Date.now(), mb: ((st.storageSize ?? 0) + (st.indexSize ?? 0)) / 1048576 };
+        } catch { /* stats not allowed → just the ping */ }
+      }
+      const cap = Number(process.env.DB_LIMIT_MB) || 512;
+      if (dbSize.mb == null) return r;
+      const pct = Math.round((dbSize.mb / cap) * 100);
+      return { ...r, info: `${dbSize.mb.toFixed(1)} MB of ${cap} MB used (${pct}%) · ${(cap - dbSize.mb).toFixed(0)} MB left${pct >= 85 ? " ⚠ nearly full" : ""}` };
+    }
     case "bot": { const p = client.ws.ping; return { ms: p >= 0 ? p : 1, info: `uptime ${Math.round(process.uptime() / 3600)} h` }; }
     case "discord": { const p = client.ws.ping; return p >= 0 && client.isReady() ? { ms: p, info: "gateway ping" } : { ms: null, error: "Not connected to Discord" }; }
     case "hub": {
@@ -148,6 +162,7 @@ async function seed() {
   }
 }
 
+let dbSize: { at: number; mb: number | null } = { at: 0, mb: null };
 let lastCert = 0, certISO: string | null = null;
 async function run(client: Client<true>) {
   const mons = (await TerminalDoc.find({ parent: "net_monitors" }, { docId: 1, data: 1 }).lean()).map((d) => ({ id: String(d.docId), ...((d.data ?? {}) as U) }) as Mon)
