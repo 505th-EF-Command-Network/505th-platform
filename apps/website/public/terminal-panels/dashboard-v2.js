@@ -516,7 +516,7 @@ async function load() {
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
   D.ping.db = await timed(() => getDoc(doc(db, "unit_config", "status"))).catch(() => ((D.ping.dbErr = 1), null));
   // Cloudinary = where gallery / event / Quick Upload images live. Checks its image servers answer.
-  D.ping.cdn = await timed(() => fetch("https://res.cloudinary.com/", { mode: "no-cors", cache: "no-store" })).catch(() => ((D.ping.cdnErr = 1), null));
+  D.ping.cdn = await timed(() => fetch("https://res.cloudinary.com/demo/image/upload/w_1,h_1/sample.jpg", { mode: "no-cors", cache: "no-store" })).catch(() => ((D.ping.cdnErr = 1), null));
 }
 
 /* ───────── welcome bar ───────── */
