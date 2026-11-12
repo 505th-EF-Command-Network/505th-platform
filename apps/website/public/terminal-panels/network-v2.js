@@ -2,9 +2,8 @@
  * SECURITY → NETWORK STATUS v2 (approved mock 2026-11-12) — Uptime-Kuma style. Access: "net"; change monitors: Developer + Commander;
  * Cortana buttons (restart / re-sync / re-register commands): "bot".
  * Data: /api/terminal/network (lib/net/core.ts), written by Cortana every 60 s. LIVE: net_status changes arrive through the 505th Net
- * (onSnapshot) → the page reloads within a second. If the live line is down it checks every 30 s and says ● POLLING.
+ * ("terminal-live" event from the shim) → the page reloads within a second. If the live line is down it checks every 30 s and says ● POLLING.
  */
-import { collection, onSnapshot } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
 import { addCss, ask, audit, esc, mountPanel, notify, onReady } from "./_common.js";
 import { cortanaJob } from "./discord-common.js";
@@ -141,7 +140,7 @@ onReady(() => {
   onAccess((me) => { acc = me.access || {}; });
   root = mountPanel("panel-network", "netV3", () => {
     load().catch((e) => notify("NETWORK STATUS: " + e.message.toUpperCase(), 1));
-    if (!unsub) unsub = onSnapshot(collection(db0(), "net_status"), () => { if (!document.getElementById("panel-network")?.classList.contains("hidden")) load().catch(() => {}); }, () => {});
+    if (!unsub) { let t; unsub = (e) => { if (!["net_status", "net_monitors", "net_events"].includes(e.detail)) return; if (document.getElementById("panel-network")?.classList.contains("hidden")) return; clearTimeout(t); t = setTimeout(() => load().catch(() => {}), 400); }; window.addEventListener("terminal-live", unsub); }
     clearInterval(poll); poll = setInterval(() => { if (document.getElementById("panel-network")?.classList.contains("hidden")) return; if (live() !== true || Date.now() - lastLoad > 30_000) load().catch(() => {}); }, 30_000);
     clearInterval(tick); tick = setInterval(() => { const a = document.getElementById("ntAgo"); if (a) { const s = Math.round((Date.now() - lastLoad) / 1000); a.textContent = s < 2 ? "updated now" : `updated ${s}s ago`; } }, 1000);
   });
@@ -176,6 +175,3 @@ onReady(() => {
     } catch (err) { notify(err.message.toUpperCase(), 1); }
   });
 });
-// db is exported by _common.js; read lazily so this file loads even if the import order changes.
-import { db as _db } from "./_common.js";
-function db0() { return _db; }

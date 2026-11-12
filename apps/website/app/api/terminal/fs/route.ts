@@ -33,8 +33,9 @@ export async function POST(req: NextRequest) {
   try {
     actor = await getActor();
   } catch (e) {
-    const err = e instanceof FsError ? e : new FsError("internal", "Server error");
-    return json({ error: err.code }, err.code === "unauthenticated" ? 401 : 403);
+    // Database down / busy → 503 (the page retries). Only a real "no clearance" is 403 (→ /boot).
+    if (!(e instanceof FsError)) { console.error("[terminal-fs] actor:", (e as Error)?.message); return json({ error: "unavailable" }, 503); }
+    return json({ error: e.code }, e.code === "unauthenticated" ? 401 : 403);
   }
 
   const results = [];

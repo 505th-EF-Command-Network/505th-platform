@@ -352,6 +352,8 @@ let liveState = null; // null = not set up / signed out · true = connected · f
 window.__terminalLive = () => liveState;
 function topOf(l) { return String(l.op.path || l.op.coll || "").split("/")[0]; }
 function pokeTopic(topic) {
+  // Pages with their own API (e.g. Network Status) listen for this instead of reading the collection.
+  try { window.dispatchEvent(new CustomEvent("terminal-live", { detail: topic })); } catch { /* old browser */ }
   for (const l of listeners) if (topOf(l) === topic) pollOne(l);
 }
 async function startLive(delay = 0) {
