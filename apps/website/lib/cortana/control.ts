@@ -58,16 +58,17 @@ const REASONS = ["Maintenance / server work", "Bot misbehaving / spamming", "Sec
 
 export async function act(w: CtlWho, b: Record<string, unknown>) {
   const action = String(b.action ?? "");
-  if (!["update", "restart", "shutdown", "pcshutdown", "pccancel"].includes(action)) throw new CtlError("Bad request.");
+  if (!["update", "restart", "shutdown", "pcshutdown", "pcrestart", "pccancel"].includes(action)) throw new CtlError("Bad request.");
   if (!canControl(w)) throw new CtlError("Only the Commander or a Developer can control Cortana.", 403);
   // Home server PC: shut down = Commander / Developer with the Control Password. Cancel (during the 60 s countdown) = no password — it only stops a shutdown.
   if (action === "pccancel") return ticket(w, "pccancel", "");
   let reason = "";
-  if (action === "shutdown" || action === "pcshutdown") {
+  if (action === "shutdown" || action === "pcshutdown" || action === "pcrestart") {
     const r = String(b.reason ?? ""), d = String(b.details ?? "").trim().slice(0, 300);
     if (!REASONS.includes(r)) throw new CtlError("Pick a reason.");
     if (r === "Other" && !d) throw new CtlError("Write why you are shutting Cortana down.");
-    if (String(b.confirm ?? "") !== "SHUTDOWN") throw new CtlError("Type SHUTDOWN to confirm.");
+    const word = action === "pcrestart" ? "RESTART" : "SHUTDOWN";
+    if (String(b.confirm ?? "") !== word) throw new CtlError(`Type ${word} to confirm.`);
     reason = d ? `${r} — ${d}` : r;
   }
   await connectDb();
@@ -85,7 +86,7 @@ export async function act(w: CtlWho, b: Record<string, unknown>) {
   return ticket(w, action, reason);
 }
 
-const MSG: Record<string, string> = { shutdown: "Stopping Cortana…", update: "Updating Cortana…", restart: "Restarting Cortana…", pcshutdown: "Home server shutting down in 60 seconds…", pccancel: "Cancelling the home server shutdown…" };
+const MSG: Record<string, string> = { shutdown: "Stopping Cortana…", update: "Updating Cortana…", restart: "Restarting Cortana…", pcshutdown: "Home server shutting down in 60 seconds…", pcrestart: "Home server restarting in 60 seconds…", pccancel: "Cancelling the home server shutdown…" };
 async function ticket(w: CtlWho, action: string, reason: string) {
   const now = new Date(), t = id(32), j = id(20);
   await TerminalDoc.create({ _id: `secure/ctl_${t}`, parent: "secure", docId: `ctl_${t}`, createTime: now, updateTime: now,
