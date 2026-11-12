@@ -87,7 +87,7 @@ export function Tickets(p: { me: string }) {
           <div className="min-h-0 flex-1 overflow-auto">
             {list.length ? list.map((t) => { const [l, c] = state(t); return (
               <button key={t.id} type="button" aria-current={t.id === cur?.id} onClick={() => { setSel(t.id); setClosing(false); }}
-                className={`rrow flex w-full items-center gap-2.5 border-t border-white/5 px-3 py-2.5 text-left ${t.id === cur?.id ? "bg-cyan/10 shadow-[inset_3px_0_0_#00d9ff]" : "hover:bg-cyan/5"}`}>
+                className={`rrow flex w-full items-center gap-2.5 border-t border-white/5 px-3 py-2.5 text-left ${t.id === cur?.id ? "bg-cyan/10 shadow-[inset_3px_0_0_var(--color-cyan)]" : "hover:bg-cyan/5"}`}>
                 <span className={`w-[58px] shrink-0 border py-0.5 text-center text-[9px] tracking-[1px] ${c}`}>{l}</span>
                 <span className="min-w-0"><b className="block truncate text-[12.5px] font-normal text-white">#{pad(t.number)} · {t.openerName}</b>
                   <small className="block truncate text-[10.5px] text-dim">{t.typeEmoji} {t.typeName} · {ago(t.lastActivityISO || t.openedAtISO)}{t.claimedByName ? " · " + t.claimedByName : ""}</small></span>

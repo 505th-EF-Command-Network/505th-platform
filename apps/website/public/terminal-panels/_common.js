@@ -123,6 +123,7 @@ export async function webhook(key, embed) {
 
 /** Shared look for all v2 panels (scoped to .v2). */
 export const BASE_CSS = `
+:root{color-scheme:dark}select,option,optgroup{background-color:#0b0f15;color:#d6dde6} /* dark drop-down lists + date/time pickers */
 .v2,.v2m{--a:#00D9FF;--g:#22e07a;--am:#f59e0b;--r:#ff4d4d;--l:rgba(0,217,255,.18);--l2:rgba(0,217,255,.35);--p:#0b0f15;--p2:#0e131b;--d:#7d8a99;--dd:#4b5765;font-family:'Share Tech Mono',monospace;color:#d6dde6}
 .v2 *{box-sizing:border-box}
 .v2 .h1{font-family:Rajdhani,sans-serif;font-weight:700;letter-spacing:4px;color:var(--a);font-size:20px;padding-bottom:10px;border-bottom:1px solid var(--l)}

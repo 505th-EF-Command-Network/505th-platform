@@ -1,7 +1,7 @@
 {
   "name": "@505th/hub",
   "productName": "505th Command Network",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "505th Command Network — Windows desktop app. Talks to the website (API) and the 505th Net (Ably) like Cortana does.",
   "author": "REV Creative Developer",

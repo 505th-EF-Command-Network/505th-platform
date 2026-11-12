@@ -98,7 +98,7 @@ function Wall(p: { d: ProjData; filter: string; setFilter: (f: string) => void; 
     <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-3.5">
       {list.map((x) => { const pc = pct(x), late = x.tasks.filter((k) => !k.done && k.due && k.due < t).length; const ppl = [x.ownerUid, ...x.members.filter((m) => m.status === "active").map((m) => m.uid)];
         return (
-        <button key={x.id} type="button" onClick={() => p.onOpen(x.id)} className="tile group overflow-hidden border border-cyan/15 bg-panel text-left transition hover:-translate-y-0.5 hover:border-cyan hover:shadow-[0_0_22px_-6px_#00d9ff]">
+        <button key={x.id} type="button" onClick={() => p.onOpen(x.id)} className="tile group overflow-hidden border border-cyan/15 bg-panel text-left transition hover:-translate-y-0.5 hover:border-cyan hover:shadow-[0_0_22px_-6px_var(--color-cyan)]">
           <div className="relative h-[120px]" style={{ background: bg(x) }}><div className="absolute inset-0 bg-gradient-to-b from-transparent from-40% to-panel" />
             <span className="absolute left-2 top-2 border bg-black/60 px-1.5 text-[9.5px] tracking-[1.5px]" style={{ color: STAT[x.status][1], borderColor: STAT[x.status][1] }}>● {STAT[x.status][0]}</span>
             <span className="absolute right-2 top-2 bg-black/60 px-1.5 text-[9.5px] tracking-[1.5px]" style={{ color: PRI[x.priority][1] }}>{PRI[x.priority][0]}</span>

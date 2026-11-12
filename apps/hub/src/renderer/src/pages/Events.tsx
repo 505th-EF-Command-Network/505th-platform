@@ -107,7 +107,7 @@ export function Events(p: { onPage: (id: string) => void }) {
               const key = `${month}-${String(i + 1).padStart(2, "0")}`, list = byDay.get(key) ?? [];
               return (
                 <div key={key} onClick={(x) => { if (d.canEdit && x.target === x.currentTarget) startWizard(key); }} title={d.canEdit ? "Click an empty space to create an event this day" : undefined}
-                  className={`min-h-[104px] border bg-[#0b1016] p-1.5 text-[11px] ${key === today ? "border-cyan shadow-[0_0_14px_-4px_#00d9ff]" : "border-cyan/12"} ${d.canEdit ? "cursor-copy" : ""}`}>
+                  className={`min-h-[104px] border bg-[#0b1016] p-1.5 text-[11px] ${key === today ? "border-cyan shadow-[0_0_14px_-4px_var(--color-cyan)]" : "border-cyan/12"} ${d.canEdit ? "cursor-copy" : ""}`}>
                   <span className={`pointer-events-none ${key === today ? "font-bold text-cyan" : "text-dim"}`}>{i + 1}</span>
                   {list.map((e) => { const c = OPT[e.opType]?.[1] ?? "#9fb3c4"; return (
                     <button key={e.id} type="button" onClick={() => setOpen(e.id)} className="rise mt-1 block w-full truncate border-l-[3px] bg-[#0d1a27] px-1.5 py-1 text-left text-[11px] text-white hover:bg-[#132536]"

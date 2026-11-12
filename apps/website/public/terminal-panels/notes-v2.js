@@ -8,6 +8,7 @@
 import { addCss, ask, audit, closeModal, esc, mountPanel, notify, onReady, openModal, uploadImage } from "./_common.js";
 
 const API = "/api/terminal/notes";
+let selDay = null;
 let D = null, sel = null, view = "board", filter = { k: "all" }, q = "", root = null, saveT = null, dirty = false, calY = new Date().getFullYear(), calM = new Date().getMonth();
 let people = [], groups = [], shareDraft = null;
 const FCOL = ["#00D9FF", "#c9a227", "#22e07a", "#f472b6", "#8b93f8", "#f59e0b", "#2dd4bf"];
@@ -69,9 +70,9 @@ function area() {
   for (let i = 0; i < 42; i++) {
     const d = new Date(first); d.setDate(first.getDate() + i); const k = iso(d);
     const evs = v.filter((n) => remDay(n) === k).sort((a, b) => a.rem.atISO.localeCompare(b.rem.atISO));
-    h += `<div class="nv-c ${k === iso(new Date()) ? "t" : ""} ${d.getMonth() !== calM ? "o" : ""}" data-day="${k}" title="${D.canCreate ? "Click to add a note with a reminder on this day" : ""}"><span class="nv-dn">${d.getDate()}</span>${D.canCreate ? '<span class="nv-add">＋</span>' : ""}${evs.map((n) => `<span class="nv-ev" data-id="${n.id}" style="border-color:${n.color}">${new Date(n.rem.atISO).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} ${esc(n.title || "Untitled")}</span>`).join("")}</div>`;
+    h += `<div class="nv-c ${k === iso(new Date()) ? "t" : ""} ${k === selDay ? "s" : ""} ${d.getMonth() !== calM ? "o" : ""}" data-day="${k}" role="button" tabindex="0" aria-pressed="${k === selDay}" aria-label="${d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}${evs.length ? `, ${evs.length} reminder${evs.length > 1 ? "s" : ""}` : ""}"><span class="nv-dn">${d.getDate()}</span>${D.canCreate ? `<button class="nv-add" data-addday="${k}" title="New note with a reminder on this day" aria-label="New note on this day">＋</button>` : ""}${evs.map((n) => `<span class="nv-ev" data-id="${n.id}" style="border-color:${n.color}">${new Date(n.rem.atISO).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} ${esc(n.title || "Untitled")}</span>`).join("")}</div>`;
   }
-  return `<div class="nv-calw"><div class="nv-calh"><b>${m.toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase()}</b><button class="b sm" data-cal="-1" aria-label="Previous month">◀</button><button class="b sm" data-cal="0">TODAY</button><button class="b sm" data-cal="1" aria-label="Next month">▶</button></div><div class="nv-cal">${h}</div><p class="dim" style="font-size:11px;margin:8px 0 0">Your reminders only — each person sets their own.</p></div>`;
+  return `<div class="nv-calw"><div class="nv-calh"><b>${m.toLocaleDateString("en-GB", { month: "long", year: "numeric" }).toUpperCase()}</b><button class="b sm" data-cal="-1" aria-label="Previous month">◀</button><button class="b sm" data-cal="0">TODAY</button><button class="b sm" data-cal="1" aria-label="Next month">▶</button></div><div class="nv-cal">${h}</div><p class="dim" style="font-size:11px;margin:8px 0 0">${selDay ? `<b style="color:#00D9FF">${new Date(selDay + "T12:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</b> selected${D.canCreate ? ` — <button class="b sm" data-addday="${selDay}">＋ NEW NOTE ON THIS DAY</button>` : ""}` : "Click a day to select it · ＋ adds a note with a reminder on that day."} · Your reminders only.</p></div>`;
 }
 function editor() {
   const n = cur();
@@ -233,7 +234,8 @@ addCss("notesV3", `
 #notesV3 .nv-calw{width:100%}#notesV3 .nv-calh{display:flex;align-items:center;gap:6px;margin-bottom:8px}#notesV3 .nv-calh b{font:700 17px Rajdhani,sans-serif;letter-spacing:3px;color:#fff;margin-right:auto}
 #notesV3 .nv-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;width:100%}#notesV3 .nv-ch{font-size:9.5px;letter-spacing:2px;color:var(--d);text-align:center;padding:4px}
 #notesV3 .nv-c{min-height:100px;min-width:0;border:1px solid var(--l);background:#0b0f15;padding:4px 6px;font-size:10.5px;cursor:pointer}#notesV3 .nv-c:hover{border-color:rgba(0,217,255,.45)}#notesV3 .nv-c.t{border-color:#00D9FF;background:#0d1a24}#notesV3 .nv-c.o{opacity:.35}
-#notesV3 .nv-dn{color:var(--d)}#notesV3 .nv-add{float:right;color:#4b5765}#notesV3 .nv-c:hover .nv-add{color:#00D9FF}
+#notesV3 .nv-c.s{border-color:#c9a227;box-shadow:inset 0 0 0 1px #c9a227}#notesV3 .nv-c:focus-visible{outline:2px solid #00D9FF}
+#notesV3 .nv-dn{color:var(--d)}#notesV3 .nv-add{float:right;background:none;border:1px solid transparent;color:#4b5765;font:inherit;font-size:13px;line-height:1;padding:0 4px;cursor:pointer}#notesV3 .nv-c:hover .nv-add,#notesV3 .nv-c.s .nv-add{color:#00D9FF}#notesV3 .nv-add:hover{border-color:#00D9FF}
 #notesV3 .nv-ev{display:block;margin-top:3px;padding:1px 4px;border-left:3px solid;background:#121a24;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #notesV3 .nv-ed{border:1px solid var(--l);background:var(--p);padding:13px;position:sticky;top:10px;max-height:calc(100vh - 140px);overflow:auto}
 #notesV3 .nv-sub{font-size:9.5px;letter-spacing:1.5px;color:var(--d)}
@@ -284,6 +286,7 @@ onReady(() => {
   root.addEventListener("keydown", (e) => {
     if (e.target.id === "nvQ" && e.key === "Enter" && e.target.value.trim()) { const t = e.target.value.trim(); e.target.value = ""; return create({ title: t }); }
     if (e.target.classList?.contains("nv-n") && e.key === "Enter") { sel = e.target.dataset.id; draw(); }
+    if (e.target.classList?.contains("nv-c") && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selDay = e.target.dataset.day; draw(); }
   });
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k" && !document.getElementById("panel-notes")?.classList.contains("hidden")) { e.preventDefault(); document.getElementById("nvS")?.focus(); }
@@ -305,8 +308,10 @@ onReady(() => {
       c.classList.toggle("d"); c.querySelector("b").textContent = c.classList.contains("d") ? "✓" : "";
       sel = n.id; return patch({ body: tmp.innerHTML });
     }
+    const add = t.closest("[data-addday]");
+    if (add && D.canCreate) return create({ rem: { atISO: new Date(`${add.dataset.addday}T19:00`).toISOString(), repeat: "none" } });
     const day = t.closest("[data-day]");
-    if (day && !t.closest("[data-id]") && D.canCreate) return create({ rem: { atISO: new Date(`${day.dataset.day}T19:00`).toISOString(), repeat: "none" } });
+    if (day && !t.closest("[data-id]")) { selDay = selDay === day.dataset.day ? null : day.dataset.day; return draw(); }
     const card = t.closest("[data-id]");
     if (card && !t.closest("[data-grip]") && !t.closest("#nvEd .nv-body")) { if (card.dataset.id !== sel) { await saveNow(); sel = card.dataset.id; draw(); } return; }
     const n = cur();

@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld("cn", {
   app: {
     applySettings: (s: Record<string, unknown>) => ipcRenderer.invoke("app:settings", s),
     quit: () => ipcRenderer.invoke("app:quit"),
+    sys: () => ipcRenderer.invoke("app:sys"),
+    repair: (what: "cache" | "window" | "logs") => ipcRenderer.invoke("app:repair", what),
+    onSleep: on("app:sleep"),
   },
   update: {
     get: () => ipcRenderer.invoke("update:get"),
@@ -80,6 +83,7 @@ contextBridge.exposeInMainWorld("cn", {
     messages: (conv?: string) => ipcRenderer.invoke("hub:messages", conv),
     messagesAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:messages-action", body),
     devicesAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:devices-action", body),
+    feedbackAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:feedback-action", body),
     projectsAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:projects-action", body),
     sendAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:send-action", body),
     overview: () => ipcRenderer.invoke("hub:overview"),

@@ -100,7 +100,7 @@ export function Messages(p: { me: string }) {
         <div className="min-h-0 flex-1 overflow-auto">
           {list.map((c) => { const o = c.participants.find((x) => x !== d.me) ?? d.me; return (
             <button key={c.id} type="button" aria-current={c.id === sel} onClick={() => { setSel(c.id); setEmo(false); }}
-              className={`flex w-full items-center gap-2.5 border-b border-white/5 px-3 py-2.5 text-left ${c.id === sel ? "bg-cyan/10 shadow-[inset_3px_0_0_#00d9ff]" : "hover:bg-cyan/5"}`}>
+              className={`flex w-full items-center gap-2.5 border-b border-white/5 px-3 py-2.5 text-left ${c.id === sel ? "bg-cyan/10 shadow-[inset_3px_0_0_var(--color-cyan)]" : "hover:bg-cyan/5"}`}>
               {isGroup(c) ? <i className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full bg-gold font-bold not-italic text-black">#</i> : <Av uid={o} dot />}
               <span className="min-w-0 flex-1"><b className={`block truncate text-[12.5px] ${c.unread ? "font-semibold text-white" : "font-normal text-[#d6dde6]"}`}>{c.pinned && "📌 "}{c.muted && "🔕 "}{title(c)}{isGroup(c) && <span className="ml-1 text-[9px] text-dim">· {c.participants.length}</span>}</b>
                 <small className="block truncate text-[11px] text-dim">{c.typing.length ? <span className="text-cyan">typing…</span> : <>{c.lastSenderUid === d.me ? "You: " : isGroup(c) && c.lastSenderUid ? `${nameOf(c.lastSenderUid).split(" ").pop()}: ` : ""}{c.lastMessage || "No messages yet"}</>}</small></span>

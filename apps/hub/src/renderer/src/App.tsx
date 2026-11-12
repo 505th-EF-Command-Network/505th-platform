@@ -11,6 +11,7 @@ import { Notes } from "./pages/Notes";
 import { PolicyGate } from "./components/Policy";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { alertKind, applySettings, isKey, mergeSettings, quietNow } from "./settings";
+import { AwayBanner, Captions, CheatSheet, LockScreen } from "./components/Overlays";
 import { useNotifier } from "./useNotifier";
 import type { AppSettings } from "../../preload/api";
 import { History } from "./pages/History";
@@ -76,7 +77,7 @@ function Shell({ net }: { net: NetState }) {
   const { data, error, reload } = useSummary();
   const [ov, setOv] = useState<Overview | null>(null);
   // My Settings → "Open on: last page" (remembered on this PC).
-  const [page, setPageRaw] = useState(() => { try { return localStorage.getItem("cn:openLast") === "1" ? localStorage.getItem("cn:lastPage") || "dashboard" : "dashboard"; } catch { return "dashboard"; } });
+  const [page, setPageRaw] = useState(() => { try { const o = localStorage.getItem("cn:openLast"); return o === "1" ? localStorage.getItem("cn:lastPage") || "dashboard" : o === "m" ? "panel-msg2" : "dashboard"; } catch { return "dashboard"; } });
   const setPage = useCallback((pg: string) => { setPageRaw(pg); try { localStorage.setItem("cn:lastPage", pg); } catch { /* storage off */ } }, []);
   // ✉ (top bar) and the Messages key open Messages; pressing again goes back to the page you were on.
   const beforeMsg = useRef("dashboard");
@@ -128,7 +129,7 @@ function Shell({ net }: { net: NetState }) {
   };
   const refresh = () => { void reload(); void loadOv(); };
   // Apply settings (look, tray, start-up, global key) whenever they change.
-  useEffect(() => { if (!settings) return; applySettings(settings); try { localStorage.setItem("cn:openLast", settings.openOn === "last" ? "1" : "0"); } catch { /* storage off */ } }, [settings]);
+  useEffect(() => { if (!settings) return; applySettings(settings); try { localStorage.setItem("cn:openLast", settings.openOn === "last" ? "1" : settings.openOn === "messages" ? "m" : "0"); } catch { /* storage off */ } }, [settings]);
   const changeSettings = (s: AppSettings) => { setSettings(s); save({ settings: s }); };
   useNotifier(data, ov, setPage);
   // Tray menu (right-click the tray icon): keep its badges / switches up to date, and act on its clicks.
@@ -147,11 +148,42 @@ function Shell({ net }: { net: NetState }) {
     return () => { offP(); offT(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setPage]);
-  // My Shortcuts: Open Messages · Refresh (the others live in the top bar and side menu).
+  // ── Settings v2: Hub lock, cheat sheet, "while you were away" ──
+  const [locked, setLocked] = useState(false);
+  const [cheat, setCheat] = useState(false);
+  const [away, setAway] = useState(0);
+  const canLock = !!settings?.security.pinHash;
+  const lockNow = useCallback(() => { if (setRef.current?.security.pinHash) setLocked(true); }, []);
+  useEffect(() => {
+    if (!settings || settings.security.lock === "off" || !canLock) return;
+    const mins = Number(settings.security.lock);
+    const offS = window.cn.app.onSleep(() => lockNow());
+    const t = mins ? setInterval(() => void window.cn.app.sys().then((i) => { if (i && i.idleSecs >= mins * 60) lockNow(); }), 30_000) : undefined;
+    return () => { offS(); if (t) clearInterval(t); };
+  }, [settings, canLock, lockNow]);
+  const unreadNow = data ? data.alerts.filter((a) => !a.read).length : 0;
+  const leftAt = useRef<{ at: number; unread: number } | null>(null);
+  useEffect(() => {
+    const blur = () => { leftAt.current = { at: Date.now(), unread: unreadNow }; };
+    const focus = () => { const l = leftAt.current; leftAt.current = null; if (l && setRef.current?.a11y.away && Date.now() - l.at > 120_000 && unreadNow > l.unread) setAway(unreadNow - l.unread); };
+    addEventListener("blur", blur); addEventListener("focus", focus);
+    return () => { removeEventListener("blur", blur); removeEventListener("focus", focus); };
+  }, [unreadNow]);
+  // My Shortcuts (palette / rail / filter live in the top bar and side menu).
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "") || (e.target as HTMLElement)?.isContentEditable;
+      const s = setRef.current;
+      if (locked) return;
       if (isKey(e, "messages")) { e.preventDefault(); toggleMessages(); }
       else if (isKey(e, "refresh")) { e.preventDefault(); refresh(); }
+      else if (isKey(e, "notes")) { e.preventDefault(); setPage("panel-notes"); }
+      else if (isKey(e, "newNote")) { e.preventDefault(); setPage("panel-notes"); setTimeout(() => dispatchEvent(new CustomEvent("notes:new")), 150); }
+      else if (isKey(e, "settings")) { e.preventDefault(); setPage("my-settings"); }
+      else if (isKey(e, "lock")) { e.preventDefault(); if (canLock) lockNow(); else setToast("Set a Hub PIN first: Settings → Security"); }
+      else if (isKey(e, "dnd") && s) { e.preventDefault(); changeSettings({ ...s, notify: { ...s.notify, dnd: quietNow(s) ? "off" : "on" } }); setToast(quietNow(s) ? "Do not disturb OFF" : "Do not disturb ON"); }
+      else if (isKey(e, "help") && !typing) { e.preventDefault(); setCheat((c) => !c); }
+      else if (s?.pageKeys && e.ctrlKey && !e.shiftKey && !e.altKey && /^[1-9]$/.test(e.key)) { const pg = (nav ?? DEFAULT_NAV).pins[Number(e.key) - 1]; if (pg) { e.preventDefault(); setPage(pg); } }
     };
     addEventListener("keydown", k);
     return () => removeEventListener("keydown", k);
@@ -164,8 +196,9 @@ function Shell({ net }: { net: NetState }) {
     <div className="flex h-full flex-col">
       <Guard label="Top bar" small><TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} msgOpen={page === "panel-msg2"} onToggleMsg={toggleMessages} /></Guard>
       <UpdateBanner />
+      {away > 0 && <AwayBanner count={away} onOpen={() => { setAway(0); setPage("alerts"); }} onClose={() => setAway(0)} />}
       <div className="flex min-h-0 flex-1">
-        <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
+        <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={settings && settings.look.side !== "full" ? { ...navP, rail: true } : navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
           onStatus={(s) => void setStatus(s)} onMyFile={() => setMyFile(true)} onSignOut={() => void window.cn.auth.logout()} version={version} />
         {/* Pages stay mounted after the first visit (hidden), so switching back is instant; live topics keep them fresh. */}
         {(visited.includes(page) ? visited : [...visited, page]).map((pg) => (
@@ -188,11 +221,14 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-hubaccess" ? <HubAccess />
           : pg === "panel-network" ? <Network />
           : pg === "panel-notes" ? <Notes />
-          : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} />
+          : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} onLock={lockNow} onStatus={(x) => void setStatus(x)} pins={navP.pins} />
           : <ComingSoon title={PAGES[pg] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
           </div>))}
       </div>
       <ConfirmHost />
+      <Captions />
+      {cheat && settings && <CheatSheet s={settings} onClose={() => setCheat(false)} />}
+      {locked && settings?.security.pinHash && <LockScreen pinHash={settings.security.pinHash} name={data.me.name} onUnlock={() => setLocked(false)} onSignOut={() => { setLocked(false); void window.cn.auth.logout(); }} />}
       {myFile && <FileWindow id={data.me.uid} me={data.me.role} onClose={() => setMyFile(false)} />}
       {error && <div role="status" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-amber bg-panel px-4 py-2 text-[12px] text-amber">⚠ {error} — showing the last data</div>}
       {toast && <div role="alert" className="fixed bottom-3 left-1/2 -translate-x-1/2 border border-bad bg-panel px-4 py-2 text-[12px] text-bad">{toast}</div>}

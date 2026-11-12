@@ -180,7 +180,7 @@ const WID = {
   } },
   todo: { t: "✓ NEEDS YOU", d: "Things waiting for you to act on", ico: "✓", g: "UNIT", b: () => {
     const rows = needsList();
-    return rows.length ? rows.map(([txt, panel, am]) => `<div class="d2-todo ${am ? "am" : ""}"><span>${txt}</span><button class="lnk" data-go="${panel}">OPEN</button></div>`).join("") : empty("NOTHING NEEDS YOU RIGHT NOW.");
+    return rows.length ? rows.map(([txt, panel, am]) => `<div class="d2-todo ${am ? "am" : ""}"><span>${txt}</span><button class="lnk" ${panel === "bell" ? 'data-bell="1"' : `data-go="${panel}"`}>OPEN</button></div>`).join("") : empty("NOTHING NEEDS YOU RIGHT NOW.");
   } },
   system: { t: "◎ SYSTEM STATUS", d: "Website, database, Cortana, Discord, Cloudinary, Hub — ping and 30-day uptime", ico: "◎", g: "STATUS", acc: "net", accL: "NETWORK STATUS", b: () => {
     const p = D.ping;
@@ -426,8 +426,18 @@ function aarHtml() {
 }
 const allowed = (k) => !!WID[k] && (!WID[k].acc || acc[WID[k].acc]);
 
+window.addEventListener("bell:unread", () => { try { hello(); if (!editing && L.includes("todo")) drawW(); } catch { /* dashboard not ready yet */ } });
+document.addEventListener("click", (e) => { if (e.target.closest?.("[data-bell]")) document.getElementById("tb2Bell")?.click(); });
 function needsList() {
   const out = [];
+  // 🔔 Unread alerts from the bell (message alerts are counted from the chats below, so nothing is counted twice).
+  const bell = Number(window.__bellUnread) || 0;
+  if (bell > 0) out.push([`${bell} unread alert${bell === 1 ? "" : "s"} in 🔔`, "bell", 1]);
+  // Unread direct / group messages (everyone) — was missing, so the bell could show a message while this said "nothing needs you".
+  const um = (D.convs || []).filter((c) => (c.unreadCounts?.[uid] || 0) > 0);
+  if (um.length) { const n = um.reduce((a, c) => a + (c.unreadCounts[uid] || 0), 0); out.push([`${n} unread message${n === 1 ? "" : "s"}`, "panel-msg2", 1]); }
+  // Tickets waiting for a staff reply.
+  if (acc.tk) { const w = (D.tickets || []).filter((x) => x.status === "open" && x.waiting === "staff").length; if (w) out.push([`${w} ticket${w === 1 ? "" : "s"} waiting for a staff reply`, "panel-tickets", 1]); }
   const p = pending().length;
   if (acc.bct && p) out.push([`${p} recruit${p === 1 ? "" : "s"} waiting for BCT approval`, "panel-register", 1]);
   const t = new Date().toISOString().slice(0, 10);
@@ -640,7 +650,7 @@ onReady(() => {
       setInterval(() => (document.getElementById("panel-dashboard")?.classList.contains("hidden") ? hello() : refresh()), 60000);
       // Online Now / Staff Online update live (instant updates), not once a minute.
       let seen = null;
-      onSnapshot(query(collection(db, "conversations"), where("participants", "array-contains", uid)), (s) => { D.convs = s.docs.map((d) => ({ id: d.id, ...d.data() })); if (!editing && L.includes("msgs")) drawW(); }, () => {});
+      onSnapshot(query(collection(db, "conversations"), where("participants", "array-contains", uid)), (s) => { D.convs = s.docs.map((d) => ({ id: d.id, ...d.data() })); hello(); if (!editing && (L.includes("msgs") || L.includes("todo"))) drawW(); }, () => {});
       const dp = document.getElementById("panel-dashboard");
       if (dp) new MutationObserver(refreshPopPosition).observe(dp, { attributes: true, attributeFilter: ["class"] });
       onSnapshot(collection(db, "presence_sessions"), (s) => {

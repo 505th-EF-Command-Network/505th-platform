@@ -85,8 +85,8 @@ export function Oob() {
         <span className="truncate text-[13px] font-semibold text-[#e0e0e0]" title={s}>{s}</span>
         <div role="group" aria-label={`${s} status`} className="flex gap-1">{(["open", "filled", "closed"] as const).map((t) => (
           <button key={t} type="button" aria-pressed={st === t} onClick={() => setSlot(k, t)} className="flex-1 border px-2 py-1.5 text-[10px] font-bold tracking-[1px]"
-            style={st === t ? (t === "open" ? { background: "rgb(0 217 255 / .15)", color: "#00D9FF", borderColor: "#00D9FF" } : t === "filled" ? { background: "rgb(138 173 68 / .22)", color: "#b0d860", borderColor: "#8aad44" } : { background: "#1b2328", color: "#c4ccd2", borderColor: "#4b5765" })
-              : { color: "#6f8a96", borderColor: "rgb(0 217 255 / .2)", background: "#061018" }}>{t.toUpperCase()}</button>))}</div>
+            style={st === t ? (t === "open" ? { background: "rgb(var(--accent-rgb) / .15)", color: "#00D9FF", borderColor: "#00D9FF" } : t === "filled" ? { background: "rgb(138 173 68 / .22)", color: "#b0d860", borderColor: "#8aad44" } : { background: "#1b2328", color: "#c4ccd2", borderColor: "#4b5765" })
+              : { color: "#6f8a96", borderColor: "rgb(var(--accent-rgb) / .2)", background: "#061018" }}>{t.toUpperCase()}</button>))}</div>
         <div>{st === "filled"
           ? <select value={v.userId || (v.name ? "__typed" : "")} onChange={(e) => setSlot(k, "filled", e.target.value)} aria-label={`Member for ${s}`} className="w-full border border-cyan/25 bg-[#060a0e] px-2 py-1.5 text-[12.5px] text-white">
               <option value="">— pick a member —</option>{!v.userId && v.name && <option value="__typed">★ {v.name} (typed name, not linked)</option>}
@@ -99,14 +99,14 @@ export function Oob() {
     const mem = v.userId ? byId.get(v.userId) : undefined;
     return { s, c: st[0] as "f" | "o" | "c", rank: st === "filled" ? mem?.rank ?? "" : "", name: st === "filled" ? (mem ? mem.short : v.name || "") : "" };
   };
-  const HEX: Record<string, React.CSSProperties> = { f: { background: cfg.accent, color: "#fff" }, o: { background: "rgb(0 217 255 / .14)", color: "#00D9FF" }, c: { background: "#1b2328", color: "#55626a" } };
+  const HEX: Record<string, React.CSSProperties> = { f: { background: cfg.accent, color: "#fff" }, o: { background: "rgb(var(--accent-rgb) / .14)", color: "#00D9FF" }, c: { background: "#1b2328", color: "#55626a" } };
   return (
     <main className="min-w-0 flex-1 overflow-auto px-6 py-5" aria-label="Order of Battle">
       <h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">ORDER OF BATTLE</h1>
       <p className="mb-0 mt-1 text-[11px] tracking-[2px] text-dim">SETS THE UNIT CARDS ON THE PUBLIC CAREER PAGES · LIVE PREVIEW ON THE RIGHT</p>
       <div className="my-3 flex flex-wrap gap-1.5">{ORDER.map((u) => { const s = stats(u), c = STRUCTURE[u]!.accent; return (
         <button key={u} type="button" aria-pressed={u === unit} onClick={() => setUnit(u)} className="flex items-center gap-2 border px-3 py-2 text-[12px] font-bold tracking-[1.5px]"
-          style={u === unit ? { color: "#fff", borderColor: c, background: `color-mix(in srgb, ${c} 12%, transparent)` } : { color: "#6f8a96", borderColor: "rgb(0 217 255 / .18)" }}>
+          style={u === unit ? { color: "#fff", borderColor: c, background: `color-mix(in srgb, ${c} 12%, transparent)` } : { color: "#6f8a96", borderColor: "rgb(var(--accent-rgb) / .18)" }}>
           <i className="h-2.5 w-2.5" style={{ background: c }} />{PAGES[u]![0].toUpperCase()}<small className="text-[10px] opacity-80">{s.f}/{s.f + s.o}</small></button>); })}</div>
       <div className="grid items-start gap-4" style={{ gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)" }}>
         <section className="border border-cyan/15 bg-black/25">
@@ -144,14 +144,14 @@ export function Oob() {
                   {staff.length > 0 && <div className="grid gap-1.5 px-3 py-2" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))" }}>{staff.map((s) => { const x = pv(section, s, ""); return (
                     <div key={s} className="flex items-center gap-2 border border-white/[.07] bg-[#0a1216] px-2 py-1.5">
                       <div className="grid h-[33px] w-[30px] shrink-0 place-items-center text-[9px] font-bold [clip-path:polygon(50%_0,100%_25%,100%_75%,50%_100%,0_75%,0_25%)]" style={HEX[x.c]}>{x.c === "f" ? x.rank || "★" : x.c === "o" ? "+" : "—"}</div>
-                      <div><div className="text-[9px] text-[#8a9aa6]">{s.toUpperCase()}</div><div className="text-[12px] font-bold" style={x.c === "f" ? { color: "#fff" } : x.c === "o" ? { color: "rgb(0 217 255 / .65)", fontStyle: "italic", fontWeight: 400 } : { color: "#6b7880" }}>{x.c === "f" ? `${x.rank ? x.rank + " " : ""}${x.name}` : x.c === "o" ? "Open" : "Closed"}</div></div>
+                      <div><div className="text-[9px] text-[#8a9aa6]">{s.toUpperCase()}</div><div className="text-[12px] font-bold" style={x.c === "f" ? { color: "#fff" } : x.c === "o" ? { color: "rgb(var(--accent-rgb) / .65)", fontStyle: "italic", fontWeight: 400 } : { color: "#6b7880" }}>{x.c === "f" ? `${x.rank ? x.rank + " " : ""}${x.name}` : x.c === "o" ? "Open" : "Closed"}</div></div>
                     </div>); })}</div>}
                   {squads.length > 0 && <div className="grid gap-1.5 px-3 pb-2.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))" }}>{squads.map((q) => (
                     <div key={q.name} className="border border-white/[.08] bg-[#0a1216]"><div className="border-b border-white/[.06] px-2 py-1 text-[10px] font-bold tracking-[1.5px]" style={{ color: cfg.accent }}>{q.name.toUpperCase()}</div>
                       {q.slots.map((s, i) => { const x = pv(section, s, q.name); return (
                         <div key={i} className="grid items-center gap-1.5 px-2 py-[3px] text-[12px]" style={{ gridTemplateColumns: "12px 1fr auto", background: i === 0 ? `color-mix(in srgb, ${cfg.accent} 7%, transparent)` : undefined }}>
                           <span className="h-[7px] w-[7px] rounded-full" style={x.c === "f" ? { background: cfg.accent } : x.c === "o" ? { border: "1px dashed #00D9FF" } : { background: "#2a343b" }} />
-                          <span style={x.c === "o" ? { color: "rgb(0 217 255 / .6)", fontStyle: "italic" } : x.c === "c" ? { color: "#55626a" } : { color: "#d6dde6" }}>{x.c === "f" ? x.name : x.c === "o" ? "Open" : "Closed"}</span>
+                          <span style={x.c === "o" ? { color: "rgb(var(--accent-rgb) / .6)", fontStyle: "italic" } : x.c === "c" ? { color: "#55626a" } : { color: "#d6dde6" }}>{x.c === "f" ? x.name : x.c === "o" ? "Open" : "Closed"}</span>
                           {x.c === "f" && <span className="border px-1 text-[9px] font-bold" style={{ borderColor: `color-mix(in srgb, ${cfg.accent} 45%, transparent)` }}>{x.rank || "—"}</span>}</div>); })}</div>))}</div>}
                 </div>);
             })}

@@ -76,7 +76,7 @@ export function Media() {
         </div>)}
       <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(210px,1fr))" }}>
         {list.map((m, n) => { const on = sel.has(m.id), bad = broken.has(m.id); return (
-          <div key={m.id} className={`rise tile border bg-[#0b1016] ${on ? "outline outline-2 outline-cyan" : ""}`} style={{ animationDelay: `${Math.min(n, 30) * 0.02}s`, borderColor: bad ? "#f59e0b" : "rgb(0 217 255 / .15)" }}>
+          <div key={m.id} className={`rise tile border bg-[#0b1016] ${on ? "outline outline-2 outline-cyan" : ""}`} style={{ animationDelay: `${Math.min(n, 30) * 0.02}s`, borderColor: bad ? "#f59e0b" : "rgb(var(--accent-rgb) / .15)" }}>
             <button type="button" onClick={() => setOpen(m)} className="relative block aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-[#123045] to-[#0a1a24]" aria-label={`Open ${m.name}`}>
               {thumb(m) && !bad && <img src={thumb(m)} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken((b) => new Set(b).add(m.id))} className={`h-full w-full object-cover ${m.enabled ? "" : "opacity-35"}`} />}
               {bad && <span className="absolute inset-0 grid place-items-center text-[11px] text-amber">⚠ BROKEN LINK</span>}

@@ -7,7 +7,7 @@ const ID = /^[a-f0-9]{24}$/;
 
 /**
  * My Devices (H3). GET → this person's Hub sign-ins (active + the last few signed out).
- * POST { action: "rename", id, name } · { action: "signout", id } · { action: "signout-others" }.
+ * POST { action: "rename", id, name } · { action: "signout", id } · { action: "signout-others" } · { action: "panic" } (all, this one too).
  * Only ever your own sessions. Signing out = revokedAt (the token stops working at once).
  */
 export async function GET(req: Request) {
@@ -34,6 +34,12 @@ export async function POST(req: Request) {
     const r = await HubSession.updateMany({ ...mine, _id: { $ne: a.sessionId } }, { $set: { revokedAt: new Date(), revokedReason: "signed out from My Devices" } });
     await hubAudit(who, "APP SIGNED OUT OTHER DEVICES", `${r.modifiedCount} device(s) — via app`);
     return hubJson({ ok: true, msg: r.modifiedCount ? `${r.modifiedCount} device${r.modifiedCount === 1 ? "" : "s"} signed out` : "No other devices" });
+  }
+  // "NOT ME" panic button: sign out EVERY device, this one too, and tell staff in the audit log.
+  if (b.action === "panic") {
+    const r = await HubSession.updateMany(mine, { $set: { revokedAt: new Date(), revokedReason: "NOT ME — panic button" } });
+    await hubAudit(who, "APP PANIC — ALL DEVICES SIGNED OUT", `${r.modifiedCount} device(s). Member says a sign-in was not them.`);
+    return hubJson({ ok: true, msg: `All ${r.modifiedCount} devices signed out` });
   }
   const id = String(b.id ?? "");
   if (!ID.test(id)) return hubJson({ error: "Bad request." }, 400);

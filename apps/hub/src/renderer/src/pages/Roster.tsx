@@ -102,7 +102,7 @@ export function Roster(p: { me: string }) {
               <td className="border-b border-cyan/10 px-2.5"><span className="flex items-center gap-1">
                 {[1, 2, 3].map((k) => k === att + 1 && canEdit
                   ? <button key={k} type="button" disabled={busy === r.id} onClick={() => void act("pip", r)} title="Add attendance (+1)" aria-label={`Add attendance for ${nm(r)}`} className="h-3.5 w-3.5 rounded-full border border-dashed border-cyan hover:bg-cyan/25 disabled:opacity-40" />
-                  : <span key={k} className="inline-block h-3.5 w-3.5 rounded-full border" style={att >= k ? { background: PIP[att], borderColor: PIP[att] } : { borderColor: "rgb(0 217 255 / .3)" }} />)}
+                  : <span key={k} className="inline-block h-3.5 w-3.5 rounded-full border" style={att >= k ? { background: PIP[att], borderColor: PIP[att] } : { borderColor: "rgb(var(--accent-rgb) / .3)" }} />)}
                 <span className="ml-1 text-[10px] text-dim">{att}/3</span>
               </span></td>
               <td className="border-b border-cyan/10 px-2.5"><span className="inline-flex items-center gap-1.5"><b className="font-head text-[15px] text-cyan">{r.promotionTracker}</b>

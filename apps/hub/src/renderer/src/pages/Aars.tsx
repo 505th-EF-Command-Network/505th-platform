@@ -223,7 +223,7 @@ function Writer(p: { w: W; d: AarData; touch: (patch: Partial<W>) => void; setW:
               {s === 4 && <>
                 <span className="mb-1 block text-[9.5px] tracking-[2px] text-dim">RESULT <i className="not-italic text-[#ffd166]">*</i></span>
                 <div role="radiogroup" aria-label="Result" className="mb-3 flex gap-1.5">{Object.entries(RES).map(([k, [l, c, sy]]) => <button key={k} type="button" role="radio" aria-checked={v.result === k} onClick={() => setV("result", k)}
-                  className="border px-3 py-1.5 text-[11px] tracking-[1px]" style={v.result === k ? { color: c, borderColor: c, background: c + "14" } : { color: "#7d8a99", borderColor: "rgb(0 217 255 / .2)" }}>{sy} {l}</button>)}</div>
+                  className="border px-3 py-1.5 text-[11px] tracking-[1px]" style={v.result === k ? { color: c, borderColor: c, background: c + "14" } : { color: "#7d8a99", borderColor: "rgb(var(--accent-rgb) / .2)" }}>{sy} {l}</button>)}</div>
                 <div className="grid grid-cols-2 gap-3">{F("objectiveOutcome", "OUTCOME", "area")}{F("lessonsLearned", "LESSONS LEARNED", "area")}{F("recommended", "RECOMMENDED CHANGES", "area")}{F("miscComments", "OTHER COMMENTS", "area")}</div></>}
               {s === 5 && <>
                 <label className="block cursor-pointer border border-dashed border-cyan/40 bg-cyan/5 px-4 py-6 text-center text-[12px] tracking-[1.5px] text-cyan hover:bg-cyan/10">

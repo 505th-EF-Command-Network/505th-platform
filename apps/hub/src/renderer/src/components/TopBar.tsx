@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { alertKind, isKey, settingsNow } from "../settings";
+import { alertKind, fmtDate, fmtTime, isKey, settingsNow } from "../settings";
 import type { NetState, Overview, Summary } from "../../../preload/api";
 import { countdown, ukTime } from "../ui";
 import { NAV_LINKS } from "./SideNav";
@@ -74,10 +74,12 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
             <b className="block text-[10.5px] font-normal tracking-[2px] text-white">HUB <span style={{ color: col }}>● {ok ? "LIVE" : part ? "PARTIAL" : "OFFLINE"}</span></b>
             <small className="text-[10px] tracking-[1px]" style={{ color: col }}>{ok ? "OPERATIONAL" : part ? "DEGRADED" : "NO CONNECTION"}</small></span>; })()}
       </div>
-      {(() => { const tm = settingsNow().time; const local = new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-        return <div className="px-1 text-right leading-tight"><b className="block font-head text-[17px] tracking-[1px] text-white">{tm === "local" ? local : ukTime(now)}{tm === "both" && <span className="ml-1.5 text-[11px] text-dim">{local} YOU</span>}</b>
-          <small className="text-[9.5px] tracking-[1.5px] text-dim">{tm === "local" ? "YOUR TIME" : "UK"} · {ukTime(now, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}</small></div>; })()}
-      <button type="button" aria-label="Refresh" title="Refresh" onClick={() => { setSpin(true); p.onRefresh(); setTimeout(() => setSpin(false), 800); }} className="grid h-9 w-9 place-items-center border border-cyan/20 text-[15px] text-[#c6d0da] hover:border-cyan hover:shadow-[0_0_12px_-3px_#00d9ff]">
+      {(() => { const st = settingsNow(), tm = st.time, d = new Date(now); const local = fmtTime(d, st.tz || undefined), uk = fmtTime(d, "Europe/London");
+        return <div className="flex items-center gap-3 px-1">
+          {st.clocks.map((c) => <div key={c.tz + c.label} className="hidden text-right leading-tight xl:block"><b className="block font-head text-[13px] text-[#c6d0da]">{fmtTime(d, c.tz)}</b><small className="text-[9px] tracking-[1.5px] text-dim">{c.label || c.tz.split("/").pop()}</small></div>)}
+          <div className="text-right leading-tight"><b className="block font-head text-[17px] tracking-[1px] text-white tabular-nums">{tm === "local" ? local : uk}{tm === "both" && <span className="ml-1.5 text-[11px] text-dim">{local} YOU</span>}</b>
+          <small className="text-[9.5px] tracking-[1.5px] text-dim">{tm === "local" ? "YOUR TIME" : "UK"} · {ukTime(now, { weekday: "short" }).toUpperCase()} {fmtDate(d, tm === "local" ? st.tz || undefined : "Europe/London")}</small></div></div>; })()}
+      <button type="button" aria-label="Refresh" title="Refresh" onClick={() => { setSpin(true); p.onRefresh(); setTimeout(() => setSpin(false), 800); }} className="grid h-9 w-9 place-items-center border border-cyan/20 text-[15px] text-[#c6d0da] hover:border-cyan hover:shadow-[0_0_12px_-3px_var(--color-cyan)]">
         <span className={spin ? "animate-spin" : ""}>↻</span></button>
       {(() => { const n = p.sum.alerts.filter((a) => !a.read && a.type === "message").length; return (
       <button type="button" aria-label={p.msgOpen ? "Close messages" : `Messages${n ? `, ${n} unread` : ""}`} aria-pressed={p.msgOpen} title={p.msgOpen ? "Close messages (back)" : "Messages"} onClick={p.onToggleMsg}

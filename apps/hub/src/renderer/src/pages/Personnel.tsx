@@ -389,11 +389,11 @@ function Details(p: { f: MemberFile; me: string; roleLabel: string; onSaved: (m:
         <label className="mb-1 block text-[10px] tracking-[1.5px]" style={{ color: ch ? "#f59e0b" : "#7d8a99" }}>{label}{ch ? " • CHANGED" : ""}</label>
         {!on ? <div className="px-2.5 py-2 text-[13px] text-white">{type === "role" ? p.roleLabel : v[k] || "—"}{type === "role" && edit && <span className="ml-2 text-[10.5px] text-dimmer">🔒 Commander / Developer only</span>}</div>
           : type === "role" ? (
-            <select value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} className="w-full border bg-[#07111b] px-2.5 py-2 text-[13px] text-white" style={{ borderColor: ch ? "#f59e0b" : "rgb(0 217 255 / .2)" }}>
+            <select value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} className="w-full border bg-[#07111b] px-2.5 py-2 text-[13px] text-white" style={{ borderColor: ch ? "#f59e0b" : "rgb(var(--accent-rgb) / .2)" }}>
               {ROLE_OPTS.filter((r) => r !== "commander" || p.me === "commander" || v[k] === "commander").map((r) => <option key={r} value={r}>{ROLE[r]?.[0] ?? r}</option>)}
             </select>)
           : <input type={type} value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} maxLength={80}
-              className="w-full border bg-[#07111b] px-2.5 py-2 text-[13px] text-white outline-none focus:border-cyan" style={{ borderColor: ch ? "#f59e0b" : "rgb(0 217 255 / .2)", colorScheme: "dark" }} />}
+              className="w-full border bg-[#07111b] px-2.5 py-2 text-[13px] text-white outline-none focus:border-cyan" style={{ borderColor: ch ? "#f59e0b" : "rgb(var(--accent-rgb) / .2)", colorScheme: "dark" }} />}
       </div>
     );
   };

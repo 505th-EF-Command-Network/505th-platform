@@ -33,7 +33,7 @@ const GROUPS: Group[] = [
 const ALL_LINKS = GROUPS.flatMap((g) => g.links);
 export const PAGES: Record<string, string> = {
   ...Object.fromEntries(ALL_LINKS.map((l) => [l.id, l.label])),
-  "my-settings": "App Settings", "my-devices": "My Devices", "my-notifications": "Notifications & Sounds", "my-shortcuts": "Keyboard Shortcuts", "my-about": "About", "panel-hubaccess": "Hub Access", "panel-msg2": "Messages", "alerts": "Alerts",
+  "my-settings": "Settings", "my-appearance": "Appearance", "my-a11y": "Accessibility", "my-security": "Security", "my-backup": "Backup & Reset", "my-devices": "My Devices", "my-notifications": "Notifications & Sounds", "my-shortcuts": "Keyboard Shortcuts", "my-about": "About", "panel-hubaccess": "Hub Access", "panel-msg2": "Messages", "alerts": "Alerts",
 };
 export const NAV_LINKS = ALL_LINKS;
 export type NavPrefs = NonNullable<HubPrefs["nav"]>;
@@ -143,13 +143,13 @@ export function SideNav(p: {
             <div className="px-3 pb-0.5 pt-2 text-[9.5px] tracking-[2px] text-dim">STATUS</div>
             <div className="flex gap-1 px-3 pb-2">{(["online", "dnd", "invisible"] as const).map((k) => (
               <button key={k} type="button" role="menuitemradio" aria-checked={st === k} onClick={() => p.onStatus(k)} className="flex-1 border py-1.5 text-[10.5px]"
-                style={{ color: STATE[k].color, borderColor: st === k ? STATE[k].color : "rgb(0 217 255 / .15)", background: st === k ? "rgba(255,255,255,.04)" : undefined }}>
+                style={{ color: STATE[k].color, borderColor: st === k ? STATE[k].color : "rgb(var(--accent-rgb) / .15)", background: st === k ? "rgba(255,255,255,.04)" : undefined }}>
                 {k === "online" ? "● Online" : k === "dnd" ? "⛔ DND" : "○ Hidden"}</button>))}</div>
             <hr className="my-1 border-cyan/10" />
             {([["👤", "My personnel file", () => p.onMyFile()], ["⚠", `My warnings · ${p.ov?.me.warnings ?? 0}`, () => p.onMyFile()]] as [string, string, () => void][]).map(([i, l, f]) => (
               <button key={l} type="button" role="menuitem" onClick={() => { setCard(false); f(); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-[#c6d0da] hover:bg-cyan/10 hover:text-white"><i className="w-4 text-center not-italic text-cyan">{i}</i>{l}</button>))}
             <hr className="my-1 border-cyan/10" />
-            {([["🔔", "Notifications & sounds", "my-notifications"], ["⚙", "App settings", "my-settings"], ["🖥", "My devices", "my-devices"], ["⌨", "Keyboard shortcuts", "my-shortcuts"], ["ⓘ", "About", "my-about"]] as [string, string, string][]).map(([i, l, id]) => (
+            {([["⚙", "Settings", "my-settings"], ["🎨", "Appearance", "my-appearance"], ["♿", "Accessibility", "my-a11y"], ["🔔", "Notifications & sounds", "my-notifications"], ["🛡", "Security", "my-security"], ["🖥", "My devices", "my-devices"], ["⌨", "Keyboard shortcuts", "my-shortcuts"], ["ⓘ", "About", "my-about"]] as [string, string, string][]).map(([i, l, id]) => (
               <button key={id} type="button" role="menuitem" onClick={() => { setCard(false); p.onPage(id); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-[#c6d0da] hover:bg-cyan/10 hover:text-white"><i className="w-4 text-center not-italic text-cyan">{i}</i>{l}</button>))}
             <hr className="my-1 border-cyan/10" />
             <button type="button" role="menuitem" onClick={() => { setCard(false); p.onSignOut(); }} className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-[12.5px] text-bad hover:bg-bad/10"><i className="w-4 text-center not-italic">⏻</i>Sign out</button>

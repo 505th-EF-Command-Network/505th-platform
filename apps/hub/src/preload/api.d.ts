@@ -59,15 +59,25 @@ export type BctPerson = { id: string; fullName: string; name: string; pfcName: s
   recruitSource: string; timezone: string; registeredAt: string; approvedAt: string; approvedBy: string; deniedAt: string; deniedBy: string; denyReason: string };
 export type BctData = { pending: BctPerson[]; approved: BctPerson[]; denied: BctPerson[]; thisMonth: number; avg: string; instructors: string[]; platoons: string[]; sources: string[]; denyReasons: string[]; canAct: boolean };
 export type HubPrefs = { dash?: [string, number][]; nav?: { order: string[]; hidden: string[]; pins: string[]; closed: string[]; rail: boolean }; settings?: AppSettings };
-export type NotifyEvent = "message" | "tag" | "ticket" | "bct" | "op" | "project" | "rank";
-export type ShortcutId = "palette" | "rail" | "filter" | "messages" | "refresh" | "toggle";
+export type NotifyEvent = "message" | "tag" | "ticket" | "bct" | "op" | "project" | "rank" | "note" | "net";
+export type ShortcutId = "palette" | "rail" | "filter" | "messages" | "refresh" | "toggle" | "notes" | "newNote" | "lock" | "settings" | "help" | "dnd";
 /** My Settings / My Notifications / My Shortcuts — same shape as website lib/hub/settings.ts. */
 export type AppSettings = {
-  startup: boolean; closeToTray: boolean; openOn: "dashboard" | "last"; textSize: "s" | "m" | "l" | "xl"; anim: "on" | "reduced" | "off"; contrast: boolean; time: "uk" | "local" | "both";
-  notify: { popup: boolean; taskbar: boolean; edge: boolean; sound: boolean; dnd: "off" | "on" | "night" | "custom"; dndFrom: string; dndTo: string; opMins: number; newDevice: boolean;
-    ev: Record<NotifyEvent, { popup: boolean; bell: boolean; flash: boolean }> };
-  keys: Record<ShortcutId, string>;
+  startup: boolean; closeToTray: boolean; openOn: "dashboard" | "last" | "messages"; textSize: "s" | "m" | "l" | "xl"; anim: "on" | "reduced" | "off"; contrast: boolean; time: "uk" | "local" | "both";
+  /** Time & Region. tz "" = this PC's zone. clocks = up to 3 extra (e.g. PST). */
+  tz: string; tzPin: boolean; clocks: { tz: string; label: string }[]; dateStyle: "dmy" | "mdy" | "iso"; h24: boolean;
+  autoUpdate: boolean; channel: "stable" | "beta";
+  look: { theme: "cyan" | "gold" | "olive" | "night"; accent: string; platoon: boolean; nightAuto: boolean; nightFrom: string; nightTo: string; glow: number; corners: "sharp" | "round";
+    bg: "plain" | "grid" | "hex" | "scan" | "picture"; bgUrl: string; bgBlur: number; bgDark: number; cards: number; side: "full" | "icons" | "auto"; density: "compact" | "normal" | "roomy"; cb: boolean };
+  a11y: { style: "edge" | "tint" | "badge"; color: string; until: boolean; safe: boolean; stay: boolean; away: boolean; soundText: boolean; plain: boolean; easyFont: boolean; lines: "normal" | "wide";
+    focus: boolean; big: boolean; moreTime: boolean; reader: boolean };
+  notify: { popup: boolean; windows: boolean; taskbar: boolean; edge: boolean; sound: boolean; dnd: "off" | "on" | "night" | "custom"; dndFrom: string; dndTo: string; opMins: number; newDevice: boolean;
+    letOps: boolean; preview: boolean; ev: Record<NotifyEvent, { popup: boolean; bell: boolean; flash: boolean }> };
+  security: { lock: "off" | "5" | "15" | "60" | "sleep"; pinHash: string; streamer: boolean; alerts: boolean };
+  devices: { max: 2 | 3 | 5; idleDays: 7 | 30 | 90; trusted: string[] };
+  keys: Record<ShortcutId, string>; keysOff: ShortcutId[]; pageKeys: boolean;
 };
+export type SysInfo = { version: string; windows: string; installedISO: string; upMins: number; freeGB: number; idleSecs: number };
 export type Device = { id: string; name: string; appVersion: string; os: string; current: boolean; signedInAt: string; lastUsedAt: string; expiresAt: string; revokedAt: string; revokedReason: string };
 export type Overview = {
   prefs: HubPrefs | null;
@@ -138,7 +148,8 @@ declare global {
         onTopic(cb: (topic: string) => void): () => void;
       };
       info(): Promise<{ version: string; packaged: boolean }>;
-      app: { applySettings(s: { startup: boolean; closeToTray: boolean; zoom: number; toggleKey: string }): Promise<void>; quit(): Promise<void> };
+      app: { applySettings(s: { startup: boolean; closeToTray: boolean; zoom: number; toggleKey: string }): Promise<void>; quit(): Promise<void>;
+        sys(): Promise<SysInfo | null>; repair(what: "cache" | "window" | "logs"): Promise<string>; onSleep(cb: (why: string) => void): () => void };
       update: {
         get(): Promise<UpdateState>;
         check(): Promise<UpdateState>;
@@ -147,7 +158,7 @@ declare global {
         onNew(cb: (i: UpdateInfo) => void): () => void;
       };
       notify: {
-        show(t: { id: string; title: string; body: string; icon?: string; color?: string; urgent?: boolean; actions?: { id: string; label: string }[] }, o: { popup: boolean; taskbar: boolean; edge: boolean }): Promise<void>;
+        show(t: { id: string; title: string; body: string; icon?: string; color?: string; urgent?: boolean; actions?: { id: string; label: string }[] }, o: { popup: boolean; taskbar: boolean; edge: boolean; windows?: boolean; test?: boolean; style?: "edge" | "tint" | "badge"; color?: string; safe?: boolean; until?: boolean; stay?: boolean }): Promise<void>;
         unread(n: number): Promise<void>;
         onAction(cb: (a: { id: string; action: string }) => void): () => void;
       };
@@ -200,6 +211,7 @@ declare global {
         policyAction(body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
         devices(): Promise<{ devices: Device[]; recent: Device[] } | { error: string }>;
         devicesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        feedbackAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         projectsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
         sendAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;

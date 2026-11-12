@@ -35,6 +35,7 @@ export function Notes() {
   const [toast, setToast] = useState<[string, boolean] | null>(null);
   const [cal, setCal] = useState(() => ({ y: new Date().getFullYear(), m: new Date().getMonth() }));
   const [share, setShare] = useState<Share | null>(null);
+  const [selDay, setSelDay] = useState<string | null>(null);
   const [saved, setSaved] = useState("");
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
@@ -84,6 +85,9 @@ export function Notes() {
     const r = await run({ action: "create", title: "New note", body: "", ...f });
     if (r.id) { setSel(r.id); await load(); setTimeout(() => titleRef.current?.select(), 50); }
   };
+  // Ctrl+Shift+N (My Shortcuts → New note) from anywhere.
+  const createRef = useRef(create); createRef.current = create;
+  useEffect(() => { const on = () => void createRef.current(); addEventListener("notes:new", on); return () => removeEventListener("notes:new", on); }, []);
   // Put the note's HTML into the editor only when you switch note (so typing isn't interrupted by redraws).
   useEffect(() => { if (bodyRef.current && cur) bodyRef.current.innerHTML = cur.body; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [sel, cur?.id, d === null]);
 
@@ -176,11 +180,13 @@ export function Notes() {
                 {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((x) => <div key={x} className="py-1 text-center text-[9.5px] tracking-[2px] text-dim">{x}</div>)}
                 {Array.from({ length: 42 }, (_, i) => { const dd = new Date(first); dd.setDate(first.getDate() + i); const k = iso(dd);
                   const evs = vis.filter((n) => n.rem && iso(new Date(n.rem.atISO)) === k).sort((a, b) => a.rem!.atISO.localeCompare(b.rem!.atISO));
-                  return <div key={k} onClick={(e) => { if ((e.target as HTMLElement).closest("[data-ev]") || !d.canCreate) return; void create({ rem: { atISO: new Date(`${k}T19:00`).toISOString(), repeat: "none" } }); }}
-                    className={`group min-h-[100px] min-w-0 cursor-pointer border bg-[#0b0f15] px-1.5 py-1 text-[10.5px] hover:border-cyan/50 ${k === iso(new Date()) ? "border-cyan bg-[#0d1a24]" : "border-cyan/15"} ${dd.getMonth() !== cal.m ? "opacity-35" : ""}`}>
-                    <span className="text-dim">{dd.getDate()}</span>{d.canCreate && <span className="float-right text-dimmer group-hover:text-cyan">＋</span>}
+                  return <div key={k} role="button" tabIndex={0} aria-pressed={selDay === k} onClick={(e) => { if ((e.target as HTMLElement).closest("[data-ev],[data-add]")) return; setSelDay(selDay === k ? null : k); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelDay(k); } }}
+                    className={`group min-h-[100px] min-w-0 cursor-pointer border bg-[#0b0f15] px-1.5 py-1 text-[10.5px] hover:border-cyan/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan ${selDay === k ? "!border-[#c9a227] shadow-[inset_0_0_0_1px_#c9a227]" : k === iso(new Date()) ? "border-cyan bg-[#0d1a24]" : "border-cyan/15"} ${dd.getMonth() !== cal.m ? "opacity-35" : ""}`}>
+                    <span className="text-dim">{dd.getDate()}</span>{d.canCreate && <button type="button" data-add title="New note with a reminder on this day" aria-label="New note on this day" onClick={() => void create({ rem: { atISO: new Date(`${k}T19:00`).toISOString(), repeat: "none" } })} className={`float-right border border-transparent px-1 leading-none hover:border-cyan ${selDay === k ? "text-cyan" : "text-dimmer group-hover:text-cyan"}`}>＋</button>}
                     {evs.map((n) => <button key={n.id} data-ev type="button" onClick={() => void pick(n.id)} className="mt-1 block w-full truncate bg-[#121a24] px-1 text-left text-[10px]" style={{ borderLeft: `3px solid ${n.color}` }}>{new Date(n.rem!.atISO).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} {n.title || "Untitled"}</button>)}</div>; })}
-              </div><p className="mt-2 text-[11px] text-dim">Your reminders only — each person sets their own.</p></div>; })()}
+              </div><p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-dim">{selDay ? <><b className="font-normal text-cyan">{new Date(selDay + "T12:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</b> selected
+                {d.canCreate && <button type="button" className={btn} onClick={() => void create({ rem: { atISO: new Date(`${selDay}T19:00`).toISOString(), repeat: "none" } })}>＋ NEW NOTE ON THIS DAY</button>}</> : "Click a day to select it · ＋ adds a note with a reminder on that day."} · Your reminders only.</p></div>; })()}
         </div>
 
         <div className="sticky top-0 max-h-[calc(100vh-150px)] overflow-auto border border-cyan/15 bg-panel p-3">

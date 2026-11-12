@@ -1,4 +1,4 @@
-import { BrowserWindow, Tray, type Rectangle, app, globalShortcut, nativeImage, screen, type NativeImage } from "electron";
+import { BrowserWindow, Notification, Tray, type Rectangle, app, globalShortcut, nativeImage, screen, type NativeImage } from "electron";
 import { join } from "node:path";
 
 /**
@@ -10,14 +10,16 @@ import { join } from "node:path";
  * Card buttons are plain links the main process catches (cn-toast://…) — the card has no Node, no preload, no script.
  */
 export type Toast = { id: string; title: string; body: string; icon?: string; color?: string; actions?: { id: string; label: string }[]; urgent?: boolean };
-export type NotifyOpts = { popup: boolean; taskbar: boolean; edge: boolean };
+/** style/color/safe/until/stay come from Accessibility → Visual alerts. */
+export type NotifyOpts = { popup: boolean; taskbar: boolean; edge: boolean; windows?: boolean; test?: boolean;
+  style?: "edge" | "tint" | "badge"; color?: string; safe?: boolean; until?: boolean; stay?: boolean };
 type Hooks = { getWin: () => BrowserWindow | null; onAction: (toastId: string, action: string) => void; onQuit: () => void; onTrayMenu: (at: Rectangle) => void };
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const W = 380, GAP = 10;
 
 export function createNotifier(h: Hooks) {
-  const cards: { win: BrowserWindow; h: number; timer: NodeJS.Timeout }[] = [];
+  const cards: { win: BrowserWindow; h: number; timer: NodeJS.Timeout | null }[] = [];
   let tray: Tray | null = null;
   let logo: NativeImage | null = null;
   let logoData = "";
@@ -37,12 +39,12 @@ export function createNotifier(h: Hooks) {
   };
   const close = (win: BrowserWindow) => {
     const i = cards.findIndex((c) => c.win === win);
-    if (i >= 0) { clearTimeout(cards[i]!.timer); cards.splice(i, 1); }
+    if (i >= 0) { if (cards[i]!.timer) clearTimeout(cards[i]!.timer!); cards.splice(i, 1); }
     if (!win.isDestroyed()) win.close();
     place();
   };
 
-  function card(t: Toast) {
+  function card(t: Toast, stay = false) {
     getLogo();
     while (cards.length >= 3) close(cards[0]!.win);
     const c = t.color && /^#[0-9a-f]{6}$/i.test(t.color) ? t.color : "#00d9ff";
@@ -54,7 +56,7 @@ export function createNotifier(h: Hooks) {
 @media(prefers-reduced-motion:reduce){.c{animation:none}}
 .c:before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,${c},transparent)}
 .h{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid #00d9ff1a;font:600 10px "Segoe UI";letter-spacing:2.5px;color:#7d8a99}.h img{width:18px;height:18px}
-.h a{margin-left:auto;color:#4b5765;text-decoration:none;font-size:12px;letter-spacing:0}.h a:hover{color:#fff}
+.h a{margin-left:auto;width:22px;height:22px;display:grid;place-items:center;border:1px solid #00d9ff33;color:#c6d0da;text-decoration:none;font-size:13px;letter-spacing:0}.h a:hover{color:#fff;border-color:#ff4d4d;background:#ff4d4d33}
 .b{display:flex;gap:10px;padding:10px 12px;cursor:pointer;text-decoration:none;color:inherit}.i{width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;font-size:20px;color:${c}}
 .t{font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.m{color:#aeb9c4;font-size:12.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .a{display:flex;gap:6px;padding:0 12px 10px 56px}.a a{border:1px solid #00d9ff40;padding:3px 10px;font-size:10.5px;letter-spacing:1.5px;color:#fff;text-decoration:none}.a a:hover{background:#00d9ff1a;border-color:${c}}</style></head>
@@ -69,31 +71,56 @@ ${acts.length ? `<div class="a">${acts.map((a) => `<a href="cn-toast://${esc(a.i
     win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     win.once("ready-to-show", () => win.showInactive());
     void win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
-    cards.push({ win, h: hgt, timer: setTimeout(() => close(win), t.urgent ? 15_000 : 8_000) });
+    cards.push({ win, h: hgt, timer: stay ? null : setTimeout(() => close(win), t.urgent ? 15_000 : 8_000) });
     place();
   }
 
-  /** Amber border round the screen, click-through, 4 blinks. */
-  function edge() {
+  /** Visual alert round the screen, click-through: border (edge), colour wash (tint) or a corner dot (badge).
+   *  safe = no blinking (slow fade). until = stays until you move the mouse (max 60 s). */
+  function edge(o: NotifyOpts) {
+    const col = o.color && /^#[0-9a-f]{6}$/i.test(o.color) ? o.color : "#f59e0b";
+    const look = o.style === "tint" ? `background:${col}33` : o.style === "badge" ? `inset:auto 24px auto auto;top:24px;width:46px;height:46px;border-radius:50%;background:${col};box-shadow:0 0 30px ${col}` : `border:8px solid ${col};box-shadow:inset 0 0 40px ${col}88`;
+    const anim = o.safe ? "animation:s 2.4s ease-in-out both" : o.until ? "animation:f 1s infinite both" : "animation:f .5s 4 both";
     const d = screen.getPrimaryDisplay().bounds;
     const win = new BrowserWindow({ ...d, frame: false, transparent: true, resizable: false, movable: false, skipTaskbar: true, alwaysOnTop: true, focusable: false, show: false, hasShadow: false,
       webPreferences: { sandbox: true, javascript: false } });
     win.setIgnoreMouseEvents(true);
     win.setAlwaysOnTop(true, "screen-saver");
     const html = `<!DOCTYPE html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}
-div{position:fixed;inset:0;border:8px solid #f59e0b;box-shadow:inset 0 0 40px #f59e0b88;animation:f .5s 4 both}@keyframes f{0%,100%{opacity:0}50%{opacity:1}}
+div{position:fixed;inset:0;${look};${anim}}@keyframes f{0%,100%{opacity:0}50%{opacity:1}}@keyframes s{0%,100%{opacity:0}30%,70%{opacity:1}}
 @media(prefers-reduced-motion:reduce){div{animation:none;opacity:1}}</style></head><body><div></div></body></html>`;
     win.once("ready-to-show", () => win.showInactive());
     void win.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
-    setTimeout(() => !win.isDestroyed() && win.close(), 2400);
+    if (!o.until) { setTimeout(() => !win.isDestroyed() && win.close(), 2400); return; }
+    // Until noticed: close when the mouse moves (or after 60 s).
+    const start = screen.getCursorScreenPoint(), t0 = Date.now();
+    const iv = setInterval(() => {
+      const p = screen.getCursorScreenPoint();
+      if (win.isDestroyed() || Math.abs(p.x - start.x) + Math.abs(p.y - start.y) > 40 || Date.now() - t0 > 60_000) { clearInterval(iv); if (!win.isDestroyed()) win.close(); }
+    }, 300);
+  }
+
+  /** Windows notification (Action Center). Click → open the Hub. Works in the installed app (needs the Start-menu shortcut). */
+  function windowsToast(t: Toast) {
+    if (!Notification.isSupported()) return;
+    const n = new Notification({ title: t.title, body: t.body, icon: getLogo().isEmpty() ? undefined : getLogo(), silent: true, timeoutType: t.urgent ? "never" : "default" });
+    n.on("click", () => { const w = h.getWin(); if (w) { w.show(); if (w.isMinimized()) w.restore(); w.focus(); } h.onAction(t.id, "open"); });
+    n.show();
   }
 
   function show(t: Toast, o: NotifyOpts) {
     const w = h.getWin();
-    const looking = !!w && w.isVisible() && w.isFocused();
-    if (o.popup && !looking) card(t);
-    if (o.taskbar && w && !looking) w.flashFrame(true);
-    if (o.edge && t.urgent && !looking) edge();
+    // A TEST always shows, even while you're looking at the Hub (real alerts don't, so they don't interrupt you).
+    const looking = !o.test && !!w && w.isVisible() && w.isFocused();
+    if (o.popup && !looking) card(t, o.stay === true);
+    if (o.windows && !looking) windowsToast(t);
+    if (o.edge && (t.urgent || o.test) && !looking) edge(o);
+    if (o.taskbar && w) {
+      if (!looking && !w.isFocused()) w.flashFrame(true);
+      // Windows only flashes a window that isn't in front — for a test, flash once you switch away (within 5 s).
+      else if (o.test) { const on = () => { w.flashFrame(true); w.off("blur", on); }; w.on("blur", on); setTimeout(() => w.off("blur", on), 5000); }
+    }
+    return;
   }
 
   function setUnread(n: number) {

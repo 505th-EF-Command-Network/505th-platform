@@ -70,6 +70,16 @@ addCss("tb2", `
 .tb2{min-width:0;flex-wrap:nowrap}
 @media(max-width:1600px){.tb3-clk{display:none}}@media(max-width:1450px){.tb3-sys{display:none}}@media(max-width:1300px){.tb2-crumb{display:none}}@media(max-width:1150px){.tb2-search span{display:none}.tb2-search{min-width:0}}
 @media(max-width:900px){.tb3-pill{display:none}.tb2-crumb,.tb2-search span,.tb2-me div{display:none}.tb2-search{min-width:0}.tb2-al{right:8px;left:8px;width:auto}}
+/* Phones (bug report 2026-11-12): "CTRL K" showed through, the profile button was cut off at the right edge. */
+@media(max-width:900px){.tb2-search kbd{display:none}.tb2-search{width:34px;height:34px;justify-content:center;padding:0}}
+@media(max-width:600px){
+ .top-bar{padding-left:6px!important;padding-right:6px!important;gap:6px}
+ .top-bar-left{gap:6px;min-width:0}.top-bar-left img{width:34px!important;height:34px!important}
+ .top-bar-title{font-size:11px!important;letter-spacing:2px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw}
+ .tb2{gap:4px}.tb2-ib,.tb2-search{width:32px;height:32px;font-size:14px}.tb2-me{height:34px;padding:0 2px}
+ .tb2-badge{top:-6px!important;right:-6px!important}
+}
+@media(max-width:400px){.top-bar-title{display:none}}
 `);
 
 let uid = null;
@@ -233,7 +243,7 @@ function build() {
     const it = e.target.closest(".tb2-it");
     if (!it || !uid) return;
     const a = alerts.find((x) => x.id === it.dataset.id);
-    if (a && !a.read) { a.read = true; renderAlerts(); updateDoc(doc(db, "notifications", uid, "items", a.id), { read: true }).catch(() => {}); }
+    if (a && !a.read) { a.read = true; renderAlerts(); window.__bellUnread = alerts.filter((x) => !x.read && x.type !== "message").length; window.dispatchEvent(new CustomEvent("bell:unread", { detail: window.__bellUnread })); updateDoc(doc(db, "notifications", uid, "items", a.id), { read: true }).catch(() => {}); }
     if (a?.type === "note" && a.noteId) { closeAll(); window.dispatchEvent(new CustomEvent("ws:open", { detail: { kind: "note", id: a.noteId } })); }
     if (a?.type === "message") { closeAll(); window.openMessagesV2 ? window.openMessagesV2(a.convId) : window.toggleMsgPanel?.(); }
   };
@@ -326,6 +336,9 @@ async function start(user) {
   onSnapshot(query(collection(db, "notifications", uid, "items"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
     alerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAlerts();
+    // Tell the dashboard ("Needs you") how many 🔔 alerts are unread — same number as the bell.
+    window.__bellUnread = alerts.filter((a) => !a.read && a.type !== "message").length; // messages are counted from the chats instead
+    window.dispatchEvent(new CustomEvent("bell:unread", { detail: window.__bellUnread }));
   });
 }
 

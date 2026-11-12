@@ -4,7 +4,8 @@
  *   - 505th Net: listens on Ably "505th-live" (website + Cortana send "this changed" topics)
  * Step H1: sign-in + 505th Net. Dashboard, messages, alerts, tray and installer come next.
  */
-import { app, BrowserWindow, ipcMain, shell, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, ipcMain, powerMonitor, session, shell, type IpcMainInvokeEvent } from "electron";
+import { statSync, statfsSync } from "node:fs";
 import { join } from "node:path";
 import { release } from "node:os";
 import { PROTOCOL, createAuth, type AuthState } from "./auth";
@@ -186,7 +187,7 @@ ipcMain.handle("hub:rsvp", (e, eventId: unknown, key: unknown) => {
   if (!fromMain(e) || typeof eventId !== "string" || typeof key !== "string") return { error: "Not allowed." };
   return call("/api/hub/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, key }) });
 });
-for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"], ["notes", "/api/hub/notes"]] as const) {
+for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"], ["notes", "/api/hub/notes"], ["feedback", "/api/hub/feedback"]] as const) {
   ipcMain.handle(`hub:${ch}`, (e) => (fromMain(e) ? call(path) : null));
   ipcMain.handle(`hub:${ch}-action`, (e, body: unknown) => {
     if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
@@ -230,7 +231,8 @@ ipcMain.handle("notify:show", (e, t: unknown, o: unknown) => {
   const x = t as Toast, y = o as NotifyOpts;
   notifier.show({ id: String(x.id).slice(0, 80), title: String(x.title).slice(0, 120), body: String(x.body ?? "").slice(0, 300), icon: String(x.icon ?? "").slice(0, 4),
     color: String(x.color ?? ""), urgent: x.urgent === true, actions: Array.isArray(x.actions) ? x.actions.slice(0, 3).map((a) => ({ id: String(a.id).replace(/[^\w-]/g, "").slice(0, 20), label: String(a.label).slice(0, 20) })) : [] },
-    { popup: y.popup === true, taskbar: y.taskbar === true, edge: y.edge === true });
+    { popup: y.popup === true, taskbar: y.taskbar === true, edge: y.edge === true, windows: y.windows === true, test: y.test === true,
+      style: y.style === "tint" || y.style === "badge" ? y.style : "edge", color: typeof y.color === "string" ? y.color.slice(0, 7) : undefined, safe: y.safe === true, until: y.until === true, stay: y.stay === true });
 });
 ipcMain.handle("tray:info", (e, i: unknown) => {
   if (!fromMain(e)) return;
@@ -241,11 +243,29 @@ ipcMain.handle("notify:unread", (e, n: unknown) => { if (fromMain(e)) notifier.s
 ipcMain.handle("update:get", (e) => (fromMain(e) ? updater.getState() : null));
 ipcMain.handle("update:check", (e) => (fromMain(e) ? updater.check(true) : null));
 ipcMain.handle("update:install", (e) => (fromMain(e) ? updater.install() : null));
+// Settings v2 → About / Backup & Reset / Security.
+ipcMain.handle("app:sys", (e) => {
+  if (!fromMain(e)) return null;
+  let installedISO = "", freeGB = 0;
+  try { installedISO = statSync(app.getPath("exe")).birthtime.toISOString(); } catch { /* dev */ }
+  try { const f = statfsSync(app.getPath("userData")); freeGB = Math.round((f.bavail * f.bsize) / 1e8) / 10; } catch { /* old Node */ }
+  return { version: app.getVersion(), windows: release(), installedISO, upMins: Math.round(process.uptime() / 60), freeGB, idleSecs: powerMonitor.getSystemIdleTime() };
+});
+ipcMain.handle("app:repair", async (e, what: unknown) => {
+  if (!fromMain(e)) return "";
+  if (what === "cache") { await session.defaultSession.clearCache(); await session.defaultSession.clearStorageData({ storages: ["cachestorage", "serviceworkers", "shadercache"] }); return "Cache cleared"; }
+  if (what === "window" && win) { win.unmaximize(); win.setSize(1400, 860); win.center(); return "Window reset"; }
+  if (what === "logs") { await shell.openPath(app.getPath("logs")); return "Logs folder opened"; }
+  return "";
+});
 ipcMain.handle("app:quit", (e) => { if (fromMain(e)) { quitting = true; app.quit(); } });
 app.on("before-quit", () => { quitting = true; });
 app.on("will-quit", () => notifier.stop());
 
 app.whenReady().then(() => {
+  // Hub lock "on sleep": tell the window when the PC locks or sleeps.
+  powerMonitor.on("lock-screen", () => send("app:sleep", "lock"));
+  powerMonitor.on("suspend", () => send("app:sleep", "suspend"));
   notifier.startTray();
   createWindow();
   auth.start();
