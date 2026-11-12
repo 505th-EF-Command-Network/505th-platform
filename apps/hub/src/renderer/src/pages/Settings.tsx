@@ -53,7 +53,7 @@ export function Settings(p: P) {
       <nav className="w-[236px] shrink-0 overflow-auto border-r border-cyan/15 py-3" aria-label="Settings sections">
         <div className="mx-3 mb-3 border border-cyan/15 bg-panel p-3">
           <div className="flex items-center gap-2.5"><div className="grid h-10 w-10 place-items-center border border-cyan/30 font-head text-[16px] text-cyan">{me.name.slice(0, 1)}</div>
-            <div className="min-w-0"><b className="block truncate text-[13px] text-white">{me.name}</b><small className="text-[10px] tracking-[1px] text-dim">{me.rank} · {me.role}</small></div></div>
+            <div className="min-w-0 flex-1"><b className="block truncate text-[13px] text-white" title={me.name}>{me.name}</b><small className="block truncate text-[10px] tracking-[1px] text-dim">{me.rank.split(" / ").pop()} · {me.role.toUpperCase()}</small></div></div>
           <label className="mt-2 flex items-center gap-1.5 text-[10.5px] text-dim"><span className="dot" style={{ color: st.color, background: st.color }} />
             <select value={me.status.state === "offline" ? "online" : me.status.state} onChange={(e) => p.onStatus(e.target.value as StateKey)} aria-label="My status" className="flex-1 border border-cyan/20 bg-[#070a0f] px-1 py-0.5 text-[11px] text-white">
               <option value="online">Online</option><option value="dnd">Do not disturb</option><option value="invisible">Invisible</option></select></label>

@@ -63,9 +63,17 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
         <span className="mb-1 text-center text-[10px] text-[#c6d0da]">{x.pct}%</span>
         <i className="grow-y block bg-gradient-to-t from-cyan/20 to-cyan" style={{ height: `${Math.max(3, x.pct)}%`, animationDelay: `${i * 70}ms` }} />
         <span className="absolute -bottom-[16px] left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-dim">{x.label}</span></div>))}</div>; } },
-  alerts: { title: "ALERTS", desc: "Promotions, warnings, mentions", size: 2, body: ({ sum, onRefresh }) => sum.alerts.length ? <>{sum.alerts.slice(0, 7).map((a) => (
-    <Row key={a.id} onClick={() => { if (!a.read) void window.cn.hub.readAlerts({ ids: [a.id] }).then(onRefresh); }}>
-      {!a.read ? <i className="h-2 w-2 shrink-0 rounded-full bg-cyan" /> : <i className="h-2 w-2 shrink-0" />}<span className={`min-w-0 flex-1 truncate ${a.read ? "text-[#9fb3c4]" : "text-white"}`}>{a.title}</span></Row>))}</> : <Empty t="ALL CLEAR" /> },
+  alerts: { title: "ALERTS", desc: "Promotions, warnings, mentions", size: 2, body: ({ sum, onRefresh }) => {
+    // Same title in a row (e.g. "Cortana back online" ×3) → one line with a count.
+    const list: { a: Summary["alerts"][number]; n: number; ids: string[] }[] = [];
+    for (const a of sum.alerts.slice(0, 40)) { const l = list[list.length - 1]; if (l && l.a.title === a.title) { l.n++; l.ids.push(a.id); } else list.push({ a, n: 1, ids: [a.id] }); }
+    const icon = (t: string) => /online|back/i.test(t) ? "✅" : /updat|restart/i.test(t) ? "⟳" : /shut|offline|down/i.test(t) ? "⛔" : /remind|note/i.test(t) ? "⏰" : /message|dm/i.test(t) ? "💬" : /ticket/i.test(t) ? "🎫" : /promot|rank|medal|ribbon/i.test(t) ? "★" : /warn/i.test(t) ? "⚠" : "🔔";
+    return list.length ? <>{list.map(({ a, n, ids }) => (
+    <Row key={a.id} onClick={() => { if (!a.read) void window.cn.hub.readAlerts({ ids }).then(onRefresh); }}>
+      {!a.read ? <i className="h-2 w-2 shrink-0 rounded-full bg-cyan" /> : <i className="h-2 w-2 shrink-0" />}<span className="w-4 shrink-0 text-center text-[12px]">{icon(a.title)}</span>
+      <span className={`min-w-0 flex-1 truncate ${a.read ? "text-[#9fb3c4]" : "text-white"}`}>{a.title.replace(/^⏰\s*/, "")}</span>
+      {n > 1 && <span className="shrink-0 border border-cyan/25 px-1 text-[10px] text-dim">×{n}</span>}
+      </Row>))}</> : <Empty t="ALL CLEAR" />; } },
   staff: { title: "STAFF ON DUTY", desc: "Who's online / DND right now — and on the Hub or the Terminal", size: 2, body: ({ sum }) => {
     const on = sum.staff.filter((s) => s.state !== "offline");
     return on.length ? <>{on.slice(0, 8).map((s) => (
@@ -115,7 +123,9 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
     const a = ov?.activity;
     if (!a) return <Empty t="NEEDS AUDIT LOG ACCESS" />;
     return a.length ? <>{a.map((x, i) => <div key={i} className="flex gap-2 border-b border-cyan/[.07] py-1.5 text-[11.5px] last:border-0"><span className="w-[38px] shrink-0 text-[10.5px] text-dim">{x.at ? ukTime(x.at) : ""}</span>
-      <span className="min-w-0 truncate"><b className="font-normal text-cyan">{x.by}</b> <span className="text-[#c6d0da]">{x.action.toLowerCase()}</span> <span className="text-dim">{x.details}</span></span></div>)}</> : <Empty t="NOTHING YET" />; } },
+      {(() => { const nick = x.by.match(/[“"](.+?)[”"]/)?.[1]; const dup = !!nick && x.details.includes(nick);
+        return <span className="min-w-0 truncate"><span className="mr-1.5 border border-cyan/25 px-1 text-[9.5px] uppercase tracking-[1px] text-dim">{x.action.replace(/^cortana\s+/i, "")}</span>
+          {!dup && <b className="mr-1 font-normal text-cyan">{x.by}</b>}<span className="text-[#c6d0da]">{x.details || x.action}</span></span>; })()}</div>)}</> : <Empty t="NOTHING YET" />; } },
   quick: { title: "QUICK ACTIONS", desc: "One-click shortcuts", size: 1, body: ({ onPage }) => <div className="grid grid-cols-2 gap-1.5">{([["📅 New event", "panel-events"], ["▣ Take roll", "panel-attendance"], ["✦ Write AAR", "panel-aar"], ["☰ Roster", "panel-roster"]] as [string, string][]).map(([l, pg]) =>
     <button key={l} type="button" onClick={() => onPage(pg)} className="border border-cyan/25 py-1.5 text-[11px] text-cyan hover:bg-cyan/10">{l}</button>)}</div> },
 };
@@ -155,7 +165,7 @@ export function Dashboard(p: { sum: Summary; ov: Overview | null; net: NetState;
               <button type="button" aria-label={`Remove ${w.title}`} onClick={() => p.onDash(dash.filter((_, j) => j !== i))} className="border border-amber bg-black/80 px-1.5 text-[10px] text-amber">✕</button></div>}
             <h3 className="m-0 flex items-center gap-2 border-b border-cyan/[.12] px-3 py-2.5 text-[11px] font-normal tracking-[3px] text-cyan">{w.title}
               {!edit && (w.live ? <em className="ml-auto animate-pulse text-[10px] not-italic text-ok">● LIVE</em> : w.page ? <button type="button" onClick={() => p.onPage(w.page!)} className="ml-auto text-[11px] text-dim hover:text-cyan" aria-label={`Open ${w.title}`}>↗</button> : null)}</h3>
-            <div className="min-h-0 flex-1 overflow-hidden p-3"><Guard small label={w.title}><Body f={w.body} p={props} /></Guard></div>
+            <div className="wscroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3"><Guard small label={w.title}><Body f={w.body} p={props} /></Guard></div>
           </section>); })}
         {!dash.length && <div className="col-span-12 row-span-2 grid place-items-center border border-dashed border-cyan/20 text-[12px] tracking-[2px] text-dim">NO WIDGETS — ✎ CUSTOMISE → ＋ ADD WIDGET</div>}
       </div>

@@ -85,6 +85,9 @@ body { margin: 0; background: radial-gradient(ellipse at top, #0c1a24, #05070a 7
 :root { color-scheme: dark; }
 select, option, optgroup { background-color: #0b0f15; color: #d6dde6; }
 
+/* widget scroll bars (thin, theme colour) */
+.wscroll { scrollbar-width: thin; scrollbar-color: rgb(var(--accent-rgb) / .45) transparent; }
+.wscroll::-webkit-scrollbar { width: 6px; } .wscroll::-webkit-scrollbar-thumb { background: rgb(var(--accent-rgb) / .45); }
 /* ───────── Settings v2 (approved mock 2026-11-12): look + accessibility ───────── */
 /* corners */
 .round .card, .round .kpi, .round .widget, .round .pill, .round button, .round input, .round select, .round textarea { border-radius: 8px; }
