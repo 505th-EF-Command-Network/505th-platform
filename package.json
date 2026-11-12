@@ -16,6 +16,7 @@
     "hub": "npm run dev -w @505th/hub",
     "hub:build": "npm run build -w @505th/hub",
     "hub:typecheck": "npm run typecheck -w @505th/hub",
-    "hub:dist": "npm run dist -w @505th/hub"
+    "hub:dist": "npm run dist -w @505th/hub",
+    "hub:release": "node scripts/hub-release.mjs"
   }
 }

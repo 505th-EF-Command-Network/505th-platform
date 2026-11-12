@@ -190,8 +190,9 @@ const WID = {
     const cortSub = c.online ? `${c.pingMs} MS DISCORD PING` : c.lastHeartbeatISO ? `LAST SEEN ${ukDay(c.lastHeartbeatISO)} ${ukTime(c.lastHeartbeatISO)}` : "NOT STARTED YET";
     const up = uptimeDays(c);
     const pct = (a) => { const v = a.filter((x) => x != null); return v.length ? (v.reduce((x, y) => x + y, 0) / v.length).toFixed(2) + "%" : "—"; };
-    return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", cortOk, cortSub)}${tile("DISCORD API", c.online ? c.pingMs < 1000 : null, c.online ? "CHECKED BY CORTANA" : "NEEDS CORTANA")}${tile("CLOUDINARY", p.cdn != null ? true : p.cdnErr ? false : null, p.cdn != null ? `IMAGES · ${p.cdn} MS` : p.cdnErr ? "CAN'T REACH IMAGES" : "CHECKING…")}${tile("505TH HUB", null, "NOT BUILT YET")}</div>
-      <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${[["WEBSITE", monDays(D.mon?.web)], ["DATABASE", monDays(D.mon?.db)], ["CORTANA", up], ["505TH HUB", NO_HISTORY]].map(([n, a]) => `<div class="d2-hbar"><span>${n}</span>${ub(a)}<b>${pct(a)}</b></div>`).join("")}<small class="dim">CORTANA CHECKS THE WEBSITE AND DATABASE EVERY MINUTE AND POSTS AN ALERT IN DISCORD IF ONE IS DOWN FOR 3 MINUTES. HUB: NOT BUILT YET.</small>`;
+    return `<div class="d2-sys">${tile("WEBSITE", p.web != null ? true : p.webErr ? false : null, p.web != null ? `${p.web} MS` : "CHECKING…")}${tile("DATABASE", p.db != null ? true : p.dbErr ? false : null, p.db != null ? `${p.db} MS` : "CHECKING…")}${tile("CORTANA v2", cortOk, cortSub)}${tile("DISCORD API", c.online ? c.pingMs < 1000 : null, c.online ? "CHECKED BY CORTANA" : "NEEDS CORTANA")}${tile("CLOUDINARY", p.cdn != null ? true : p.cdnErr ? false : null, p.cdn != null ? `IMAGES · ${p.cdn} MS` : p.cdnErr ? "CAN'T REACH IMAGES" : "CHECKING…")}${(() => { const h = D.hub || {}; return tile("505TH HUB", h.released ? true : h.error ? null : h.released === false ? null : null,
+      h.released ? `v${h.version} · ${h.usingNow ? `${h.usingNow} USING NOW` : "NO ONE ON NOW"} · ${h.signedIn} SIGNED IN` : D.hub ? "NO RELEASE YET" : "CHECKING…"); })()}</div>
+      <div class="d2-lb">UPTIME — LAST 30 DAYS</div>${[["WEBSITE", monDays(D.mon?.web)], ["DATABASE", monDays(D.mon?.db)], ["CORTANA", up], ["505TH HUB", NO_HISTORY]].map(([n, a]) => `<div class="d2-hbar"><span>${n}</span>${ub(a)}<b>${pct(a)}</b></div>`).join("")}<small class="dim">CORTANA CHECKS THE WEBSITE AND DATABASE EVERY MINUTE AND POSTS AN ALERT IN DISCORD IF ONE IS DOWN FOR 3 MINUTES. HUB: ${D.hub?.released ? `v${D.hub.version} RELEASED — UPTIME HISTORY STARTS FROM THIS RELEASE.` : "NO RELEASE YET."}</small>`;
   } },
   cortana: { t: "◈ CORTANA HEALTH", d: "Bot status, ping, memory, queued jobs, errors", ico: "◈", g: "STATUS", acc: "bot", accL: "BOT SERVER", b: () => {
     const c = D.cortana;
@@ -506,6 +507,7 @@ async function load() {
     safe(getDocs(collection(db, "presence_sessions")), (s) => (D.pres = s.docs.map((d) => d.data()))),
     safe(getDoc(doc(db, "unit_config", "status")), (s) => (D.status = s.data() || {})),
     safe(cortanaStatus(), (c) => (D.cortana = c)),
+    safe(fetch("/api/terminal/hub-status", { cache: "no-store" }).then((r) => r.json()), (h) => (D.hub = h)),
     safe(getDoc(doc(db, "bot_status", "monitors")), (s) => (D.mon = s.data() || null)),
     safe(getDoc(doc(db, "bot_status", "discord_live")), (s) => (D.dl = s.data() || null)),
     safe(getDoc(doc(db, "bot_status", "staff_presence")), (s) => (D.sp = s.data() || null)),
@@ -532,7 +534,7 @@ function hello() {
   const light = (n, ok) => `<span class="d3-li" style="color:${ok === true ? "#22e07a" : ok === false ? "#ff4d4d" : "#4b5765"}" title="${n}: ${ok === true ? "online" : ok === false ? "down" : "not running"}"><i></i>${n}</span>`;
   document.getElementById("d2Sub").innerHTML = `${esc(day)} · ${time} UK
     <div class="d3-pills">${nxt ? `<span>NEXT OP <b>${esc(String(nxt.title).toUpperCase())} · ${new Date(nxt.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</b></span>` : ""}<span>YOUR ATT <b>${Math.min(3, D.me?.attendance || 0)}/3</b></span><span>PT <b>${D.me?.promotionTracker || 0}</b></span>${k ? `<span class="hot"><b>${k}</b> NEED${k === 1 ? "S" : ""} YOU</span>` : "<span>NOTHING NEEDS YOU</span>"}</div>
-    <div class="d3-lights">${light("WEBSITE", D.ping.web != null ? true : D.ping.webErr ? false : null)}${light("DATABASE", D.ping.db != null ? true : D.ping.dbErr ? false : null)}${light("CORTANA", c0.online ? true : c0.lastHeartbeatISO ? false : null)}${light("HUB", null)}</div>`;
+    <div class="d3-lights">${light("WEBSITE", D.ping.web != null ? true : D.ping.webErr ? false : null)}${light("DATABASE", D.ping.db != null ? true : D.ping.dbErr ? false : null)}${light("CORTANA", c0.online ? true : c0.lastHeartbeatISO ? false : null)}${light("HUB", D.hub?.released ? true : null)}</div>`;
   paintMe();
   const [l, c] = OPS[D.status.opStatus] || ["NOT SET", "#7d8a99"];
   const open = D.status.recruitmentOpen !== false;

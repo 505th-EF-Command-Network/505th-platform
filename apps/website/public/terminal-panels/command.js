@@ -299,6 +299,7 @@ async function renderOverall() {
   ]);
   const dbMs = Math.round(performance.now() - t0);
   const cort = await cortanaStatus();
+  const hub = await fetch("/api/terminal/hub-status", { cache: "no-store" }).then((r) => r.json()).catch(() => ({}));
   const wk = Date.now() - 7 * 86400000;
   const pending = jobs.docs.filter((d) => d.data().status === "pending").length;
   const up = ev.docs.filter((d) => d.data().status !== "cancelled" && Date.parse(d.data().startAtISO) > Date.now()).length;
@@ -307,7 +308,7 @@ async function renderOverall() {
     ["DATABASE (MONGODB)", dbMs < 1500 ? "ok" : "warn", dbMs < 1500 ? "● ONLINE" : "▲ SLOW", `${dbMs} ms FOR 5 QUERIES`],
     cort.online ? ["CORTANA v2", "ok", "● ONLINE", `${cort.pingMs} MS PING · QUEUED JOBS: ${pending}`] : cort.lastHeartbeatISO ? ["CORTANA v2", "bad", "✕ OFFLINE", `LAST SEEN ${new Date(cort.lastHeartbeatISO).toLocaleString("en-GB")} · QUEUED: ${pending}`] : ["CORTANA v2", "off", "○ NOT RUNNING YET", `QUEUED DISCORD JOBS: ${pending}`],
     ["FIREBASE (OLD SITE)", "warn", "▲ STILL LIVE", "KEEP UNTIL CUT-OVER IS APPROVED"],
-    ["505TH HUB", "off", "○ NOT CONNECTED", "DESKTOP APP NOT BUILT YET"],
+    hub.released ? ["505TH HUB", "ok", "● RELEASED", `v${hub.version} · ${hub.usingNow} USING NOW · ${hub.signedIn} SIGNED IN`] : ["505TH HUB", "off", "○ NO RELEASE YET", "BUILD + PUBLISH WITH npm run hub:release"],
   ];
   root.querySelector(".body").innerHTML = `
     <div class="kp"><div><b>${us.filter((u) => u.status === "active").length}</b><span>ACTIVE MEMBERS</span></div><div><b>${us.filter((u) => u.status === "pending").length}</b><span>WAITING FOR BCT APPROVAL</span></div><div><b>${up}</b><span>UPCOMING EVENTS</span></div><div><b style="color:${us.some((u) => u.suspended) ? "#ff4d4d" : "#00D9FF"}">${us.filter((u) => u.suspended).length}</b><span>SUSPENDED</span></div></div>

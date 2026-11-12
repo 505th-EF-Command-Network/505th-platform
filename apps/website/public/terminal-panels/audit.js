@@ -82,7 +82,7 @@ function render() {
       <select class="fld" data-f="days" aria-label="Date range">${[[1, "Today"], [7, "Last 7 days"], [30, "Last 30 days"], [9999, "Everything"]].map(([v, l]) => `<option value="${v}" ${v === days ? "selected" : ""}>${l}</option>`).join("")}</select>
       <button type="button" class="chip ${!cat ? "on" : ""}" data-cat="">ALL</button>${catsHere.map((c) => `<button type="button" class="chip ${cat === c ? "on" : ""}" data-cat="${c}">${CATS[c]}<small>${all.filter((x) => x.cat === c && (!src || x.source === src)).length}</small></button>`).join("")}</div>
     ${src === "discord" && !all.some((x) => x.source === "discord") ? '<div class="note">◷ Discord entries arrive once the new Cortana is running (pull + pm2 restart).</div>' : ""}
-    ${src === "hub" && !all.some((x) => x.source === "hub") ? '<div class="note">◷ Hub entries arrive once the 505th Hub is built.</div>' : ""}
+    ${src === "hub" && !all.some((x) => x.source === "hub") ? '<div class="note">◷ No Hub entries yet — they appear as staff use the Command Network app.</div>' : ""}
     <div class="lay"><div class="feed" role="list">${rows || '<div class="empty">NO ENTRIES MATCH</div>'}${list.length > 800 ? '<div class="empty">FIRST 800 SHOWN — NARROW THE SEARCH</div>' : ""}</div>
       <aside class="side" aria-live="polite">${detail(all.find((x) => x.id === openId))}</aside></div>
     <p class="k" style="margin-top:10px">${meta.canClean ? "" : "Discord message text and pictures are private: Officer and above only. "}Locked 🔒 records (clean-up, clear, deletions) can never be removed.</p>`;
@@ -131,7 +131,7 @@ function renderWhat() {
     ${box(`${badge("discord")} DISCORD — MEMBERS`, "", ["Joined (account age, invite used)", "Left (time in server, roles held)", "Nickname / Discord name changed", "Profile picture changed (old → new)", "Roles added / removed", "Voice join / leave / move"])}
     ${box(`${badge("discord")} DISCORD — MODERATION & SERVER`, "", ["Warn (case number)", "Timeout / timeout removed", "Kick · Ban · Unban", "Channels / roles created, changed, deleted", "Invites created / deleted"])}
     ${box(`${badge("website")} WEBSITE — COMMAND TERMINAL`, "", ["Personnel: role, rank, platoon, promotion, warnings", "Attendance: events, lock / unlock, monthly reset", "AARs, events, media, posts", "Settings and access changes"])}
-    ${box(`${badge("hub")} 505TH HUB`, "Arrives once the Hub is built.", ["Sign in / sign out (which PC)", "Status changes", "Actions done from the Hub"])}
+    ${box(`${badge("hub")} 505TH HUB`, "Actions done in the Command Network app.", ["Sign in / sign out (which PC)", "Status changes", "Actions done from the Hub"])}
     ${box(`${badge("cortana")} CORTANA`, "", ["Monthly reset and clean-up", "Restarts and failed jobs", "Role sync"])}</div>
     <p class="k">Messages sent before Cortana started can't be recovered — recording starts from when Cortana is running.</p>`;
 }
