@@ -8,7 +8,7 @@ import { env } from "./env.ts";
 import { log } from "./log.ts";
 import { checkGuilds, isAuthorisedGuild } from "./guard.ts";
 import { markOffline, noteError, startHeartbeat } from "./health.ts";
-import { startMonitors } from "./monitors.ts";
+import { checkNow, startMonitors } from "./monitors.ts";
 import { startStaffPresence } from "./presence.ts";
 import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
@@ -63,6 +63,8 @@ client.once(Events.ClientReady, async (ready) => {
   await ready.guilds.cache.get(env.AUTHORISED_GUILD_ID)?.members.fetch().catch(() => {});
   heartbeat = startHeartbeat(ready);
   startMonitors(ready);
+  // Network Status → "↻ CHECK NOW" (website / Hub).
+  registerJob("net.check", async () => { await checkNow(ready); return { ok: true }; });
   void startStaffPresence(ready);
   await syncGuild(ready).catch((e) => log.error("First sync failed", e));
   await registerCommands().catch((e) => log.error("Command registration failed", e));

@@ -10,7 +10,8 @@ import { TerminalDoc } from "@505th/db";
 import { log } from "./log.ts";
 
 const CHANNEL = "505th-live";
-const QUIET = new Set(["presence_sessions"]);
+// net_days changes every minute; pages listen to net_status instead.
+const QUIET = new Set(["presence_sessions", "net_days"]);
 const pending = new Set<string>();
 let flushTimer: NodeJS.Timeout | undefined;
 
