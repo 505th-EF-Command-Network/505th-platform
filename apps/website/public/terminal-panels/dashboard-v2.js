@@ -295,8 +295,13 @@ const WID = {
     (D.audit.length ? D.audit.slice(0, 10).map((a) => { const u = userOf(a.uid); return `<button class="d2-row" data-go="panel-auditv2">${hexAvatar(u.id ? u : { callsign: a.by }, "xs")}<span><b>${esc(u.id ? memberName(u) : a.by || "System")}</b> <small>${esc(String(a.action || ""))}${a.details ? " — " + esc(String(a.details).slice(0, 60)) : ""}</small></span><span style="text-align:right"><span class="d2-tag">${esc(String(a.section || "").toUpperCase())}</span><br><small>${ukDay(a.createdAtISO || a.createdAt)} ${ukTime(a.createdAtISO || a.createdAt)}</small></span></button>`; }).join("") : empty("NO ENTRIES YET.")) +
     `<div class="d2-foot"><span></span><button class="lnk" data-go="panel-auditv2">OPEN AUDIT LOG ▸</button></div>` },
   notes: { t: "✎ NOTES", d: "Latest shared notes — click to open", ico: "✎", g: "WORK", acc: "notes", accL: "NOTES", b: () =>
-    (D.notes.length ? D.notes.slice(0, 6).map((n) => `<button class="d2-row" data-note="${n.id}"><span>✎</span><span><b>${esc(n.title || "Untitled")}</b><br><small>${esc(String(n.body || "").split("\n")[0].slice(0, 70))}</small></span><small>${ukDay(n.updatedAtISO)}<br>${esc(n.updatedByName || "")}</small></button>`).join("") : empty("NO NOTES YET.")) +
-    `<div class="d2-foot"><small class="dim">${D.notes.length} NOTES</small><button class="lnk" data-go="panel-notes">OPEN NOTES ▸</button></div>` },
+    (() => { // Notes v2: 📌 pinned, then ⏰ next reminders, then the latest.
+      const live = D.notes.filter((n) => !n.arch);
+      const remS = (r) => { const d = new Date(r.atISO); return `⏰ ${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`; };
+      const pick = [...live.filter((n) => n.pin), ...live.filter((n) => !n.pin && n.rem && !n.rem.sentISO).sort((a, b) => a.rem.atISO.localeCompare(b.rem.atISO)), ...live.filter((n) => !n.pin && !(n.rem && !n.rem.sentISO))].slice(0, 6);
+      return pick.length ? pick.map((n) => `<button class="d2-row" data-note="${n.id}"><span style="color:${esc(n.color || "#00D9FF")}">${n.pin ? "📌" : "✎"}</span><span><b>${esc(n.title || "Untitled")}</b><br><small>${n.rem && !n.rem.sentISO ? `<span style="color:#f59e0b">${remS(n.rem)}</span> · ` : ""}${esc(String(n.text || "").replace(/\s+/g, " ").slice(0, 60))}</small></span><small>${ukDay(n.updatedAtISO)}<br>${esc(n.updatedByName || "")}</small></button>`).join("") : empty("NO NOTES YET.");
+    })() +
+    `<div class="d2-foot"><small class="dim">${D.notes.filter((n) => !n.arch).length} NOTES</small><button class="lnk" data-go="panel-notes">OPEN NOTES ▸</button></div>` },
   projects: { t: "☷ PROJECT TRACKER", d: "All open projects by column — click to open", ico: "☷", g: "WORK", acc: "proj", accL: "PROJECTS", b: () => {
     const cols = [["todo", "TO DO"], ["doing", "IN PROGRESS"], ["review", "REVIEW"], ["done", "DONE"]];
     const open = D.tasks.filter((x) => x.status !== "done").sort((a, b) => ({ high: 0, med: 1, low: 2 }[a.priority] ?? 1) - ({ high: 0, med: 1, low: 2 }[b.priority] ?? 1) || String(a.due || "9").localeCompare(String(b.due || "9")));

@@ -39,6 +39,9 @@ addCss("mdock", `
 .md-tip{font-size:10px;letter-spacing:1px;color:#7d8a99;padding:10px 14px;margin:0;border-top:1px solid rgba(0,217,255,.16)}
 .md-pops{position:fixed;right:20px;bottom:0;display:flex;gap:10px;align-items:flex-end;z-index:800;font-family:'Share Tech Mono',monospace}
 .md-pop{width:330px;max-width:calc(100vw - 30px);background:#0a0e14;border:1px solid #00D9FF;border-bottom:0;box-shadow:0 -6px 30px rgba(0,0,0,.6);display:flex;flex-direction:column;height:420px;animation:mdIn .18s ease-out;color:#d6dde6}
+.md-cbd{background:#ff4d4d;color:#fff;font:700 11px Rajdhani,sans-serif;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;padding:0 5px;flex-shrink:0}
+.md-pop.min.unr{border-color:#ff4d4d;animation:mdGlow 1.6s ease-in-out infinite}.md-pop.min.unr .md-ch{background:linear-gradient(90deg,rgba(255,77,77,.22),transparent)}
+@keyframes mdGlow{50%{box-shadow:0 -4px 22px rgba(255,77,77,.55)}}@media(prefers-reduced-motion:reduce){.md-pop.min.unr{animation:none}}
 .md-pop.min{height:auto}.md-pop.min .md-msgs,.md-pop.min .md-comp,.md-pop.min .md-ty{display:none}
 @keyframes mdIn{from{transform:translateY(20px);opacity:0}}@media(prefers-reduced-motion:reduce){.md-pop{animation:none}}
 .md-ch{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid rgba(0,217,255,.16);background:linear-gradient(90deg,rgba(0,217,255,.12),transparent);cursor:pointer}
@@ -153,7 +156,7 @@ function box() {
 export function openPop(id) {
   const c = convs.find((x) => x.id === id);
   if (!c) return;
-  if (pops.has(id)) { const p = pops.get(id); p.el.classList.remove("min"); p.el.querySelector("textarea").focus(); return; }
+  if (pops.has(id)) { const p = pops.get(id); p.el.classList.remove("min"); markRead(id); p.el.querySelector("textarea").focus(); return; }
   if (pops.size >= 3) closePop(pops.keys().next().value);
   const el = document.createElement("section");
   el.className = "md-pop";
@@ -165,10 +168,10 @@ export function openPop(id) {
   el.addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (b?.classList.contains("x")) return closePop(id);
-    if (b?.dataset.a === "min") return el.classList.toggle("min");
+    if (b?.dataset.a === "min") { el.classList.toggle("min"); return markRead(id); }
     if (b?.dataset.a === "full") { closePop(id); window.showPanel?.("panel-msg2"); return setTimeout(() => window.dispatchEvent(new CustomEvent("msg:open", { detail: { id } })), 300); }
     if (b?.dataset.a === "send") return sendFrom(id);
-    if (e.target.closest(".md-ch") && !b) el.classList.remove("min");
+    if (e.target.closest(".md-ch") && !b && el.classList.contains("min")) { el.classList.remove("min"); markRead(id); el.querySelector("textarea")?.focus(); }
   });
   const ta = el.querySelector("textarea");
   ta.addEventListener("keydown", (e) => {
@@ -203,7 +206,9 @@ function drawPop(id) {
   const one = o.length === 1 ? userOf(o[0]) : null;
   const s = one ? (online.has(one.id) ? statusOf(one) : "offline") : null;
   const sub = one ? `<small style="color:${STATES[s][1]}">${STATES[s][2]} ${STATES[s][0].toUpperCase()}${one.myStatus?.note && s !== "offline" ? " · " + esc(one.myStatus.note) : ""}</small>` : `<small style="color:#7d8a99">GROUP · ${(c.participants || []).length}</small>`;
-  const head = `<div class="md-ch">${hexAvatar(convPic(c), "xs")}<span style="flex:1;min-width:0"><b>${esc(convName(c))}</b>${sub}</span><button data-a="min" aria-label="Shrink" title="Shrink">—</button><button data-a="full" aria-label="Open in Messages" title="Open full page">⤢</button><button class="x" aria-label="Close chat" title="Close (Esc)">✕</button></div>`;
+  const un = unread(c);
+  p.el.classList.toggle("unr", un > 0);
+  const head = `<div class="md-ch">${hexAvatar(convPic(c), "xs")}<span style="flex:1;min-width:0"><b>${esc(convName(c))}</b>${sub}</span>${un ? `<span class="md-cbd" aria-label="${un} unread">${un > 9 ? "9+" : un}</span>` : ""}<button data-a="min" aria-label="Shrink" title="Shrink">—</button><button data-a="full" aria-label="Open in Messages" title="Open full page">⤢</button><button class="x" aria-label="Close chat" title="Close (Esc)">✕</button></div>`;
   if (!p.el.firstChild) p.el.innerHTML = `${head}<div class="md-msgs" aria-live="polite"></div><div class="md-ty"></div><div class="md-comp"><textarea rows="1" placeholder="Reply…  (Enter to send)" aria-label="Reply"></textarea><button data-a="send">SEND</button></div>`;
   else p.el.querySelector(".md-ch").outerHTML = head;
   const ty = c.typing || {};
@@ -269,17 +274,18 @@ export function startDock(myUid, meDoc, allUsers) {
     // New message while you're on the Dashboard → pop the chat (not in Do not disturb / Invisible).
     for (const c of convs) {
       const u = unread(c);
-      if (!first && u > (seen.get(c.id) || 0) && c.lastSenderUid !== uid && !pops.has(c.id) && myState() === "online") {
+      const shrunk = pops.get(c.id)?.el.classList.contains("min");
+      if (!first && u > (seen.get(c.id) || 0) && c.lastSenderUid !== uid && (!pops.has(c.id) || shrunk) && myState() === "online") {
         // Dashboard → pop the chat. Any other page → a message card (bottom-right). Tab hidden → browser pop-up.
         if (document.hidden) osNotify(c);
-        else if (!document.getElementById("panel-dashboard")?.classList.contains("hidden")) openPop(c.id);
+        else if (!shrunk && !document.getElementById("panel-dashboard")?.classList.contains("hidden")) openPop(c.id);
         else toast(c);
       }
       seen.set(c.id, u);
     }
     first = false;
     tabTitle(convs.reduce((n, c) => n + unread(c), 0));
-    for (const id of [...toasts.keys()]) if (pops.has(id) || !unread(convs.find((c) => c.id === id) || {})) dropToast(id);
+    for (const id of [...toasts.keys()]) if ((pops.has(id) && !pops.get(id).el.classList.contains("min")) || !unread(convs.find((c) => c.id === id) || {})) dropToast(id);
     drawDock();
     for (const id of pops.keys()) { if (!convs.some((c) => c.id === id)) closePop(id); else { drawPop(id); markRead(id); } }
   }, () => {});

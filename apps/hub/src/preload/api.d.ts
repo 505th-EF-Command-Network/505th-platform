@@ -1,3 +1,10 @@
+/** Notes v2 (lib/notes/service.ts). body = cleaned HTML. x / y / pin / arch / rem are just for you. */
+export type NotePerm = "view" | "edit";
+export interface NoteItem { id: string; title: string; body: string; text: string; color: string; folder: string; tags: string[]; owner: string | null; ownerName: string; access: "owner" | NotePerm;
+  share?: { mode: "private" | "shared"; people: Record<string, NotePerm>; groups: Record<string, NotePerm> };
+  shareSummary: { mode: string; people: { uid: string; perm: NotePerm; name: string }[]; groups: { key: string; perm: NotePerm; label: string }[] };
+  updatedAtISO: string | null; updatedByName: string | null; x: number | null; y: number | null; pin: boolean; arch: boolean; rem: { atISO: string; repeat: string; sentISO?: string } | null }
+export interface NotesData { me: string; canCreate: boolean; notes: NoteItem[]; people: { uid: string; name: string; role: string; photoUrl: string | null; callsign: string }[]; groups: { key: string; label: string }[]; colours: string[] }
 /** Network Status v2 (lib/net/core.ts). Beat = [minuteOfDay or minute, ms (-1 = no answer), 0 up | 1 slow | 2 down]. */
 export type NetBeat = [number, number, number];
 export interface NetMonitor { id: string; name: string; group: string; type: string; target: string; builtin: boolean; third: boolean; paused: boolean; muted: boolean; slowMs: number; status: "up" | "slow" | "down" | "paused" | "stale" | "pending"; ms: number | null; info: string; error: string; checkedAtISO: string; downSinceISO: string; certValidToISO: string; last: NetBeat[]; up24: number | null; up30: number | null; avg24: number | null }
@@ -185,6 +192,8 @@ declare global {
         network(): Promise<NetData | { error: string }>;
         network(mon: string, range: string): Promise<NetDetail | { error: string }>;
         networkAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string; id?: string }>;
+        notes(): Promise<NotesData | { error: string }>;
+        notesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string; alerted?: number }>;
         hubAccess(): Promise<HubAccessData | { error: string }>;
         hubAccessAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         policy(): Promise<{ version: string; accepted: boolean; atISO: string } | { error: string }>;

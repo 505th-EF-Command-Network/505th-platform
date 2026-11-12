@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld("cn", {
     hubAccessAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:hub-access-action", body),
     network: (mon?: string, range?: string) => ipcRenderer.invoke("hub:network", mon, range),
     networkAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:network-action", body),
+    notes: () => ipcRenderer.invoke("hub:notes"),
+    notesAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:notes-action", body),
     policy: () => ipcRenderer.invoke("hub:policy"),
     policyAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:policy-action", body),
     messages: (conv?: string) => ipcRenderer.invoke("hub:messages", conv),

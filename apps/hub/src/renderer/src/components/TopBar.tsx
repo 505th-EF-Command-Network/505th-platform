@@ -20,7 +20,7 @@ const ago = (v: unknown) => {
   return m < 1 ? "now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
 };
 
-export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; page: string; onPage: (id: string) => void; onRefresh: () => void; access: Record<string, boolean> }) {
+export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; page: string; onPage: (id: string) => void; onRefresh: () => void; access: Record<string, boolean>; msgOpen: boolean; onToggleMsg: () => void }) {
   const [now, setNow] = useState(Date.now());
   const [bell, setBell] = useState(false);
   const [pal, setPal] = useState(false);
@@ -55,14 +55,14 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
         <span className="text-cyan">⌕</span>Jump to a page or action…<kbd className="ml-auto border border-cyan/20 px-1.5 text-[9.5px]">Ctrl K</kbd></button>
       <div className="flex-1" />
       {op && (
-        <button type="button" onClick={() => p.onPage("panel-events")} title={op.title} className="grid min-w-[210px] grid-cols-[1fr_auto] items-center gap-x-3 border border-amber/40 bg-amber/5 px-2.5 py-1 text-left hover:border-amber">
+        <button type="button" onClick={() => p.onPage("panel-events")} title={op.title} className="grid min-w-[210px] shrink-0 grid-cols-[1fr_auto] items-center gap-x-3 border border-amber/40 bg-amber/5 px-2.5 py-1 text-left hover:border-amber">
           <span className="text-[9px] tracking-[2px] text-amber">{ms <= 0 ? "● LIVE NOW" : "NEXT OP"}</span>
-          <b className="row-span-2 font-head text-[18px] tracking-[1px] text-amber">{ms <= 0 ? "LIVE" : countdown(ms)}</b>
+          <b className="row-span-2 min-w-[118px] text-right font-head text-[18px] tabular-nums tracking-[1px] text-amber">{ms <= 0 ? "LIVE" : countdown(ms)}</b>
           <span className="max-w-[150px] truncate text-[11.5px] tracking-[1px] text-white">{op.title.toUpperCase()}</span>
           <i className="col-span-2 mt-0.5 block h-[2px] bg-amber/15"><i className="block h-full bg-ok" style={{ width: `${Math.min(100, op.signedUp * 4)}%` }} /></i>
         </button>
       )}
-      <div className="flex items-center gap-2.5 border px-2.5 py-1" style={{ borderColor: c.online && live ? "rgb(34 224 122 / .35)" : "rgb(255 77 77 / .5)", background: c.online && live ? "rgb(34 224 122 / .04)" : "rgb(255 77 77 / .06)" }}
+      <div className="flex shrink-0 items-center gap-2.5 whitespace-nowrap border px-2.5 py-1" style={{ borderColor: c.online && live ? "rgb(34 224 122 / .35)" : "rgb(255 77 77 / .5)", background: c.online && live ? "rgb(34 224 122 / .04)" : "rgb(255 77 77 / .06)" }}
         title={c.online ? "Cortana online" : "Cortana offline"}>
         <i className={`h-2 w-2 rounded-full ${c.online ? "animate-pulse bg-ok" : "bg-bad"}`} />
         <span className="leading-tight"><b className="block text-[10.5px] font-normal tracking-[2px] text-white">CORTANA</b><small className="text-[10px] text-dim">{c.online ? (c.pingMs != null ? `${c.pingMs} ms` : "online") : "offline"}</small></span>
@@ -79,8 +79,10 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
           <small className="text-[9.5px] tracking-[1.5px] text-dim">{tm === "local" ? "YOUR TIME" : "UK"} · {ukTime(now, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()}</small></div>; })()}
       <button type="button" aria-label="Refresh" title="Refresh" onClick={() => { setSpin(true); p.onRefresh(); setTimeout(() => setSpin(false), 800); }} className="grid h-9 w-9 place-items-center border border-cyan/20 text-[15px] text-[#c6d0da] hover:border-cyan hover:shadow-[0_0_12px_-3px_#00d9ff]">
         <span className={spin ? "animate-spin" : ""}>↻</span></button>
-      <button type="button" aria-label="Messages" title="Messages" onClick={() => p.onPage("panel-msg2")} className="relative grid h-9 w-9 place-items-center border border-cyan/20 text-[14px] text-[#c6d0da] hover:border-cyan">✉
-        {(() => { const n = p.sum.alerts.filter((a) => !a.read && a.type === "message").length; return n > 0 && <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-cyan px-1 text-[10px] font-bold text-black">{n > 9 ? "9+" : n}</span>; })()}</button>
+      {(() => { const n = p.sum.alerts.filter((a) => !a.read && a.type === "message").length; return (
+      <button type="button" aria-label={p.msgOpen ? "Close messages" : `Messages${n ? `, ${n} unread` : ""}`} aria-pressed={p.msgOpen} title={p.msgOpen ? "Close messages (back)" : "Messages"} onClick={p.onToggleMsg}
+        className={`relative grid h-9 w-9 place-items-center border text-[14px] ${p.msgOpen ? "border-cyan bg-cyan/15 text-cyan" : n ? "border-bad/70 text-white motion-safe:animate-pulse" : "border-cyan/20 text-[#c6d0da] hover:border-cyan"}`}>{p.msgOpen ? "✕" : "✉"}
+        {n > 0 && !p.msgOpen && <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-bad px-1 text-[10px] font-bold text-white">{n > 9 ? "9+" : n}</span>}</button>); })()}
       <div data-bell className="relative">
         <button type="button" aria-label={`Alerts, ${unread.length} unread`} aria-expanded={bell} onClick={() => setBell(!bell)} className="relative grid h-9 w-9 place-items-center border border-cyan/20 text-[14px] hover:border-cyan">
           🔔{unread.length > 0 && <span className="absolute -right-1.5 -top-1.5 grid h-[17px] min-w-[17px] place-items-center rounded-full bg-bad px-1 text-[10px] text-white">{unread.length > 9 ? "9+" : unread.length}</span>}</button>

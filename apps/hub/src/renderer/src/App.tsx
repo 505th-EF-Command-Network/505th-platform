@@ -7,6 +7,7 @@ import { Settings } from "./pages/Settings";
 import { Messages } from "./pages/Messages";
 import { HubAccess } from "./pages/HubAccess";
 import { Network } from "./pages/Network";
+import { Notes } from "./pages/Notes";
 import { PolicyGate } from "./components/Policy";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { alertKind, applySettings, isKey, mergeSettings, quietNow } from "./settings";
@@ -77,6 +78,13 @@ function Shell({ net }: { net: NetState }) {
   // My Settings → "Open on: last page" (remembered on this PC).
   const [page, setPageRaw] = useState(() => { try { return localStorage.getItem("cn:openLast") === "1" ? localStorage.getItem("cn:lastPage") || "dashboard" : "dashboard"; } catch { return "dashboard"; } });
   const setPage = useCallback((pg: string) => { setPageRaw(pg); try { localStorage.setItem("cn:lastPage", pg); } catch { /* storage off */ } }, []);
+  // ✉ (top bar) and the Messages key open Messages; pressing again goes back to the page you were on.
+  const beforeMsg = useRef("dashboard");
+  const toggleMessages = useCallback(() => setPageRaw((cur) => {
+    const next = cur === "panel-msg2" ? beforeMsg.current || "dashboard" : (beforeMsg.current = cur, "panel-msg2");
+    try { localStorage.setItem("cn:lastPage", next); } catch { /* storage off */ }
+    return next;
+  }), []);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   // 505th Software Use Policy — must be accepted before the app can be used (and again when it changes).
   const [policyOk, setPolicyOk] = useState<boolean | null>(null);
@@ -142,7 +150,7 @@ function Shell({ net }: { net: NetState }) {
   // My Shortcuts: Open Messages · Refresh (the others live in the top bar and side menu).
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (isKey(e, "messages")) { e.preventDefault(); setPage("panel-msg2"); }
+      if (isKey(e, "messages")) { e.preventDefault(); toggleMessages(); }
       else if (isKey(e, "refresh")) { e.preventDefault(); refresh(); }
     };
     addEventListener("keydown", k);
@@ -154,7 +162,7 @@ function Shell({ net }: { net: NetState }) {
   const navP = nav ?? DEFAULT_NAV;
   return (
     <div className="flex h-full flex-col">
-      <Guard label="Top bar" small><TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} /></Guard>
+      <Guard label="Top bar" small><TopBar sum={data} ov={ov} net={net} access={data.me.access} page={page === "dashboard" ? "Dashboard" : PAGES[page] ?? page} onPage={setPage} onRefresh={refresh} msgOpen={page === "panel-msg2"} onToggleMsg={toggleMessages} /></Guard>
       <UpdateBanner />
       <div className="flex min-h-0 flex-1">
         <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
@@ -179,6 +187,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-msg2" ? <Messages me={data.me.role} />
           : pg === "panel-hubaccess" ? <HubAccess />
           : pg === "panel-network" ? <Network />
+          : pg === "panel-notes" ? <Notes />
           : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} />
           : <ComingSoon title={PAGES[pg] ?? "This page"} onBack={() => setPage("dashboard")} />}</Guard>
           </div>))}

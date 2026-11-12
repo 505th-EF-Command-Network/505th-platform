@@ -26,7 +26,7 @@ const GROUPS: Group[] = [
   { id: "discord", label: "DISCORD", icon: "◈", links: [
     { id: "panel-quick", label: "Quick Upload", icon: "⇪", key: "qu" }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw" }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
-    { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes" }, { id: "panel-website", label: "Website", icon: "⌂", key: "web" }] },
+    { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web" }] },
   { id: "security", label: "SECURITY", icon: "⛉", links: [
     { id: "panel-officers", label: "Officer Management", icon: "★", key: "om" }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true }, { id: "panel-network", label: "Network Status", icon: "◉", key: "net", app: true }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit" }] },
 ];
@@ -115,7 +115,6 @@ export function SideNav(p: {
               <button type="button" aria-expanded={!closed} onClick={() => set({ closed: closed ? prefs.closed.filter((x) => x !== g.id) : [...prefs.closed, g.id] })}
                 className="flex w-full items-center gap-2 px-3 pb-1 pt-2.5 text-left text-[11.5px] tracking-[2.5px] text-[#c6d0da] hover:text-white">
                 {edit && <span className="cursor-grab text-amber" aria-hidden="true">⠿</span>}<span className="w-4 text-center text-cyan">{g.icon}</span>{g.label}
-                {g.id === "comms" && <span className="bg-cyan px-1 text-[8.5px] tracking-[1px] text-black">NEW</span>}
                 {closed && red && <i className="h-2 w-2 rounded-full bg-bad" />}
                 {edit && <span role="button" tabIndex={0} title={hidden ? "Show" : "Hide"} onClick={(e) => { e.stopPropagation(); set({ hidden: hidden ? prefs.hidden.filter((x) => x !== g.id) : [...prefs.hidden, g.id] }); }} className="ml-auto text-dim">{hidden ? "🚫" : "👁"}</span>}
                 <span className={`${edit ? "" : "ml-auto"} text-dim transition-transform ${closed ? "-rotate-90" : ""}`}>▾</span>

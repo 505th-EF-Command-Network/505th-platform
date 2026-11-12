@@ -402,7 +402,7 @@ onReady(() => {
   }
 
   // Notes
-  const nt = mountPanel("panel-notes", "notesV2", () => loadNotes().catch((e) => notify("NOTES LOAD FAILED: " + e.message, 1)));
+  const nt = null; // Notes v2 (2026-11-12) lives in notes-v2.js — this old Notes page is no longer mounted.
   if (nt) {
     nt.innerHTML = `<div class="h1">NOTES</div><div class="sub">YOUR NOTES AND NOTES SHARED WITH YOU — SAVED AUTOMATICALLY</div>
       <div class="split"><div class="nl"><input class="srch" data-f="nq" placeholder="SEARCH NOTES..." aria-label="Search notes"><button class="b gold" data-act="nnew">+ NEW NOTE</button><div class="nf" role="tablist"><button data-nf="all" class="on">ALL</button><button data-nf="mine">MINE</button><button data-nf="shared">SHARED WITH ME</button></div><div class="nl-items"></div></div>

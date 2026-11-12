@@ -3,6 +3,7 @@ import type { NetState, Overview, Summary } from "../../../preload/api";
 import { STATE, countdown, pageName, ukTime } from "../ui";
 import { Rsvp } from "./Rsvp";
 import { Guard } from "./Guard";
+import { NotesWidget } from "../pages/Notes";
 const Body = ({ f, p }: { f: (p: P) => React.ReactNode; p: P }) => <>{f(p)}</>;
 
 /**
@@ -86,6 +87,7 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
     const max = Math.max(1, ...r.sources.map((s) => s[1]));
     return <><div className="text-[10px] tracking-[2px] text-dim">{r.count} RECRUIT{r.count === 1 ? "" : "S"} · {r.avg} AVG DAYS TO APPROVE</div>
       {r.sources.length ? r.sources.slice(0, 5).map(([s, n], i) => <div key={s} className="mt-2 text-[12px]">{s}<span className="float-right text-white">{n}</span><Bar pct={(n / max) * 100} c={["#ff4d4d", "#a78bfa", "#22e07a", "#00d9ff", "#f59e0b"][i]!} /></div>) : <Empty t="NONE THIS MONTH YET" />}</>; } },
+  notes: { title: "NOTES", desc: "📌 Pinned notes + ⏰ your next reminders", size: 2, page: "panel-notes", body: ({ onPage }) => <NotesWidget onPage={onPage} /> },
   bct: { title: "BCT QUEUE", desc: "Recruits waiting for approval", size: 2, page: "panel-register", body: ({ ov, onPage }) => {
     const q = ov?.bctQueue;
     if (!q) return <Empty t="NO ACCESS" />;
