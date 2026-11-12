@@ -7,6 +7,7 @@
 import { onAccess } from "./nav-v2.js";
 import { addCss, ask, audit, esc, mountPanel, notify, onReady } from "./_common.js";
 import { cortanaJob } from "./discord-common.js";
+import { mountControl } from "./cortana-control.js";
 
 const API = "/api/terminal/network";
 const COL = { 0: "#22e07a", 1: "#f59e0b", 2: "#ff4d4d" };
@@ -71,8 +72,9 @@ function draw() {
   <div class="det">${!m ? '<div class="card dim">PICK A MONITOR</div>' : `
     <div class="card"><div class="dh"><div style="min-width:0"><h2>${esc(m.name)}</h2><div class="dim" style="font-size:12px">${esc(m.target || m.info || m.type.toUpperCase())}${m.info && m.target ? ` · ${esc(m.info)}` : ""}</div>
       <div class="acts">${D.canEdit ? `<button class="b sm" data-x="pause">${m.paused ? "▶ RESUME" : "⏸ PAUSE"}</button><button class="b sm" data-x="edit">✎ EDIT</button><button class="b sm" data-x="mute">${m.muted ? "🔔 ALERTS ON" : "🔕 MUTE ALERTS"}</button>${m.builtin ? "" : '<button class="b sm red" data-x="del">🗑 DELETE</button>'}` : ""}
-      ${m.id === "cortana" && acc.bot ? '<button class="b sm" data-c="restart">↻ RESTART CORTANA</button><button class="b sm" data-c="sync">⇄ RE-SYNC CHANNELS</button><button class="b sm" data-c="cmds">/ RE-REGISTER COMMANDS</button>' : ""}</div></div>
+      ${m.id === "cortana" && acc.bot ? '<button class="b sm" data-c="sync">⇄ RE-SYNC CHANNELS</button><button class="b sm" data-c="cmds">/ RE-REGISTER COMMANDS</button>' : ""}</div></div>
       <span class="tag">${esc(m.type.toUpperCase())}</span></div></div>
+    ${m.id === "cortana" ? '<div id="ctlBox"></div>' : ""}
     <div class="card"><div class="beat"><div class="bars">${[...padB, ...beats].map((b) => (b ? `<i style="background:${COL[b[2]]}" title="${hm(b[0] * 60000)} · ${["UP", "SLOW", "DOWN"][b[2]]}${b[1] >= 0 ? ` · ${b[1]} ms` : ""}"></i>` : '<i class="e"></i>')).join("")}</div>
       <span class="state" style="background:${sc};color:${sc === "#7d8a99" ? "#fff" : "#000"}">${sl}</span></div>
       <div class="dim" style="font-size:11px;margin-top:6px">${m.paused ? "Paused — not checked" : `Checked every 60 seconds · last check ${m.checkedAtISO ? hm(Date.parse(m.checkedAtISO)) : "—"}`}${m.status === "down" && m.downSinceISO ? ` · <b style="color:#ff4d4d">down for ${dur(m.downSinceISO)}${m.muted ? " (alerts muted)" : " — alert sent after 3 checks"}</b>` : ""}${m.error && m.status === "down" ? `<br><span style="color:#ffb3b3">${esc(m.error)}</span>` : ""}</div></div>
@@ -83,6 +85,8 @@ function draw() {
       <div class="chart">${chart(det?.points)}</div></div>
     <div class="card"><div class="ch">INCIDENTS</div>${inc.length ? `<table><thead><tr><th>STARTED</th><th>ENDED</th><th>LENGTH</th><th>ERROR</th><th>NOTE</th></tr></thead><tbody>${inc.map((i) => `<tr><td>${dt(i.startedAtISO)}</td><td>${i.endedAtISO ? dt(i.endedAtISO) : '<b style="color:#ff4d4d">ONGOING</b>'}</td><td>${dur(i.startedAtISO, i.endedAtISO)}</td><td style="color:#ffb3b3">${esc(i.error)}</td><td>${i.note ? esc(i.note) + " " : ""}<button class="lk" data-n="${esc(i.id)}">${i.note ? "✎" : "＋ add note"}</button></td></tr>`).join("")}</tbody></table>` : '<p class="dim" style="margin:6px 0 0">No incidents ✓</p>'}</div>`}
   </div></div>`;
+  const cb = root.querySelector("#ctlBox");
+  if (cb) mountControl(cb);
 }
 
 async function editBox(m) {

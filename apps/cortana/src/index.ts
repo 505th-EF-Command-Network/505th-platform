@@ -9,6 +9,7 @@ import { log } from "./log.ts";
 import { checkGuilds, isAuthorisedGuild } from "./guard.ts";
 import { markOffline, noteError, startHeartbeat } from "./health.ts";
 import { checkNow, startMonitors } from "./monitors.ts";
+import { startControl } from "./control.ts";
 import { startStaffPresence } from "./presence.ts";
 import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
@@ -88,13 +89,8 @@ client.once(Events.ClientReady, async (ready) => {
     await registerCommands();
     return { ok: true };
   });
-  registerJob("bot.restart", async (job) => {
-    const who = await uidAllowed(job.data.requestedBy, "bot");
-    if (!who.ok) throw new PermanentJobError("Only Developers / Command can restart Cortana");
-    log.warn(`Restart asked from the website by ${who.name}.`);
-    setTimeout(() => void markOffline("restart").finally(() => process.exit(1)), 1500); // after the job is marked done; non-zero → PM2 restarts
-    return { ok: true, supervised: process.env.pm_id !== undefined };
-  });
+  // Restart / Update & Restart / Shut down: control.ts (Control Password + one-time ticket from the website).
+  startControl(ready);
   stopEvents = startEvents(ready); // registers event jobs before the worker starts
   stopWorker = startJobWorker(ready);
   startLive(() => wake());

@@ -16,7 +16,7 @@ const MAX_ATTEMPTS = 3;
 /** An error that retrying can't fix (bad channel, missing permission, invalid content). */
 export class PermanentJobError extends Error {}
 
-type Job = { _id: string; data: { type: string; payload?: Record<string, unknown>; attempts?: number; requestedBy?: string } };
+export type Job = { _id: string; data: { type: string; payload?: Record<string, unknown>; attempts?: number; requestedBy?: string } };
 type Handler = (job: Job, client: Client<true>) => Promise<Record<string, unknown>>;
 
 const handlers: Record<string, Handler> = {
