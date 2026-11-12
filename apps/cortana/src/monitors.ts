@@ -7,7 +7,7 @@
  * Every save is pushed through the 505th Net (topics net_status / net_events), so the website + Hub pages update within a second.
  * Down for 3 checks in a row (not muted) → Discord alert (log channel) + 🔔 alert to Commander / Developer. Back up → "recovered after X min".
  * Still writes bot_status/monitors { web, db } (old Dashboard uptime bars) and bot_status/discord_live (who's online).
- * Types: http (any URL) · website · db · bot · discord · cloudinary · ably · hub · game (Arma 3 Steam query, target "host:queryPort").
+ * Types: http (any URL) · website · api · storage · db · bot · discord · cloudinary · ably · hub · game (Arma 3 Steam query, target "host:queryPort").
  */
 import { createSocket } from "node:dgram";
 import { randomBytes } from "node:crypto";
@@ -33,11 +33,13 @@ const autoId = () => Array.from(randomBytes(20), (b) => "ABCDEFGHIJKLMNOPQRSTUVW
 /** The services the 505th runs on. Created once; staff can pause / mute / edit them (not delete). */
 const BUILTIN: Mon[] = [
   { id: "website", name: "Website", group: "CORE", type: "website", target: "", order: 1, builtin: true, slowMs: 2500 },
+  { id: "api", name: "Website API (database)", group: "CORE", type: "api", target: "", order: 1.5, builtin: true, slowMs: 3000 },
   { id: "db", name: "Database (MongoDB Atlas)", group: "CORE", type: "db", target: "", order: 2, builtin: true, slowMs: 800 },
   { id: "cortana", name: "Cortana v2", group: "CORE", type: "bot", target: "", order: 3, builtin: true, slowMs: 1000 },
   { id: "hub", name: "505th Hub", group: "CORE", type: "hub", target: "", order: 4, builtin: true },
   { id: "discord", name: "Discord API", group: "SERVICES", type: "discord", target: "", order: 5, builtin: true, third: true, slowMs: 1000 },
   { id: "cloudinary", name: "Cloudinary (images)", group: "SERVICES", type: "cloudinary", target: "https://res.cloudinary.com/", order: 6, builtin: true, third: true, slowMs: 2000 },
+  { id: "storage", name: "Media Storage", group: "SERVICES", type: "storage", target: "", order: 6.5, builtin: true, slowMs: 2500 },
   { id: "ably", name: "505th Net (Ably)", group: "SERVICES", type: "ably", target: "https://rest.ably.io/time", order: 7, builtin: true, third: true, slowMs: 1500 },
   { id: "arma", name: "Arma 3 Server", group: "GAME", type: "game", target: "", order: 8, builtin: true, paused: true, slowMs: 1500 },
 ];
@@ -92,6 +94,18 @@ function certExpiry(): Promise<string | null> {
 async function check(m: Mon, client: Client<true>): Promise<Res> {
   switch (m.type) {
     case "website": return httpOk(`${site()}/api/public/ops`);
+    // The website itself reading the database (sign-in, terminal and Hub all go this way).
+    case "api": return httpOk(`${site()}/api/public/health`);
+    // Media uploads: are the Cloudinary keys set on the website?
+    case "storage": {
+      const t0 = Date.now();
+      try {
+        const r = await fetch(`${site()}/api/public/storage`, { signal: AbortSignal.timeout(10_000), cache: "no-store", headers: { "user-agent": "Cortana-uptime" } });
+        if (!r.ok) return { ms: null, error: `HTTP ${r.status}` };
+        const j = (await r.json()) as { ready?: boolean };
+        return j.ready ? { ms: Date.now() - t0, info: "uploads ready" } : { ms: null, error: "Not set up — add the CLOUDINARY_* keys on Vercel" };
+      } catch (e) { return { ms: null, error: (e as Error).message }; }
+    }
     case "db": return timed(async () => { await TerminalDoc.db.db!.command({ ping: 1 }); });
     case "bot": { const p = client.ws.ping; return { ms: p >= 0 ? p : 1, info: `uptime ${Math.round(process.uptime() / 3600)} h` }; }
     case "discord": { const p = client.ws.ping; return p >= 0 && client.isReady() ? { ms: p, info: "gateway ping" } : { ms: null, error: "Not connected to Discord" }; }

@@ -269,10 +269,17 @@ export function startDock(myUid, meDoc, allUsers) {
     // New message while you're on the Dashboard → pop the chat (not in Do not disturb / Invisible).
     for (const c of convs) {
       const u = unread(c);
-      if (!first && u > (seen.get(c.id) || 0) && c.lastSenderUid !== uid && !pops.has(c.id) && myState() === "online" && !document.getElementById("panel-dashboard")?.classList.contains("hidden")) openPop(c.id);
+      if (!first && u > (seen.get(c.id) || 0) && c.lastSenderUid !== uid && !pops.has(c.id) && myState() === "online") {
+        // Dashboard → pop the chat. Any other page → a message card (bottom-right). Tab hidden → browser pop-up.
+        if (document.hidden) osNotify(c);
+        else if (!document.getElementById("panel-dashboard")?.classList.contains("hidden")) openPop(c.id);
+        else toast(c);
+      }
       seen.set(c.id, u);
     }
     first = false;
+    tabTitle(convs.reduce((n, c) => n + unread(c), 0));
+    for (const id of [...toasts.keys()]) if (pops.has(id) || !unread(convs.find((c) => c.id === id) || {})) dropToast(id);
     drawDock();
     for (const id of pops.keys()) { if (!convs.some((c) => c.id === id)) closePop(id); else { drawPop(id); markRead(id); } }
   }, () => {});
@@ -290,3 +297,93 @@ export function updateUsers(list) {
   drawDock();
 }
 export function refreshPopPosition() { if (popBox) box(); }
+
+/* ───────── New-message pop-out (approved mock 2026-11-12) ─────────
+ * Any terminal page: a card slides in bottom-right (name, rank, online dot, first line). REPLY = mini chat, OPEN = Messages page.
+ * Gone after 8 s (paused while the mouse is on it). Max 3 cards, then "+N more". Same chat again → its card updates.
+ * Do not disturb / Invisible → none (badge + 🔔 only). Tab title shows the unread count. Tab hidden → browser pop-up (allowed once).
+ */
+addCss("mtoast", `
+.mt-stack{position:fixed;right:22px;bottom:22px;z-index:9000;display:flex;flex-direction:column;gap:10px;width:360px;max-width:calc(100vw - 30px)}
+.mt{background:#0b0f15;border:1px solid rgba(0,217,255,.4);box-shadow:0 10px 30px rgba(0,0,0,.65),inset 0 0 24px rgba(0,217,255,.08);position:relative;animation:mtIn .3s ease-out}
+.mt:before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#00D9FF,transparent)}
+@keyframes mtIn{from{transform:translateX(40px);opacity:0}}@media(prefers-reduced-motion:reduce){.mt{animation:none}.mt-bar i{transition:none!important}}
+.mt-h{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid rgba(0,217,255,.1);font-size:10px;letter-spacing:2.5px;color:#7d8a99}
+.mt-h button{all:unset;margin-left:auto;cursor:pointer;color:#7d8a99;padding:0 4px}.mt-h button:hover,.mt-h button:focus-visible{color:#fff}
+.mt-b{display:flex;gap:11px;padding:10px 12px;cursor:pointer}.mt-b .hx{flex-shrink:0;position:relative}
+.mt-n{color:#fff;font-weight:700;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mt-n small{color:#4b5765;font-weight:400;margin-left:6px;letter-spacing:0}
+.mt-m{color:#aeb9c4;font-size:12.5px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.mt-a{display:flex;gap:6px;padding:0 12px 10px 62px}.mt-a button{all:unset;cursor:pointer;border:1px solid rgba(0,217,255,.25);padding:3px 10px;font-size:10.5px;letter-spacing:1.5px;color:#fff}
+.mt-a button.p{border-color:#00D9FF;color:#00D9FF}.mt-a button:hover,.mt-a button:focus-visible{background:rgba(0,217,255,.1)}
+.mt-bar{height:3px;background:rgba(0,217,255,.12)}.mt-bar i{display:block;height:100%;background:#00D9FF;width:100%}
+.mt-more{background:#0b0f15;border:1px dashed rgba(0,217,255,.25);padding:7px 12px;font-size:11px;letter-spacing:1.5px;color:#7d8a99;text-align:center;cursor:pointer}
+`);
+const toasts = new Map(); // convId → { el, timer, left, start }
+const TOAST_MS = 8000;
+let stackEl = null, baseTitle = null;
+function stack() {
+  if (!stackEl || !stackEl.isConnected) { stackEl = document.createElement("div"); stackEl.className = "mt-stack"; stackEl.setAttribute("aria-live", "polite"); document.body.appendChild(stackEl); }
+  return stackEl;
+}
+function drawMore() {
+  const st = stack(), hidden = [...toasts.values()].filter((t) => t.el.hidden).length;
+  let m = st.querySelector(".mt-more");
+  if (!hidden) return m?.remove();
+  if (!m) { m = document.createElement("div"); m.className = "mt-more"; m.setAttribute("role", "button"); m.tabIndex = 0; m.onclick = () => window.showPanel?.("panel-msg2"); st.prepend(m); }
+  m.textContent = `+${hidden} MORE MESSAGE${hidden === 1 ? "" : "S"}`;
+}
+function layout() { const all = [...toasts.values()]; all.forEach((t, i) => (t.el.hidden = i < all.length - 3)); drawMore(); }
+function dropToast(id) { const t = toasts.get(id); if (!t) return; clearTimeout(t.timer); t.el.remove(); toasts.delete(id); layout(); }
+function arm(id) {
+  const t = toasts.get(id); if (!t) return;
+  clearTimeout(t.timer); t.start = Date.now();
+  const bar = t.el.querySelector(".mt-bar i");
+  bar.style.transition = "none"; bar.style.width = `${(t.left / TOAST_MS) * 100}%`; void bar.offsetWidth;
+  bar.style.transition = `width ${t.left}ms linear`; bar.style.width = "0%";
+  t.timer = setTimeout(() => dropToast(id), t.left);
+}
+function pause(id) { const t = toasts.get(id); if (!t) return; clearTimeout(t.timer); t.left = Math.max(1500, t.left - (Date.now() - t.start)); const bar = t.el.querySelector(".mt-bar i"); bar.style.transition = "none"; bar.style.width = `${(t.left / TOAST_MS) * 100}%`; }
+function toast(c) {
+  const id = c.id, n = unread(c), o = others(c), sender = userOf(c.lastSenderUid) || userOf(o[0]);
+  const group = o.length > 1;
+  const who = group ? `${memberName(sender)} · ${convName(c)}` : convName(c);
+  const html = `<div class="mt-h">✉ NEW MESSAGE${n > 1 ? ` · ${n}` : ""}<button data-t="x" aria-label="Close">✕</button></div>
+    <div class="mt-b" data-t="reply"><span class="hx">${hexAvatar(group ? sender : convPic(c), "sm")}${!group && o.length === 1 ? dotOf(userOf(o[0])) : ""}</span><div style="min-width:0"><div class="mt-n">${esc(who)}<small>now</small></div><div class="mt-m">${esc(String(c.lastMessage || "Sent an image"))}</div></div></div>
+    <div class="mt-a"><button class="p" data-t="reply">↩ REPLY</button><button data-t="open">OPEN</button></div><div class="mt-bar"><i></i></div>`;
+  let t = toasts.get(id);
+  if (t) { t.el.innerHTML = html; toasts.delete(id); }
+  else {
+    const el = document.createElement("div"); el.className = "mt"; el.setAttribute("role", "status");
+    el.addEventListener("mouseenter", () => pause(id)); el.addEventListener("mouseleave", () => arm(id));
+    el.addEventListener("focusin", () => pause(id)); el.addEventListener("focusout", () => arm(id));
+    el.addEventListener("click", (e) => {
+      const a = e.target.closest("[data-t]")?.dataset.t; if (!a) return;
+      dropToast(id);
+      if (a === "reply") openPop(id);
+      if (a === "open") { window.showPanel?.("panel-msg2"); setTimeout(() => window.dispatchEvent(new CustomEvent("msg:open", { detail: { id } })), 300); }
+    });
+    t = { el, timer: 0, left: TOAST_MS, start: 0 };
+    el.innerHTML = html;
+  }
+  t.left = TOAST_MS;
+  toasts.set(id, t); // re-insert = newest last
+  stack().appendChild(t.el);
+  layout(); arm(id);
+}
+function tabTitle(n) {
+  if (baseTitle === null) baseTitle = document.title.replace(/^\(\d+\+?\)\s*/, "");
+  const want = n ? `(${n > 99 ? "99+" : n}) ${baseTitle}` : baseTitle;
+  if (document.title !== want) document.title = want;
+}
+// Browsers only allow the "Allow notifications?" question after a click, so it's asked once on your first click in the terminal.
+if (typeof Notification !== "undefined" && Notification.permission === "default") {
+  document.addEventListener("click", () => { try { if (Notification.permission === "default") Notification.requestPermission().catch(() => {}); } catch { /* old browser */ } }, { once: true });
+}
+function osNotify(c) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    const o = others(c), sender = userOf(c.lastSenderUid) || userOf(o[0]);
+    const n = new Notification(`${memberName(sender)} sent you a message`, { body: String(c.lastMessage || "Sent an image").slice(0, 120), tag: `msg-${c.id}`, icon: "/images/logo.png" });
+    n.onclick = () => { window.focus(); openPop(c.id); n.close(); };
+  } catch { /* blocked */ }
+}
