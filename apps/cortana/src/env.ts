@@ -26,6 +26,9 @@ const schema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(10, "CLOUDINARY_API_SECRET looks wrong").optional().or(z.literal("").transform(() => undefined)),
   // Optional — your Discord ID. Only this person gets "staff came online" alerts (staff-watch.ts).
   CORTANA_OWNER_DISCORD_ID: z.string().regex(/^\d{15,22}$/, "CORTANA_OWNER_DISCORD_ID must be a Discord ID").optional().or(z.literal("").transform(() => undefined)),
+  // Optional — phone push alerts (push.ts). Make once with: npx web-push generate-vapid-keys. Public key also goes on Vercel as VAPID_PUBLIC_KEY.
+  VAPID_PUBLIC_KEY: z.string().min(40).optional().or(z.literal("").transform(() => undefined)),
+  VAPID_PRIVATE_KEY: z.string().min(20).optional().or(z.literal("").transform(() => undefined)),
   PRESENCE_INTENT: z.enum(["true", "false", ""]).optional().transform((v) => v === "true"),
 });
 

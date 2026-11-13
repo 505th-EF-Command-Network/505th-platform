@@ -13,7 +13,7 @@ const Body = ({ f, p }: { f: (p: P) => React.ReactNode; p: P }) => <>{f(p)}</>;
  * · BCT queue · System status · Live activity · Quick actions. Each opens its page inside the app.
  */
 export type Dash = [string, number][];
-export const DEFAULT_DASH: Dash = [["kpi", 5], ["next", 3], ["me", 2], ["alerts", 2], ["att", 3], ["staff", 2], ["events", 4], ["recruit", 2], ["system", 3], ["activity", 3], ["bct", 2]];
+export const DEFAULT_DASH: Dash = [["kpi", 5], ["next", 3], ["me", 2], ["alerts", 2], ["att", 3], ["staff", 3], ["events", 4], ["recruit", 2], ["system", 3], ["activity", 3], ["bct", 2]];
 const SIZE: Record<number, string> = { 1: "col-span-3 row-span-2", 2: "col-span-4 row-span-3", 3: "col-span-6 row-span-3", 4: "col-span-8 row-span-3", 5: "col-span-12 row-span-2" };
 const OPC: Record<string, string> = { main_op: "#ff4d4d", patrol: "#a78bfa", training: "#00d9ff", fun_op: "#f59e0b" };
 type P = { sum: Summary; ov: Overview | null; net: NetState; onPage: (id: string) => void; onRefresh: () => void; now: number };
@@ -74,15 +74,7 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       <span className={`min-w-0 flex-1 truncate ${a.read ? "text-[#9fb3c4]" : "text-white"}`}>{a.title.replace(/^⏰\s*/, "")}</span>
       {n > 1 && <span className="shrink-0 border border-cyan/25 px-1 text-[10px] text-dim">×{n}</span>}
       </Row>))}</> : <Empty t="ALL CLEAR" />; } },
-  staff: { title: "STAFF ON DUTY", desc: "Who's online / DND right now — and on the Hub or the Terminal", size: 2, body: ({ sum }) => {
-    const on = sum.staff.filter((s) => s.state !== "offline");
-    return on.length ? <>{on.slice(0, 8).map((s) => (
-      <Row key={s.uid}><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATE[s.state].color }} /><span className="min-w-0 flex-1 truncate text-white">{s.name}</span>
-        {s.where && <span title={s.where === "both" ? "On the Hub app and the website Terminal" : s.where === "hub" ? "On the Hub app" : "On the website Terminal"}
-          className={`shrink-0 border px-1 text-[8.5px] tracking-[1px] ${s.where === "terminal" ? "border-gold/50 text-gold" : "border-cyan/50 text-cyan"}`}>{s.where === "both" ? "HUB + WEB" : s.where === "hub" ? "HUB" : "TERMINAL"}</span>}
-        {s.voice && <span title="In Discord voice" className="max-w-[110px] shrink-0 truncate border border-[#a78bfa]/60 px-1 text-[8.5px] tracking-[1px] text-[#a78bfa]">🔊 {s.voice.toUpperCase()}</span>}
-        <small className="max-w-[110px] truncate text-[10.5px]" style={{ color: STATE[s.state].color }}>{s.state === "dnd" ? (s.note || "DND") : pageName(s.page) || (s.voice ? "" : s.discord ? "Discord" : "online")}</small></Row>))}
-      <div className="mt-1 text-[10.5px] text-dim">{on.length} / {sum.staff.length} staff on</div></> : <Empty t="NO STAFF ONLINE" />; } },
+  staff: { title: "STAFF ONLINE", desc: "Who's on the Hub or the Terminal now, and how much they use it this week", size: 3, body: ({ sum, onPage }) => <StaffV2 staff={sum.staff} me={sum.me.uid} onPage={onPage} /> },
   events: { title: "THIS WEEK", desc: "7-day mini calendar of ops", size: 4, page: "panel-events", body: ({ ov, onPage }) => {
     const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: "Europe/London" }));
     return <div className="grid h-full grid-cols-7 gap-1.5">{days.map((d, i) => {
@@ -181,3 +173,40 @@ export function Dashboard(p: { sum: Summary; ov: Overview | null; net: NetState;
     </main>
   );
 }
+
+/** Staff Online v2 (approved mock 2026-11-13): Hub + Terminal only — no Discord / voice. Usage from Cortana's staff_usage log. */
+function StaffV2({ staff, me, onPage }: { staff: Summary["staff"]; me: string; onPage: (p: string) => void }) {
+  const [f, setF] = useState<"all" | "on" | "hub" | "web" | "off">("all");
+  const [q, setQ] = useState("");
+  const hm = (m: number) => (m ? (m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}m` : `${m}m`) : "—");
+  const ago = (iso: string) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+  const rows = staff.map((s) => ({ s, hub: s.where === "hub" || s.where === "both", web: s.where === "terminal" || s.where === "both", u: s.usage ?? { weekMins: 0, days: 0, bars: [0, 0, 0, 0, 0, 0, 0], lastISO: "" } }))
+    .map((r) => ({ ...r, on: r.hub || r.web }));
+  const shown = rows.filter((r) => (f === "all" || (f === "on" && r.on) || (f === "hub" && r.hub) || (f === "web" && r.web) || (f === "off" && !r.on)) && r.s.name.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => Number(b.on) - Number(a.on) || b.u.weekMins - a.u.weekMins || a.s.name.localeCompare(b.s.name));
+  const total = rows.reduce((t, r) => t + r.u.weekMins, 0), top = [...rows].sort((a, b) => b.u.weekMins - a.u.weekMins)[0];
+  const stale = rows.filter((r) => !r.on && (!r.u.lastISO || Date.now() - Date.parse(r.u.lastISO) > 7 * 864e5)).length;
+  const max = Math.max(60, ...rows.flatMap((r) => r.u.bars));
+  const K = ({ l, n, c, d }: { l: string; n: number; c: string; d: string }) => <div className="border border-cyan/15 bg-black/25 px-2.5 py-1.5"><small className="block text-[9px] tracking-[2px] text-dim">{l}</small><b className="block font-head text-[22px]" style={{ color: c }}>{n}</b><span className="text-[10px] text-dim">{d}</span></div>;
+  return <div>
+    <div className="mb-2.5 grid grid-cols-4 gap-2"><K l="ON NOW" n={rows.filter((r) => r.on).length} c="#22e07a" d={`of ${rows.length} staff`} /><K l="ON THE HUB" n={rows.filter((r) => r.hub).length} c="var(--color-cyan)" d="app open" />
+      <K l="ON TERMINAL" n={rows.filter((r) => r.web).length} c="#f59e0b" d="website" /><K l="NOT SEEN 7+ DAYS" n={stale} c="#f59e0b" d="Hub or Terminal" /></div>
+    <div className="mb-2 flex flex-wrap gap-1.5">{([["all", "ALL"], ["on", "ON NOW"], ["hub", "HUB"], ["web", "TERMINAL"], ["off", "OFFLINE"]] as const).map(([k, l]) =>
+      <button key={k} type="button" onClick={() => setF(k)} className={`border px-2 py-0.5 text-[10px] tracking-[1.5px] ${f === k ? "border-cyan bg-cyan/10 text-cyan" : "border-cyan/20 text-dim hover:text-white"}`}>{l}</button>)}
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="⌕ Find staff…" aria-label="Find staff" className="ml-auto w-[140px] border border-cyan/20 bg-[#070a0f] px-2 py-0.5 text-[11px] text-white" /></div>
+    <table className="w-full border-collapse text-[12px]"><thead><tr className="text-[9px] tracking-[2px] text-dim"><th className="py-1 text-left font-normal">STAFF</th><th className="text-left font-normal">WHERE NOW</th><th className="text-left font-normal">DOING</th><th className="text-left font-normal">THIS WEEK</th><th className="text-right font-normal">LAST 7 DAYS</th></tr></thead>
+      <tbody>{shown.map(({ s, hub, web, on, u }) => <tr key={s.uid} className={`border-t border-white/5 ${on ? "" : "opacity-50"}`}>
+        <td className="py-1.5"><div className="flex items-center gap-2"><span className="relative">{s.photo ? <img src={s.photo} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-cyan/20 text-[10px] text-cyan">{s.name.slice(0, 1)}</span>}
+          {on && <i className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-[#0b1016] bg-ok" />}</span>
+          <span className="min-w-0"><b className="block truncate font-normal text-white">{s.name}{s.uid === me && <small className="text-dim"> (YOU)</small>}</b><small className="text-[9.5px] tracking-[1px] text-dim">{s.role.replace("_", " ").toUpperCase()}</small></span></div></td>
+        <td>{hub && web ? <Chip c="var(--color-cyan)">HUB + WEB</Chip> : hub ? <Chip c="var(--color-cyan)">HUB</Chip> : web ? <Chip c="#f59e0b">TERMINAL</Chip> : <span className="text-dim">—</span>}</td>
+        <td className={on ? "text-[#c6d0da]" : "text-dim"}>{on ? (s.state === "dnd" ? s.note || "DND" : pageName(s.page) || (hub ? "Hub" : "Terminal")) : u.lastISO ? `last seen ${ago(u.lastISO)}` : "not seen yet"}</td>
+        <td><b className="font-head text-[13px] font-normal text-white">{hm(u.weekMins)}</b><small className="block text-[10px] text-dim">{u.days}/7 days</small></td>
+        <td><div className="flex h-[26px] items-end justify-end gap-[3px]">{u.bars.map((m, i) => <i key={i} title={`${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][(new Date().getDay() + 6 + i + 1) % 7]} · ${hm(m)}`}
+          className={`w-2 ${m ? "bg-gradient-to-t from-cyan/25 to-cyan" : "bg-white/[.07]"}`} style={{ height: m ? Math.max(4, Math.round((m / max) * 26)) : 3 }} />)}</div></td></tr>)}
+        {!shown.length && <tr><td colSpan={5} className="py-4 text-center text-dim">NOBODY HERE.</td></tr>}</tbody></table>
+    <div className="mt-2 text-[10.5px] tracking-[1px] text-dim">THIS WEEK: <b className="font-normal text-white">{hm(total)}</b> TOTAL{top && top.u.weekMins ? <> · MOST ACTIVE: <b className="font-normal text-white">{top.s.name}</b></> : null} · AVERAGE <b className="font-normal text-white">{hm(Math.round(total / Math.max(1, rows.length)))}</b> PER STAFF
+      <button type="button" onClick={() => onPage("panel-hubaccess")} className="ml-2 text-cyan hover:underline">HUB ACCESS ▸</button></div>
+  </div>;
+}
+const Chip = ({ c, children }: { c: string; children: React.ReactNode }) => <span className="border px-1 text-[9px] tracking-[1.5px]" style={{ color: c, borderColor: `color-mix(in srgb, ${c} 45%, transparent)` }}>{children}</span>;

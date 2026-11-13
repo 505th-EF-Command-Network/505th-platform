@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
+import PhoneAlerts from "./PhoneAlerts";
 
 type Photo = { source: "discord" | "upload"; url: string | null; zoom: number; x: number; y: number };
 type Pref = { bell: boolean; dm: boolean };
@@ -71,7 +72,7 @@ function since(iso: string | null) {
 }
 
 export default function ProfileV2(p: { tab: string; terminal: boolean; discordUsername: string; canEdit: boolean; r: R | null; photo: Photo; discordAvatar: string | null; prefs: Prefs; record: ReactNode; pt?: PT | null }) {
-  const [tab, setTab] = useState(["over", "pfp", "rec", "notif"].includes(p.tab) ? p.tab : "over");
+  const [tab, setTab] = useState(["over", "pfp", "rec", "notif", "phone"].includes(p.tab) ? p.tab : "over");
   const [saved, setSaved] = useState<Photo>(p.photo);
   const [ph, setPh] = useState<Photo>(p.photo);
   const [prefs, setPrefs] = useState<Prefs>(p.prefs);
@@ -176,7 +177,7 @@ export default function ProfileV2(p: { tab: string; terminal: boolean; discordUs
           </section>
 
           <nav className="pv-tabs" role="tablist">
-            {[["over", "OVERVIEW"], ["pfp", "⬢ PROFILE PICTURE"], ["rec", "SERVICE RECORD"], ["notif", "🔔 ALERT SETTINGS"]].map(([k, l]) => (
+            {[["over", "OVERVIEW"], ["pfp", "⬢ PROFILE PICTURE"], ["rec", "SERVICE RECORD"], ["notif", "🔔 ALERT SETTINGS"], ["phone", "📱 PHONE & SOUNDS"]].map(([k, l]) => (
               <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{l}</button>
             ))}
           </nav>
@@ -236,6 +237,8 @@ export default function ProfileV2(p: { tab: string; terminal: boolean; discordUs
           )}
 
           {tab === "rec" && <div className="pv-rec">{p.record}</div>}
+
+          {tab === "phone" && <PhoneAlerts canUpload={p.terminal} />}
 
           {tab === "notif" && (
             <div className="pv-cd"><div className="pv-ch">ALERT SETTINGS</div>

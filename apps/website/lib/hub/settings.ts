@@ -50,6 +50,10 @@ export function cleanSettings(b: U) {
       streamer: bool(S.streamer, false), alerts: bool(S.alerts, true) },
     devices: { max: [2, 3, 5].includes(Number(D.max)) ? Number(D.max) : 3, idleDays: [7, 30, 90].includes(Number(D.idleDays)) ? Number(D.idleDays) : 30,
       trusted: (Array.isArray(D.trusted) ? D.trusted : []).filter((x: unknown) => typeof x === "string" && /^[a-f0-9]{24}$/.test(x)).slice(0, 10) },
+    sounds: (() => { const so = (b?.sounds ?? {}) as U, mine = (Array.isArray(so.mine) ? so.mine : []).filter((m: U) => typeof m?.url === "string" && /^https:\/\/res\.cloudinary\.com\/[\w./%-]+$/.test(m.url)).slice(0, 8)
+      .map((m: U) => ({ id: String(m.id ?? "").replace(/[^\w-]/g, "").slice(0, 24) || "my", name: String(m.name ?? "My sound").slice(0, 30), url: m.url }));
+      const ok = new Set(["radio", "unsc", "chime", "ping", "klaxon", "none", ...mine.map((m: U) => m.id)]), map = (so.map ?? {}) as U;
+      return { vol: num(so.vol, 0, 100, 70), mine, map: Object.fromEntries(EVENTS.filter((e) => ok.has(map[e])).map((e) => [e, map[e]])) }; })(),
     keys: Object.fromEntries(KEYS.map((x) => [x, key(k[x], DEFAULT_KEYS[x])])),
     keysOff: (Array.isArray(b?.keysOff) ? b.keysOff : []).filter((x: unknown) => (KEYS as readonly unknown[]).includes(x)),
     pageKeys: bool(b?.pageKeys, true),

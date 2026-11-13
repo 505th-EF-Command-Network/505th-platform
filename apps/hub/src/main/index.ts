@@ -155,14 +155,15 @@ ipcMain.handle("hub:aars-action", (e, body: unknown) => {
 });
 /** Image upload (AAR screenshots): the website signs it, the file goes straight to Cloudinary. Images only, max 10 MB. */
 ipcMain.handle("hub:upload", async (e, folder: unknown, name: unknown, type: unknown, bytes: unknown) => {
-  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg", "505th_notes"].includes(String(folder)) || typeof type !== "string" || !/^image\/(png|jpeg|webp|gif)$/.test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
+  const audio = folder === "505th_sounds";
+  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg", "505th_notes", "505th_sounds"].includes(String(folder)) || typeof type !== "string" || !(audio ? /^audio\/(mpeg|mp3|wav|x-wav|wave|ogg)$/ : /^image\/(png|jpeg|webp|gif)$/).test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
   const s = (await call("/api/hub/upload-sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) })) as Record<string, unknown>;
   if (s.error) return { error: String(s.error) };
   try {
     const fd = new FormData();
     fd.append("file", new Blob([new Uint8Array(bytes)], { type }), String(name || "image").slice(0, 100));
     fd.append("api_key", String(s.apiKey)); fd.append("timestamp", String(s.timestamp)); fd.append("folder", String(s.folder)); fd.append("signature", String(s.signature));
-    const r = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(String(s.cloudName))}/image/upload`, { method: "POST", body: fd, signal: AbortSignal.timeout(60_000) });
+    const r = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(String(s.cloudName))}/${audio ? "video" : "image"}/upload`, { method: "POST", body: fd, signal: AbortSignal.timeout(60_000) });
     const j = (await r.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } };
     return r.ok && j.secure_url ? { url: j.secure_url } : { error: j.error?.message ?? `Upload failed (${r.status})` };
   } catch (err) {

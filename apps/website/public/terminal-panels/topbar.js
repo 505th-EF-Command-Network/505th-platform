@@ -5,6 +5,7 @@
  * The original top-bar buttons stay in the page (hidden) so the original code
  * (message badge, notification listener) keeps running; we mirror their state.
  */
+import { alertSound, kindOf } from "./sounds.js";
 import { onAuthStateChanged } from "/terminal-shim/auth.js";
 import { collection, doc, limit, onSnapshot, orderBy, query, updateDoc } from "/terminal-shim/firestore.js";
 import { addCss, auth, db, esc, getMe, hexAvatar, onReady, toDate } from "./_common.js";
@@ -193,7 +194,7 @@ function build() {
       <button class="tb3-s" data-st="online" role="menuitemradio"><i style="background:#22e07a"></i>ONLINE</button>
       <button class="tb3-s" data-st="dnd" role="menuitemradio"><i style="background:#ff4d4d"></i>DO NOT DISTURB</button>
       <button class="tb3-s" data-st="invisible" role="menuitemradio"><i style="background:#7d8a99"></i>INVISIBLE</button><hr>
-      <a href="/profile" role="menuitem">♟ MY PROFILE</a><a href="/profile?tab=pfp" role="menuitem">⬢ CHANGE PICTURE</a><a href="/profile?tab=notif" role="menuitem">🔔 ALERT SETTINGS</a>
+      <a href="/profile" role="menuitem">♟ MY PROFILE</a><a href="/profile?tab=pfp" role="menuitem">⬢ CHANGE PICTURE</a><a href="/profile?tab=notif" role="menuitem">🔔 ALERT SETTINGS</a><a href="/profile?tab=phone" role="menuitem">📱 PHONE &amp; SOUNDS</a>
       <hr><a href="/home" role="menuitem">⌂ VIEW WEBSITE</a><a href="/resources-roster" role="menuitem">☰ ROSTER</a>
       <hr><button class="red" id="tb2Out" role="menuitem">⏻ LOG OUT</button>
     </div>
@@ -334,8 +335,11 @@ async function start(user) {
   sysCheck();
   setInterval(sysCheck, 120000);
   onSnapshot(query(collection(db, "notifications", uid, "items"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
+    const fresh = alerts.length || snap.metadata?.fromCache === false ? snap.docs.filter((d) => !alerts.some((x) => x.id === d.id) && !d.data().read) : [];
+    const first = !window.__tbSeen; window.__tbSeen = true;
     alerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderAlerts();
+    if (!first && fresh.length) { const x = fresh[0].data(); alertSound(kindOf(String(x.type || ""), String(x.title || "")), String(x.title || "New alert")); }
     // Tell the dashboard ("Needs you") how many 🔔 alerts are unread — same number as the bell.
     window.__bellUnread = alerts.filter((a) => !a.read && a.type !== "message").length; // messages are counted from the chats instead
     window.dispatchEvent(new CustomEvent("bell:unread", { detail: window.__bellUnread }));

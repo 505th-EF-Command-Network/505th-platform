@@ -19,7 +19,7 @@ export type AuthState =
   | { status: "signed-in"; user: AppUser }
   | { status: "offline"; error: string };
 export type MyStatus = { state: "online" | "dnd" | "invisible" | "offline"; note?: string; untilISO?: string | null };
-export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; where?: "hub" | "terminal" | "both" | ""; voice?: string; discord?: string; note: string; until: string | null; photo: string | null };
+export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; where?: "hub" | "terminal" | "both" | ""; voice?: string; discord?: string; usage?: { weekMins: number; days: number; bars: number[]; lastISO: string } | null; lastSeenISO?: string; note: string; until: string | null; photo: string | null };
 export type Summary = {
   me: { uid: string; name: string; role: string; rank: string; platoon: string; attendance: number; pt: number; opsAttended: number; opsEligible: number; status: MyStatus; access: Record<string, boolean> };
   ops: { id: string; title: string; startAtISO: string; opType: string; signedUp: number; mine: string | null; myChoice: string | null; myWaiting: boolean; open: boolean; linked: boolean;
@@ -75,6 +75,8 @@ export type AppSettings = {
     letOps: boolean; preview: boolean; ev: Record<NotifyEvent, { popup: boolean; bell: boolean; flash: boolean }> };
   security: { lock: "off" | "5" | "15" | "60" | "sleep"; pinHash: string; streamer: boolean; alerts: boolean };
   devices: { max: 2 | 3 | 5; idleDays: 7 | 30 | 90; trusted: string[] };
+  /** Alert sounds: one per alert kind — built-in id ("radio" …) or "none" or one of mine. Off by default. */
+  sounds: { vol: number; map: Partial<Record<NotifyEvent, string>>; mine: { id: string; name: string; url: string }[] };
   keys: Record<ShortcutId, string>; keysOff: ShortcutId[]; pageKeys: boolean;
 };
 export type SysInfo = { version: string; windows: string; installedISO: string; upMins: number; freeGB: number; idleSecs: number };

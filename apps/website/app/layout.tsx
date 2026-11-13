@@ -8,6 +8,8 @@ import { Analytics } from "@vercel/analytics/next";
 export const metadata: Metadata = {
   title: { default: "505th Expeditionary Force", template: "%s" },
   description: "505th Expeditionary Force — a UNSC/Halo Arma 3 military simulation unit.",
+  manifest: "/app.webmanifest",
+  appleWebApp: { capable: true, title: "505th", statusBarStyle: "black-translucent" },
   icons: {
     icon: [
       { url: "/images/favicon-32x32.png", sizes: "32x32", type: "image/png" },

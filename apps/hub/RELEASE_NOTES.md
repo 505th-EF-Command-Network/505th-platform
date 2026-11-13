@@ -1,3 +1,8 @@
+505th Command Network v0.4.3
+- NEW Staff Online widget: who's on the Hub or the Terminal now, time this week, days on, last 7 days
+- NEW alert sounds: pick a sound for each alert, volume, upload your own (MP3 / WAV)
+- Staff alerts (owner only): only for Hub and Terminal, with VIEW STAFF and MESSAGE buttons
+
 505th Command Network v0.4.2
 - Staff On Duty: counts staff on Discord and in voice (🔊 channel), same as the website
 - NEW notification setting: Staff came online (Discord / Hub / website)

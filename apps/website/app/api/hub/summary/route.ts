@@ -1,4 +1,5 @@
 import { HubSession, Member, TerminalDoc } from "@505th/db";
+import { staffUsage } from "@/lib/hub/staff-usage";
 import { getHubActor, hubJson } from "@/lib/hub/auth";
 import { effectiveAccess, hasTerminal, roleLevel } from "@/lib/terminal/access";
 
@@ -56,6 +57,7 @@ export async function GET(req: Request) {
     const cur = lastSeen.get(d.uid);
     if (!cur || cur.at < at) lastSeen.set(d.uid, { at, panel: String(d.panel || "") });
   }
+  const usage = await staffUsage().catch(() => ({} as Awaited<ReturnType<typeof staffUsage>>));
   const meDoc = (users.find((u) => u.docId === a.uid)?.data ?? {}) as U;
   const staff = users
     .map((u) => ({ id: u.docId, ...((u.data ?? {}) as U) }) as U)
@@ -66,12 +68,13 @@ export async function GET(req: Request) {
       const voice = (u.discordId && voiceOf.get(String(u.discordId))) || "";
       const discord = discordOf.get(u.id) || "";
       const onDiscord = !!voice || (!!discord && discord !== "offline");
-      const st = u.id === a.uid ? stateOf(u, true) : stateOf(u, !!p || hub || onDiscord);
+      void onDiscord; // Staff Online v2 (2026-11-13): Hub + Terminal only — Discord / voice don't count.
+      const st = u.id === a.uid ? stateOf(u, true) : stateOf(u, !!p || hub);
       const where = st === "offline" ? "" : p && hub ? "both" : hub ? "hub" : p ? "terminal" : "";
       return {
         uid: u.id, name: nameOf(u), role: u.role, level: roleLevel(u.role), state: st,
         page: st === "online" ? p?.panel || "" : "",
-        where, voice, discord,
+        where, voice: "", discord: "", usage: usage[u.id] ?? null, lastSeenISO: usage[u.id]?.lastISO ?? "",
         note: st === "dnd" ? String(u.myStatus?.note || "") : "",
         until: st === "dnd" ? u.myStatus?.untilISO || null : null,
         photo: [u.photoUrl, u.photoURL, u.discordAvatarUrl].find((p) => typeof p === "string" && p.startsWith("https://")) ?? null,

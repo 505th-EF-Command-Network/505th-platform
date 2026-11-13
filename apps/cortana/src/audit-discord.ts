@@ -64,13 +64,21 @@ async function executor(g: Guild, type: AuditLogEvent, targetId?: string | null,
   try {
     const logs = await g.fetchAuditLogs({ type, limit: 5 });
     const hit = logs.entries.find((x) => (!targetId || (x.target as { id?: string } | null)?.id === targetId) && Date.now() - x.createdTimestamp < withinMs);
-    return hit ? { name: hit.executor?.tag ?? "Unknown", id: hit.executor?.id ?? null, reason: hit.reason ?? null } : null;
+    return hit ? { name: hit.executor ? tag(hit.executor) : "Unknown", id: hit.executor?.id ?? null, reason: hit.reason ?? null } : null;
   } catch {
     return null;
   }
 }
-const tag = (u: User | PartialUser | null | undefined) => (u && "tag" in u && u.tag ? u.tag : u?.id ? `User ${u.id}` : "Unknown");
-const nameOf = (m: GuildMember | PartialGuildMember) => (m.displayName && m.user?.tag && m.displayName !== m.user.username ? `${m.displayName} (${m.user.tag})` : tag(m.user));
+/** One name style everywhere (2026-11-13): "Server nickname (username)" — or just the username when there's no nickname. */
+let home: Guild | null = null;
+const tag = (u: User | PartialUser | null | undefined) => {
+  if (!u?.id) return "Unknown";
+  const user = "username" in u && u.username ? u.username : null;
+  const nick = home?.members.cache.get(u.id)?.displayName;
+  if (user && nick && nick !== user) return `${nick} (${user})`;
+  return user ?? `User ${u.id}`;
+};
+const nameOf = (m: GuildMember | PartialGuildMember) => (m.displayName && m.user?.username && m.displayName !== m.user.username ? `${m.displayName} (${m.user.username})` : tag(m.user));
 const chName = (c: unknown) => { const x = c as { name?: string } | null; return x?.name ? `#${x.name}` : "#unknown"; };
 
 // ───────── media copies (Cloudinary) ─────────
@@ -271,6 +279,7 @@ async function server(g: Guild | null | undefined, type: AuditLogEvent, action: 
 
 export function startDiscordAudit(client: Client<true>) {
   const g = client.guilds.cache.get(env.AUTHORISED_GUILD_ID);
+  home = g ?? null;
   if (g) void loadInvites(g);
   if (!CLOUD) log.info("Audit: CLOUDINARY_* not set — deleted pictures/clips will not be kept");
   const mine = (x: { guild?: Guild | null; id?: string } | null | undefined) => x?.guild?.id === env.AUTHORISED_GUILD_ID || x?.id === env.AUTHORISED_GUILD_ID;

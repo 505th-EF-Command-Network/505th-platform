@@ -48,6 +48,12 @@ addCss("dash2", `
 .d2-chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.d2-chip{font-size:9.5px;letter-spacing:1px;padding:2px 6px;border:1px solid rgba(0,217,255,.35);color:#00D9FF;white-space:nowrap}.d2-chip.v{border-color:rgba(167,139,250,.5);color:#a78bfa}
 .d2-leg{display:flex;gap:12px;font-size:9.5px;letter-spacing:1px;color:#7d8a99;margin-top:6px}.d2-leg span{display:flex;align-items:center}
 #d2Toasts{position:fixed;right:16px;bottom:16px;z-index:9000;display:flex;flex-direction:column;gap:8px}.d2-toast{display:flex;gap:10px;align-items:center;min-width:260px;max-width:340px;border:1px solid #00D9FF;background:#071016;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.5);font-size:12px}.d2-toast b{color:#fff;font-family:Rajdhani,sans-serif;font-size:14px}.d2-toast small{display:block;color:#7d8a99}.d2-toast button{all:unset;cursor:pointer;margin-left:auto;color:#7d8a99;padding:2px 6px}.d2-toast button:focus-visible{outline:2px solid #00D9FF}
+.d2-skp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}.d2-skp div{border:1px solid rgba(0,217,255,.18);padding:7px 9px;background:rgba(0,0,0,.25)}.d2-skp small{display:block;font-size:9px;letter-spacing:2px;color:#7d8a99}.d2-skp b{display:block;font:700 22px Rajdhani,sans-serif}.d2-skp span{font-size:10px;color:#7d8a99}
+.d2-stb{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}.d2-stb button{border:1px solid rgba(0,217,255,.2);background:none;color:#7d8a99;font-size:10px;letter-spacing:1.5px;padding:3px 9px;cursor:pointer}.d2-stb button.on{border-color:#00D9FF;color:#00D9FF;background:rgba(0,217,255,.08)}.d2-stb input{margin-left:auto;border:1px solid rgba(0,217,255,.2);background:#070a0f;color:#fff;font-size:11px;padding:3px 8px;width:150px}
+.d2-stt{width:100%;border-collapse:collapse;font-size:12px}.d2-stt th{font-size:9px;letter-spacing:2px;color:#7d8a99;text-align:left;font-weight:normal;padding:4px 6px;border-bottom:1px solid rgba(0,217,255,.15)}.d2-stt td{padding:6px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}.d2-stt tr.off td{opacity:.5}
+.d2-stw{display:flex;align-items:center;gap:8px}.d2-stw b{font-family:Rajdhani,sans-serif;font-size:14px;color:#fff;font-weight:700}.d2-stw small{display:block;font-size:9.5px;color:#7d8a99;letter-spacing:1px}.d2-stn{font-family:Rajdhani,sans-serif;font-size:14px;color:#fff}
+.d2-stbar{display:flex;align-items:flex-end;justify-content:flex-end;gap:3px;height:26px}.d2-stbar i{width:8px;background:linear-gradient(to top,rgba(0,217,255,.25),#00D9FF)}.d2-stbar i.z{background:rgba(255,255,255,.07)}
+@media(max-width:700px){.d2-skp{grid-template-columns:repeat(2,1fr)}.d2-stt th:nth-child(3),.d2-stt td:nth-child(3),.d2-stt th:nth-child(5),.d2-stt td:nth-child(5){display:none}}
 .d2-stf{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}.d2-stf b{font-family:Rajdhani,sans-serif;font-size:14px;color:#fff;font-weight:700}.d2-stf small{display:block;font-size:9.5px;color:#7d8a99;letter-spacing:1px}.d2-stf .wh2{font-size:10px;color:#7d8a99;text-align:right}.d2-stf .wh2 i{font-style:normal;color:#00D9FF}
 .d2-cort{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.d2-cort div{border:1px solid rgba(0,217,255,.18);padding:10px;text-align:center}.d2-cort b{display:block;font-family:Rajdhani,sans-serif;font-size:20px;color:#4b5765}.d2-cort span{font-size:9px;letter-spacing:1.5px;color:#7d8a99}
 .d2-sr{font-family:Rajdhani,sans-serif;color:#fff;font-size:15px;letter-spacing:1px}.d2-w p.d2-p{margin:6px 0;font-size:12.5px;white-space:pre-wrap}
@@ -88,6 +94,8 @@ addCss("dash2", `
 const OPS = { Active: ["ACTIVE", "#22e07a"], "Stand Down": ["STAND DOWN", "#7d8a99"], "On Op": ["ON OP", "#f59e0b"], "Training Cycle": ["TRAINING", "#00D9FF"], Maintenance: ["MAINTENANCE", "#a78bfa"] };
 const agoTxt = (iso, short = false) => { const m = Math.round((Date.now() - Date.parse(iso)) / 60000); if (!(m >= 0)) return "—"; const t = m < 1 ? "just now" : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : m < 2880 ? "yesterday" : `${Math.round(m / 1440)} days`; return short || m < 1 || m >= 1440 ? t : t + " ago"; };
 const STAFF = new Set(["recruiter", "nco", "staff_nco", "officer", "developer", "commander"]);
+/** Audit entry → 505th member: by terminal uid, or by Discord ID (Cortana's Discord events) so one person shows as one name. */
+const auditUser = (a) => { const u = userOf(a.uid); if (u.id) return u; const id = a.byId || a.byDiscordId; return (id && D.users.find((x) => x.discordId === id)) || {}; };
 const ROLE_L = { recruiter: "RECRUITER", nco: "NCO", staff_nco: "STAFF NCO", officer: "OFFICER", developer: "DEVELOPER", commander: "COMMANDER" };
 
 let uid = null;
@@ -207,34 +215,42 @@ const WID = {
       <div class="d2-lb">DISCORD PING — LAST 24H</div><div class="d2-ch">${vals.map((v) => `<i class="${v == null ? "off" : ""}" style="height:${v == null ? 3 : Math.max(4, Math.round((v / max) * 100))}%;${v > 300 ? "background:#f59e0b" : ""}" title="${v ?? "—"} ms"></i>`).join("")}</div>
       <small class="dim">${c.errors24h ?? 0} ERRORS (24H)${c.version ? ` · v${esc(c.version)}` : ""}${c.supervised ? " · PM2" : ""}</small>`;
   } },
-  staff: { t: "♟ STAFF ONLINE", d: "Staff Discord status, terminal page and voice", ico: "♟", g: "STATUS", b: () => {
-    // Approved mock 2026-11-11: real Discord status (bot_status/staff_presence, from Cortana — staff only), plus Terminal page + voice.
-    const on = onlineNow().filter((p) => STAFF.has(userOf(p.uid).role || p.role));
-    const fresh = D.dl?.atISO && Date.now() - Date.parse(D.dl.atISO) < 5 * 60000;
-    const sp = D.sp?.enabled ? D.sp.staff || [] : null;
-    const rows = new Map();
-    const row = (id, u) => rows.get(id) || { u: { ...u, uid: id }, uidKey: id, status: null };
-    if (sp) for (const x of sp) { const u = userOf(x.uid); const r = row(x.uid, u.id ? u : { callsign: x.name }); r.status = x.status; r.since = x.sinceISO; r.last = x.lastOnlineISO; rows.set(x.uid, r); }
-    on.forEach((p) => { const r = row(p.uid, { ...p, ...userOf(p.uid) }); r.term = panelName(p.panel); rows.set(p.uid, r); });
-    if (fresh) for (const ch of D.dl.voice || []) for (const m of ch.members) { const u = D.users.find((x) => x.discordId === m.id); if (u && STAFF.has(u.role)) { const r = row(u.id, u); r.voice = ch.name; rows.set(u.id, r); } }
-    const live = (r) => (r.status && r.status !== "offline") || r.term || r.voice;
-    const order = { online: 0, idle: 1, dnd: 2 };
-    const list = [...rows.values()].sort((a, b) => (live(b) - live(a)) || ((order[a.status] ?? 3) - (order[b.status] ?? 3)) || memberName(a.u).localeCompare(memberName(b.u)));
-    if (!list.length) return empty("NO STAFF ONLINE RIGHT NOW.") + (sp ? "" : '<small class="dim">DISCORD STATUS: OFF (PRESENCE INTENT)</small>');
-    const SL = { online: "Online", idle: "Idle", dnd: "Do not disturb", offline: "Offline" };
-    const sub = (r) => !r.status ? (ROLE_L[r.u.role] || "") : r.status === "offline" ? `Offline${r.last ? " · last seen " + agoTxt(r.last) : ""}` : `Discord: ${SL[r.status]}${r.status === "idle" && r.since ? " · " + agoTxt(r.since, true) : ""}`;
-    const nLive = list.filter(live).length;
-    const offShown = list.filter((r) => !live(r)).slice(0, 4);
-    return [...list.filter(live), ...offShown].map((r) => `<div class="d2-stf${live(r) ? "" : " off"}"><span class="d2-sav">${hexAvatar(r.u, "sm")}${r.status ? `<i class="d2-sd ${r.status}" title="Discord: ${SL[r.status]}"></i>` : ""}</span><span><b>${esc(memberName(r.u))}${r.uidKey === uid ? ' <small style="display:inline">(YOU)</small>' : ""}</b><small>${esc(sub(r))}</small></span><span class="d2-chips">${r.term ? `<span class="d2-chip">TERMINAL · ${esc(String(r.term).toUpperCase())}</span>` : ""}${r.voice ? `<span class="d2-chip v">🔊 ${esc(String(r.voice).toUpperCase())}</span>` : ""}</span></div>`).join("")
-      + `<small class="dim">${nLive} OF ${list.length} ONLINE${sp ? "" : " · DISCORD STATUS OFF"}${fresh ? "" : " · VOICE: WAITING FOR CORTANA"}</small>`
-      + (sp ? '<div class="d2-leg"><span><i class="d2-sd online"></i>ONLINE</span><span><i class="d2-sd idle"></i>IDLE</span><span><i class="d2-sd dnd"></i>DND</span><span><i class="d2-sd offline"></i>OFFLINE</span></div>' : "");
+  staff: { t: "♟ STAFF ONLINE", d: "Who's on the Hub or the Terminal now, and how much they use it this week", ico: "♟", g: "STATUS", b: () => {
+    // Staff Online v2 (approved mock 2026-11-13): Hub + Terminal only (no Discord / voice). Usage = Cortana's staff_usage log.
+    const su = D.su || { usage: {}, hub: [] };
+    const hubOn = new Set(su.hub || []);
+    const webOn = new Map(onlineNow().map((p) => [p.uid, panelName(p.panel)]));
+    const list = D.users.filter((u) => STAFF.has(u.role) && !u.suspended).map((u) => {
+      const us = su.usage[u.id] || { weekMins: 0, days: 0, bars: [0, 0, 0, 0, 0, 0, 0], lastISO: "" };
+      const hub = hubOn.has(u.id), web = webOn.has(u.id);
+      return { u, hub, web, on: hub || web, page: webOn.get(u.id) || "", us };
+    });
+    const f = window.__stfF || "all", q = (window.__stfQ || "").toLowerCase();
+    const shown = list.filter((r) => (f === "all" || (f === "on" && r.on) || (f === "hub" && r.hub) || (f === "web" && r.web) || (f === "off" && !r.on)) && memberName(r.u).toLowerCase().includes(q))
+      .sort((a, b) => (b.on - a.on) || (b.us.weekMins - a.us.weekMins) || memberName(a.u).localeCompare(memberName(b.u)));
+    const hm = (m) => (m ? (m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}m` : `${m}m`) : "—");
+    const stale = list.filter((r) => !r.on && (!r.us.lastISO || Date.now() - Date.parse(r.us.lastISO) > 7 * 864e5)).length;
+    const total = list.reduce((s, r) => s + r.us.weekMins, 0), top = [...list].sort((a, b) => b.us.weekMins - a.us.weekMins)[0];
+    const max = Math.max(60, ...list.flatMap((r) => r.us.bars));
+    const chip = (r) => (r.hub && r.web ? '<span class="d2-chip">HUB + WEB</span>' : r.hub ? '<span class="d2-chip">HUB</span>' : r.web ? '<span class="d2-chip" style="color:#f59e0b;border-color:#f59e0b66">TERMINAL</span>' : '<span class="dim">—</span>');
+    const DAYS = ["M", "T", "W", "T", "F", "S", "S"];
+    return `<div class="d2-skp"><div><small>ON NOW</small><b style="color:#22e07a">${list.filter((r) => r.on).length}</b><span>of ${list.length} staff</span></div><div><small>ON THE HUB</small><b style="color:#00d9ff">${list.filter((r) => r.hub).length}</b><span>app open</span></div>
+      <div><small>ON TERMINAL</small><b style="color:#f59e0b">${list.filter((r) => r.web).length}</b><span>website</span></div><div><small>NOT SEEN 7+ DAYS</small><b style="color:#f59e0b">${stale}</b><span>Hub or Terminal</span></div></div>
+      <div class="d2-stb">${[["all", "ALL"], ["on", "ON NOW"], ["hub", "HUB"], ["web", "TERMINAL"], ["off", "OFFLINE"]].map(([k, l]) => `<button data-stf="${k}" class="${f === k ? "on" : ""}">${l}</button>`).join("")}<input data-stfq placeholder="⌕ Find staff…" value="${esc(window.__stfQ || "")}" aria-label="Find staff"></div>
+      <table class="d2-stt"><thead><tr><th>STAFF</th><th>WHERE NOW</th><th>DOING</th><th>THIS WEEK</th><th style="text-align:right">LAST 7 DAYS</th></tr></thead><tbody>
+      ${shown.map((r) => `<tr class="${r.on ? "" : "off"}"><td><div class="d2-stw"><span class="d2-sav">${hexAvatar(r.u, "sm")}${r.on ? '<i class="d2-sd online"></i>' : ""}</span><span><b>${esc(memberName(r.u))}${r.u.id === uid ? ' <small style="display:inline">(YOU)</small>' : ""}</b><small>${esc(ROLE_L[r.u.role] || "")}</small></span></div></td>
+        <td>${chip(r)}</td><td class="${r.on ? "" : "dim"}">${r.on ? esc(r.page || (r.hub ? "Hub" : "Terminal")) : r.us.lastISO ? "last seen " + agoTxt(r.us.lastISO) : "not seen yet"}</td>
+        <td><b class="d2-stn">${hm(r.us.weekMins)}</b><small class="dim" style="display:block">${r.us.days}/7 days</small></td>
+        <td><div class="d2-stbar">${r.us.bars.map((m, i) => `<i class="${m ? "" : "z"}" style="height:${m ? Math.max(4, Math.round((m / max) * 26)) : 3}px" title="${DAYS[i]} · ${hm(m)}"></i>`).join("")}</div></td></tr>`).join("") || `<tr><td colspan="5" class="dim" style="text-align:center;padding:14px">NOBODY HERE.</td></tr>`}
+      </tbody></table>
+      <small class="dim" style="display:block;margin-top:8px">THIS WEEK: <b style="color:#fff">${hm(total)}</b> TOTAL${top && top.us.weekMins ? ` · MOST ACTIVE: <b style="color:#fff">${esc(memberName(top.u))}</b>` : ""} · AVERAGE <b style="color:#fff">${hm(Math.round(total / Math.max(1, list.length)))}</b> PER STAFF</small>`;
   } },
   online: { t: "● ONLINE NOW", d: "Everyone online now, with hex pictures", ico: "●", g: "UNIT", b: () => {
     const on = onlineNow();
     return on.length ? `<div class="d2-onl">${on.map((p) => { const u = { ...p, ...userOf(p.uid) }; return `<span class="d2-ou">${hexAvatar(u, "sm")}<small>${esc(u.callsign || u.lastName || "")}</small></span>`; }).join("")}</div>${discordLine()}` : empty("NOBODY IN THE TERMINAL.") + discordLine();
   } },
   activity: { t: "☍ RECENT ACTIVITY", d: "Latest changes from the Audit Log", ico: "☍", g: "WORK", acc: "audit", accL: "AUDIT LOG", b: () =>
-    D.audit.length ? D.audit.slice(0, 5).map((a) => { const u = userOf(a.uid); return `<div class="d2-act">${hexAvatar(u.id ? u : { callsign: a.by }, "xs")}<span><b>${esc(u.id ? memberName(u) : a.by || "System")}</b> ${esc(String(a.action || "").toLowerCase())}</span><small>${ukTime(a.createdAtISO || a.createdAt)}</small></div>`; }).join("") : empty("NO ACTIVITY YET.") },
+    D.audit.length ? D.audit.slice(0, 5).map((a) => { const u = auditUser(a); return `<div class="d2-act">${hexAvatar(u.id ? u : { callsign: a.by }, "xs")}<span><b>${esc(u.id ? memberName(u) : a.by || "System")}</b> ${esc(String(a.action || "").toLowerCase())}</span><small>${ukTime(a.createdAtISO || a.createdAt)}</small></div>`; }).join("") : empty("NO ACTIVITY YET.") },
   attendance: { t: "▣ ATTENDANCE TREND", d: "Unit attendance % per month", ico: "▣", g: "UNIT", acc: "att", accL: "ATTENDANCE", b: () => {
     const ms = Array.from({ length: 12 }, (_, i) => monthAtt(11 - i));
     const now = ms[11], prev = ms[10];
@@ -292,7 +308,7 @@ const WID = {
       `<div class="d2-foot"><small class="dim">${p.length} WAITING</small><button class="lnk" data-go="panel-register">OPEN BCT APPROVALS ▸</button></div>`;
   } },
   auditlog: { t: "☍ AUDIT LOG", d: "Live audit log — who did what, by section", ico: "☍", g: "WORK", acc: "audit", accL: "AUDIT LOG", b: () =>
-    (D.audit.length ? D.audit.slice(0, 10).map((a) => { const u = userOf(a.uid); return `<button class="d2-row" data-go="panel-auditv2">${hexAvatar(u.id ? u : { callsign: a.by }, "xs")}<span><b>${esc(u.id ? memberName(u) : a.by || "System")}</b> <small>${esc(String(a.action || ""))}${a.details ? " — " + esc(String(a.details).slice(0, 60)) : ""}</small></span><span style="text-align:right"><span class="d2-tag">${esc(String(a.section || "").toUpperCase())}</span><br><small>${ukDay(a.createdAtISO || a.createdAt)} ${ukTime(a.createdAtISO || a.createdAt)}</small></span></button>`; }).join("") : empty("NO ENTRIES YET.")) +
+    (D.audit.length ? D.audit.slice(0, 10).map((a) => { const u = auditUser(a); return `<button class="d2-row" data-go="panel-auditv2">${hexAvatar(u.id ? u : { callsign: a.by }, "xs")}<span><b>${esc(u.id ? memberName(u) : a.by || "System")}</b> <small>${esc(String(a.action || ""))}${a.details ? " — " + esc(String(a.details).slice(0, 60)) : ""}</small></span><span style="text-align:right"><span class="d2-tag">${esc(String(a.section || "").toUpperCase())}</span><br><small>${ukDay(a.createdAtISO || a.createdAt)} ${ukTime(a.createdAtISO || a.createdAt)}</small></span></button>`; }).join("") : empty("NO ENTRIES YET.")) +
     `<div class="d2-foot"><span></span><button class="lnk" data-go="panel-auditv2">OPEN AUDIT LOG ▸</button></div>` },
   notes: { t: "✎ NOTES", d: "Latest shared notes — click to open", ico: "✎", g: "WORK", acc: "notes", accL: "NOTES", b: () =>
     (() => { // Notes v2: 📌 pinned, then ⏰ next reminders, then the latest.
@@ -428,6 +444,10 @@ const allowed = (k) => !!WID[k] && (!WID[k].acc || acc[WID[k].acc]);
 
 window.addEventListener("bell:unread", () => { try { hello(); if (!editing && L.includes("todo")) drawW(); } catch { /* dashboard not ready yet */ } });
 document.addEventListener("click", (e) => { if (e.target.closest?.("[data-bell]")) document.getElementById("tb2Bell")?.click(); });
+// Staff Online v2: filter tabs + search, and fresh usage every minute.
+document.addEventListener("click", (e) => { const b = e.target.closest?.("[data-stf]"); if (b) { window.__stfF = b.dataset.stf; drawW(); } });
+document.addEventListener("input", (e) => { if (e.target.matches?.("[data-stfq]")) { window.__stfQ = e.target.value; const p = e.target.selectionStart; drawW(); const i = document.querySelector("[data-stfq]"); if (i) { i.focus(); i.setSelectionRange(p, p); } } });
+setInterval(() => { fetch("/api/terminal/staff-usage", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((x) => { if (x) { D.su = x; if (!editing) drawW(); } }).catch(() => {}); }, 60_000);
 function needsList() {
   const out = [];
   // 🔔 Unread alerts from the bell (message alerts are counted from the chats below, so nothing is counted twice).
@@ -526,6 +546,7 @@ async function load() {
     safe(getDoc(doc(db, "bot_status", "monitors")), (s) => (D.mon = s.data() || null)),
     safe(getDoc(doc(db, "bot_status", "discord_live")), (s) => (D.dl = s.data() || null)),
     safe(getDoc(doc(db, "bot_status", "staff_presence")), (s) => (D.sp = s.data() || null)),
+    safe(fetch("/api/terminal/staff-usage", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)), (x) => (D.su = x)),
     acc.tk ? safe(getDocs(collection(db, "tickets")), (s) => (D.tickets = s.docs.map((d) => { const x = d.data(); return { number: x.number, status: x.status, typeEmoji: x.typeEmoji, openerName: x.openerName, waiting: x.waiting, openedAtISO: x.openedAtISO, lastActivityISO: x.lastActivityISO }; }))) : null,
   ]);
   D.ping.web = await timed(() => fetch("/api/terminal/access", { cache: "no-store" }).then((r) => { if (!r.ok) throw 0; })).catch(() => ((D.ping.webErr = 1), null));
@@ -657,7 +678,7 @@ onReady(() => {
         D.pres = s.docs.map((d) => d.data());
         // Sign-in pop-up when ANOTHER staff member opens the terminal (like RCD). Not on the first load.
         const now = new Set(D.pres.map((p) => p.uid));
-        if (seen) for (const id of now) if (!seen.has(id) && id !== uid && STAFF.has(userOf(id).role)) staffToast(userOf(id));
+        // (2026-11-13: the old "staff signed in" pop-up for everyone is gone — only the owner gets staff alerts, from Cortana.)
         seen = now;
         if (!editing) drawW();
       }, () => {});

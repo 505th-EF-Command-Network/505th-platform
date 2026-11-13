@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppSettings, Device, MediaItem, NetState, ShortcutId, Summary, SysInfo } from "../../../preload/api";
 import { askBox } from "../components/Confirm";
 import { PolicyText } from "../components/Policy";
-import { ACCENTS, DEFAULT_KEYS, DEFAULT_SETTINGS, EVENTS, SHORTCUT_GROUPS, SHORTCUTS, THEMES, ZONES, comboOf, fire, fmtDate, fmtTime, hashPin, mergeSettings, playDing } from "../settings";
+import { ACCENTS, DEFAULT_KEYS, DEFAULT_SETTINGS, EVENTS, SHORTCUT_GROUPS, SHORTCUTS, THEMES, ZONES, SOUNDS, comboOf, fire, fmtDate, fmtTime, hashPin, mergeSettings, playDing, playSound } from "../settings";
 import { STATE, type StateKey } from "../ui";
 import logo from "../../../../assets/logo.png";
 import rcd from "../../../../assets/rcd.png";
@@ -262,10 +262,10 @@ function Notifs({ s, onChange }: P) {
       <Row t="Windows notifications" d="Also in the Windows notification centre (Win + N)"><Toggle on={n.windows} onChange={(v) => set({ windows: v })} label="Windows notifications" /></Row>
       <Row t="Flash the taskbar button" d="Until you open the Hub"><Toggle on={n.taskbar} onChange={(v) => set({ taskbar: v })} label="Taskbar flash" /></Row>
       <Row t="Visual alert on screen (urgent)" d="Style and colour: Accessibility → Visual alerts"><Toggle on={n.edge} onChange={(v) => set({ edge: v })} label="Visual screen alert" /></Row>
-      <Row t="Sound" d="Short two-tone ding"><Toggle on={n.sound} onChange={(v) => set({ sound: v })} label="Sound" /></Row>
       <Row t="Show message text in pop-ups" d="Off = just 'new message' (good when streaming)"><Toggle on={n.preview} onChange={(v) => set({ preview: v })} label="Message preview" /></Row>
       <Row t="Tell me when a new device signs in"><Toggle on={n.newDevice} onChange={(v) => set({ newDevice: v })} label="New device alert" /></Row>
     </Group>
+    <Sounds s={s} onChange={onChange} />
     <Group t="WHAT">
       <table className="w-full border-collapse text-[12.5px]"><thead><tr className="text-[9.5px] tracking-[2px] text-dim"><th className="px-3.5 py-2 text-left font-normal">EVENT</th>
         {(["popup", "bell", "flash"] as const).map((c) => <th key={c} className="w-[86px] py-2 text-center font-normal"><button type="button" onClick={() => setCols({ ...cols, [c]: !cols[c] })} className="hover:text-white">{c === "popup" ? "POP-UP" : c.toUpperCase()} {cols[c] ? "▾" : "▸"}</button>
@@ -281,6 +281,39 @@ function Notifs({ s, onChange }: P) {
       <Note>Real alerts only pop up when the Hub isn't the window you're looking at (tests always show). Taskbar flash: switch to another window within 5 s to see it.</Note>
     </Group>
   </>;
+}
+
+/* ───────── ALERT SOUNDS (approved mock 2026-11-13) ───────── */
+function Sounds({ s, onChange }: { s: AppSettings; onChange: (s: AppSettings) => void }) {
+  const S = s.sounds;
+  const set = (x: Partial<AppSettings["sounds"]>) => onChange({ ...s, sounds: { ...S, ...x } });
+  const [msg, setMsg] = useState<string | null>(null);
+  const [cap, setCap] = useState("");
+  const play = (id: string) => { const n = playSound(id, s); if (n) { setCap(`🔊 Sound: ${n}`); setTimeout(() => setCap(""), 2500); } };
+  const opts: [string, string][] = [...SOUNDS.map(([id, l]) => [id, l] as [string, string]), ...S.mine.map((m) => [m.id, `🎵 ${m.name}`] as [string, string]), ["none", "— None"]];
+  const upload = async (f: File) => {
+    if (!/^audio\/(mpeg|mp3|wav|x-wav|wave|ogg)$/.test(f.type)) return setMsg("MP3 or WAV only.");
+    if (f.size > 1_000_000) return setMsg("Too big — 1 MB max.");
+    const dur = await new Promise<number>((res) => { const a = new Audio(URL.createObjectURL(f)); a.onloadedmetadata = () => res(a.duration); a.onerror = () => res(0); });
+    if (dur > 5.5) return setMsg("Too long — 5 seconds max.");
+    if (S.mine.length >= 8) return setMsg("8 sounds max — delete one first.");
+    setMsg("Uploading…");
+    const r = await window.cn.hub.upload("505th_sounds", f.name, f.type, new Uint8Array(await f.arrayBuffer()));
+    if (!r.url) return setMsg(r.error ?? "Upload failed");
+    set({ mine: [...S.mine, { id: `my${Date.now().toString(36)}`, name: f.name.replace(/\.[^.]+$/, "").slice(0, 30), url: r.url }] }); setMsg("Sound added");
+  };
+  return <Group t="🔊 ALERT SOUNDS" right={<span className="text-[10px] font-normal tracking-[1px] text-dim">CAPTION ALWAYS SHOWS</span>}>
+    <Row t="Play sounds" d="Off by default — every sound also shows a caption"><Toggle on={s.notify.sound} onChange={(v) => onChange({ ...s, notify: { ...s.notify, sound: v } })} label="Play sounds" /></Row>
+    <Row t="Volume"><Slider v={S.vol} min={0} max={100} label="Volume" onChange={(v) => set({ vol: v })} /></Row>
+    {EVENTS.map(([k, ic, l]) => <Row key={k} t={`${ic} ${l}`}>
+      <select value={S.map[k] ?? "chime"} aria-label={`Sound for ${l}`} onChange={(e) => set({ map: { ...S.map, [k]: e.target.value } })} className="border border-cyan/20 bg-[#070a0f] px-1.5 py-1 text-[11px] text-white">{opts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+      <Btn onClick={() => play(S.map[k] ?? "chime")}>▶ PLAY</Btn></Row>)}
+    <Row t="My own sounds" d={`MP3 / WAV · up to 1 MB · 5 seconds · ${S.mine.length}/8`}>
+      <label className="shrink-0 cursor-pointer border border-cyan/25 px-2.5 py-1 text-[10.5px] tracking-[1.5px] text-white hover:bg-cyan/10">＋ UPLOAD<input type="file" accept="audio/mpeg,audio/wav,audio/ogg" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} /></label></Row>
+    {S.mine.map((m) => <Row key={m.id} t={`🎵 ${m.name}`}><Btn onClick={() => play(m.id)}>▶</Btn>
+      <Btn tone="bad" onClick={() => set({ mine: S.mine.filter((x) => x.id !== m.id), map: Object.fromEntries(Object.entries(S.map).map(([k, v]) => [k, v === m.id ? "chime" : v])) })}>DELETE</Btn></Row>)}
+    {(msg || cap) && <Note>{cap || msg}</Note>}
+  </Group>;
 }
 
 /* ───────── SECURITY ───────── */

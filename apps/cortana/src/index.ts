@@ -12,6 +12,7 @@ import { checkNow, startMonitors } from "./monitors.ts";
 import { startControl } from "./control.ts";
 import { startNoteReminders } from "./notes-reminders.ts";
 import { startStaffWatch } from "./staff-watch.ts";
+import { startPush } from "./push.ts";
 import { startStaffPresence } from "./presence.ts";
 import { PermanentJobError, registerJob, startJobWorker, wake } from "./worker.ts";
 import { uidAllowed } from "./access.ts";
@@ -79,6 +80,7 @@ client.once(Events.ClientReady, async (ready) => {
   startAar();
   startMonthlyReset();
   startNoteReminders(); // Notes v2 ⏰ reminders → 🔔 alert + Hub pop-up
+  startPush(); // 📱 phone alerts: every new 🔔 alert → web push (iPhone / Android)
   startStaffWatch(); // owner only: 🟢 staff came online (Discord / Hub / website)
   startDiscordAudit(ready); // Audit Log v3 — Discord server events
   startAuditCleanup(ready); // Audit Log v3 — monthly clean-up, clear, archives

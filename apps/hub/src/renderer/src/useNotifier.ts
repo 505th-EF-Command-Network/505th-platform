@@ -27,6 +27,7 @@ export function useNotifier(sum: Summary | null, ov: Overview | null, onPage: (p
       const k = alertKind(a);
       const id = `alert:${a.id}`;
       pages.current.set(id, k === "project" || k === "tag" ? "panel-projects" : k === "message" ? "panel-msg2" : "dashboard");
+      if (k === "staff") { pages.current.set(`${id}#msg`, "panel-msg2"); fire(k, { id, title: a.title, body: a.body, icon: a.title.startsWith("🌐") ? "🌐" : "🖥", actions: [{ id: "open", label: "VIEW STAFF" }, { id: "msg", label: "MESSAGE" }] }); continue; }
       fire(k, { id, title: a.title, body: a.body, icon: ICON[k], urgent: k === "message", actions: [{ id: "open", label: "OPEN" }, { id: "read", label: "MARK READ" }] });
     }
   }, [sum]);
@@ -65,7 +66,7 @@ export function useNotifier(sum: Summary | null, ov: Overview | null, onPage: (p
   // Card buttons
   useEffect(() => window.cn.notify.onAction(({ id, action }) => {
     if (action === "read" && id.startsWith("alert:")) { void window.cn.hub.readAlerts({ ids: [id.slice(6)] }); return; }
-    const pg = pages.current.get(id);
+    const pg = pages.current.get(action === "msg" ? `${id}#msg` : id);
     if (pg) onPage(pg);
   }), [onPage]);
 }

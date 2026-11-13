@@ -7,7 +7,7 @@ import type { AppSettings, NotifyEvent, ShortcutId, Summary } from "../../preloa
 export const EVENTS: [NotifyEvent, string, string][] = [
   ["message", "💬", "Direct message"], ["tag", "@", "Tagged (projects, chats)"], ["ticket", "🎫", "Ticket waiting on staff"], ["bct", "✚", "Recruit waiting for BCT"],
   ["op", "⚑", "Op starting soon"], ["project", "☷", "Project invite / task / overdue"], ["rank", "★", "My rank / role / medal / account"],
-  ["note", "📝", "Note reminder"], ["net", "📡", "Network Status (Cortana / website down)"], ["staff", "🟢", "Staff came online (Discord / Hub / website)"],
+  ["note", "📝", "Note reminder"], ["net", "📡", "Network Status (Cortana / website down)"], ["staff", "🖥", "Staff opened the Hub / website Terminal"],
 ];
 /** Shortcut groups for My Shortcuts. "anywhere" = works even when the Hub is hidden. */
 export const SHORTCUT_GROUPS: [string, [ShortcutId, string, boolean?][]][] = [
@@ -31,12 +31,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
     ev: Object.fromEntries(EVENTS.map(([e]) => [e, { popup: e !== "bct", bell: true, flash: e === "message" || e === "op" || e === "net" }])) as AppSettings["notify"]["ev"] },
   security: { lock: "off", pinHash: "", streamer: false, alerts: true },
   devices: { max: 3, idleDays: 30, trusted: [] },
+  sounds: { vol: 70, map: { message: "radio", op: "klaxon", ticket: "ping", staff: "ping" }, mine: [] },
   keys: { ...DEFAULT_KEYS }, keysOff: [], pageKeys: true,
 };
 /** Saved settings on top of the defaults (new options get their default). */
 export function mergeSettings(s?: Partial<AppSettings> | null): AppSettings {
   const d = DEFAULT_SETTINGS;
-  return { ...d, ...(s ?? {}), look: { ...d.look, ...(s?.look ?? {}) }, a11y: { ...d.a11y, ...(s?.a11y ?? {}) }, security: { ...d.security, ...(s?.security ?? {}) }, devices: { ...d.devices, ...(s?.devices ?? {}) },
+  return { ...d, ...(s ?? {}), look: { ...d.look, ...(s?.look ?? {}) }, a11y: { ...d.a11y, ...(s?.a11y ?? {}) }, security: { ...d.security, ...(s?.security ?? {}) }, devices: { ...d.devices, ...(s?.devices ?? {}) }, sounds: { ...d.sounds, ...(s?.sounds ?? {}), map: { ...d.sounds.map, ...(s?.sounds?.map ?? {}) } },
     notify: { ...d.notify, ...(s?.notify ?? {}), ev: Object.fromEntries(EVENTS.map(([e]) => [e, { ...d.notify.ev[e], ...(s?.notify?.ev?.[e] ?? {}) }])) as AppSettings["notify"]["ev"] },
     keys: { ...d.keys, ...(s?.keys ?? {}) }, clocks: (s?.clocks ?? d.clocks).slice(0, 3), keysOff: s?.keysOff ?? [] };
 }
@@ -135,6 +136,29 @@ export function quietNow(s: AppSettings) {
   return from <= to ? now >= from! && now < to! : now >= from! || now < to!;
 }
 
+/** Built-in alert sounds (made in the page — no files). */
+export const SOUNDS: [string, string, [number, number][]][] = [
+  ["radio", "Radio beep", [[1200, 0.08], [0, 0.05], [1200, 0.08]]], ["unsc", "UNSC alert", [[660, 0.15], [880, 0.15], [660, 0.15]]], ["chime", "Soft chime", [[880, 0.3], [1320, 0.4]]],
+  ["ping", "Ping", [[1500, 0.12]]], ["klaxon", "Klaxon (ops)", [[440, 0.25], [330, 0.25], [440, 0.25], [330, 0.25]]],
+];
+/** Play a sound by id (built-in or one of mine). Returns its name for the caption. */
+export function playSound(id: string, s: AppSettings = current): string {
+  if (id === "none") return "";
+  const v = s.sounds.vol / 100, mine = s.sounds.mine.find((m) => m.id === id);
+  if (mine) { const a = new Audio(mine.url); a.volume = v; void a.play().catch(() => {}); return mine.name; }
+  const x = SOUNDS.find((z) => z[0] === id) ?? SOUNDS[2]!;
+  try {
+    const A = new AudioContext(); void A.resume();
+    let t = A.currentTime + 0.03;
+    for (const [f, d] of x[2]) {
+      if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.25 * v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); }
+      t += d;
+    }
+    setTimeout(() => void A.close(), (t - A.currentTime) * 1000 + 300);
+  } catch { /* no audio device */ }
+  return x[1];
+}
+
 /** Short two-tone "ding-ding" made in the page — no sound file. */
 export function playDing() {
   try {
@@ -160,6 +184,10 @@ export function fire(kind: NotifyEvent | "test", t: { id: string; title: string;
     const a = current.a11y, body = current.notify.preview || kind === "test" ? t.body : "Open the Hub to read it.";
     void window.cn.notify.show({ ...t, body }, { popup: o.popup, taskbar: o.taskbar, edge: o.edge, windows: !!o.windows, test: kind === "test", style: a.style, color: a.color, safe: a.safe, until: a.until, stay: a.stay });
   }
-  if (o.sound) { playDing(); if (current.a11y.soundText) window.dispatchEvent(new CustomEvent("hub:caption", { detail: `🔊 Sound: ${t.title}` })); }
+  if (o.sound) {
+    const id = kind === "test" ? "chime" : current.sounds.map[kind] ?? "chime";
+    const name = playSound(id);
+    if (name && current.a11y.soundText) window.dispatchEvent(new CustomEvent("hub:caption", { detail: `🔊 ${name}: ${t.title}` }));
+  }
 }
 
