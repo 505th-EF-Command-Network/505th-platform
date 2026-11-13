@@ -27,7 +27,7 @@ export default async function ResourcesAarPage() {
           </section>
           <div className="aar2-stats">
             <div className="aar2-stat"><b id="statTotal">0</b><span>TOTAL OPERATIONS</span></div>
-            <div className="aar2-stat"><b id="statMajor">0</b><span>MAIN OPS</span></div>
+            <div className="aar2-stat"><b id="statMajor">0</b><span>OPERATIONS</span></div>
             <div className="aar2-stat"><b id="statRegular">0</b><span>DEPLOYMENTS</span></div>
             <div className="aar2-stat ok"><b id="statRate">—</b><span>SUCCESS RATE</span></div>
           </div>

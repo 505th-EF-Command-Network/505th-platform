@@ -19,7 +19,7 @@ let canLock = false;
 onAccess((m) => { canLock = !!m.access?.lock; });
 
 const ROOT = "attV3";
-const TYPE = { main_op: ["MAIN OP", "#00D9FF"], patrol: ["PATROL", "#22e07a"], training: ["TRAINING", "#f59e0b"], fun_op: ["FUN OP", "#a78bfa"] };
+const TYPE = { main_op: ["OPERATIONS", "#00D9FF"], patrol: ["PATROL", "#22e07a"], training: ["TRAINING", "#f59e0b"], fun_op: ["FUN OP", "#a78bfa"] };
 const PLATOONS = ["Command", "1st Platoon", "2nd Platoon", "3rd Platoon", "Force Recon", "Corpsmen", "Pilot", "Awaiting BCT", ""];
 
 let me = null;

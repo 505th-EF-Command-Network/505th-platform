@@ -6,7 +6,7 @@ import type { AppSettings, NotifyEvent, ShortcutId, Summary } from "../../preloa
  */
 export const EVENTS: [NotifyEvent, string, string][] = [
   ["message", "💬", "Direct message"], ["tag", "@", "Tagged (projects, chats)"], ["ticket", "🎫", "Ticket waiting on staff"], ["bct", "✚", "Recruit waiting for BCT"],
-  ["op", "⚑", "Op starting soon"], ["project", "☷", "Project invite / task / overdue"], ["rank", "★", "My rank / role / medal / account"],
+  ["op", "⚑", "Event starting soon"], ["project", "☷", "Project invite / task / overdue"], ["rank", "★", "My rank / role / medal / account"],
   ["note", "📝", "Note reminder"], ["net", "📡", "Network Status (Cortana / website down)"], ["staff", "🖥", "Staff opened the Hub / website Terminal"],
 ];
 /** Shortcut groups for My Shortcuts. "anywhere" = works even when the Hub is hidden. */
@@ -73,6 +73,19 @@ export function applySettings(s: AppSettings) {
   for (const [c, on] of cls) h.classList.toggle(c, on);
   void window.cn.app.applySettings({ startup: s.startup, closeToTray: s.closeToTray, zoom: ZOOM[s.textSize], toggleKey: s.keysOff.includes("toggle") ? "" : s.keys.toggle });
 }
+/**
+ * 12 / 24-hour clock everywhere (Messages, Tickets, Events, …): any time shown with an hour and no
+ * hourCycle of its own follows My Settings → 24-hour clock. Code that sets hourCycle (quiet hours) is left alone.
+ */
+for (const fn of ["toLocaleString", "toLocaleTimeString"] as const) {
+  const orig = Date.prototype[fn];
+  Date.prototype[fn] = function (this: Date, loc?: Intl.LocalesArgument, o?: Intl.DateTimeFormatOptions) {
+    const wantsHour = fn === "toLocaleTimeString" || !o || "hour" in o || "timeStyle" in o;
+    const set = o && ("hourCycle" in o || "hour12" in o);
+    return orig.call(this, loc, wantsHour && !set ? { ...(o ?? {}), hourCycle: current.h24 ? "h23" : "h12" } : o);
+  } as (typeof Date.prototype)[typeof fn];
+}
+
 /** Re-check auto Night Ops every minute. */
 setInterval(() => { if (current.look.nightAuto) applySettings(current); }, 60_000);
 

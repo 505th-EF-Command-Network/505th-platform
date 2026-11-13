@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { resetDbIfBroken } from "@505th/db";
 import { FsError, getActor, runOp, type Op } from "@/lib/terminal/fs";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
     actor = await getActor();
   } catch (e) {
     // Database down / busy → 503 (the page retries). Only a real "no clearance" is 403 (→ /boot).
-    if (!(e instanceof FsError)) { console.error("[terminal-fs] actor:", (e as Error)?.message); return json({ error: "unavailable" }, 503); }
+    if (!(e instanceof FsError)) { resetDbIfBroken(e); console.error("[terminal-fs] actor:", (e as Error)?.message); return json({ error: "unavailable" }, 503); }
     return json({ error: e.code }, e.code === "unauthenticated" ? 401 : 403);
   }
 
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       if (e instanceof FsError) results.push({ ok: false, code: e.code, message: e.message });
       else {
+        resetDbIfBroken(e);
         console.error("[terminal-fs]", (e as Error)?.message);
         results.push({ ok: false, code: "internal", message: "Server error" });
       }

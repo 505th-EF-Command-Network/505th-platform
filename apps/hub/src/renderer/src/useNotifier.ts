@@ -55,7 +55,7 @@ export function useNotifier(sum: Summary | null, ov: Overview | null, onPage: (p
         opsDone.current.add(op.id);
         const id = `op:${op.id}`;
         pages.current.set(id, "panel-events");
-        fire("op", { id, title: `${op.title} starts in ${Math.ceil(left)} min`, body: `You're signed up · ${op.signedUp} going`, icon: "⚑", color: "#f59e0b", urgent: true, actions: [{ id: "open", label: "VIEW EVENT" }] });
+        fire("op", { id, title: `${op.title} starts in ${Math.ceil(left)} min`, body: `You're signed up · ${op.signedUp} attending`, icon: "⚑", color: "#f59e0b", urgent: true, actions: [{ id: "open", label: "VIEW EVENT" }] });
       }
     };
     check();

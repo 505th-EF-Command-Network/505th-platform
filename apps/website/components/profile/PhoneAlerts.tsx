@@ -13,8 +13,8 @@ type Phone = { id: string; name: string; enabled: boolean; createdISO: string; l
 type Data = { publicKey: string; phones: Phone[]; prefs: Prefs; sounds: Sounds };
 
 export const EVENTS: [string, string, string, string][] = [
-  ["message", "💬", "Direct messages", "Someone messages you"], ["tag", "@", "Tagged / mentioned", "Projects, chats"], ["op", "⚑", "Op starting soon", "Before an op starts"],
-  ["event", "📅", "New event posted", "Ops, training, fun ops"], ["ticket", "🎫", "Ticket waiting on staff", "New or waiting reply"], ["bct", "✚", "Recruit waiting for BCT", "Recruiters+"],
+  ["message", "💬", "Direct messages", "Someone messages you"], ["tag", "@", "Tagged / mentioned", "Projects, chats"], ["op", "⚑", "Event starting soon", "Before an event starts"],
+  ["event", "📅", "New event posted", "Ops, training, game nights, fun ops"], ["ticket", "🎫", "Ticket waiting on staff", "New or waiting reply"], ["bct", "✚", "Recruit waiting for BCT", "Recruiters+"],
   ["project", "☷", "Project tasks", "Invites, tasks, overdue"], ["rank", "★", "My rank / medals / account", "Promotions, ribbons"], ["note", "📝", "Note reminders", "Your ⏰ reminders"],
   ["net", "📡", "Network Status", "Cortana / website down"], ["staff", "🖥", "Staff opened Hub / Terminal", "Owner only"],
 ];
@@ -133,7 +133,7 @@ export default function PhoneAlerts({ canUpload }: { canUpload: boolean }) {
       <div className="pv-cd"><div className="pv-ch">QUIET TIME (UK)</div>
         <div className="pa-seg">{([["off", "OFF"], ["night", "23:00–08:00"], ["custom", "CUSTOM"]] as const).map(([v, l]) => <button key={v} className={P.quiet === v ? "on" : ""} onClick={() => void savePrefs({ ...P, quiet: v })}>{l}</button>)}</div>
         {P.quiet === "custom" && <div className="pv-act"><input type="time" className="pv-in" value={P.from} aria-label="Quiet from" onChange={(e) => void savePrefs({ ...P, from: e.target.value })} /> – <input type="time" className="pv-in" value={P.to} aria-label="Quiet until" onChange={(e) => void savePrefs({ ...P, to: e.target.value })} /></div>}
-        <div className="pa-row"><span className="pa-ic">⚑</span><span className="pa-t"><b>Ops still come through</b><small>Op starting alerts ignore quiet time</small></span><Sw on={P.letOps} label="Ops still come through" onChange={(v) => void savePrefs({ ...P, letOps: v })} /></div>
+        <div className="pa-row"><span className="pa-ic">⚑</span><span className="pa-t"><b>Events still come through</b><small>Event starting alerts ignore quiet time</small></span><Sw on={P.letOps} label="Events still come through" onChange={(v) => void savePrefs({ ...P, letOps: v })} /></div>
       </div>
 
       <div className="pv-cd"><div className="pv-ch">HOW</div>

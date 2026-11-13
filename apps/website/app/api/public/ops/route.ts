@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { TerminalDoc, connectDb } from "@505th/db";
 
 /**
- * PUBLIC — homepage "LIVE NOW / NEXT OPERATIONS" banner.
+ * PUBLIC — homepage "LIVE NOW / NEXT EVENTS" banner.
  * Only public details: title, type, times. No sign-up numbers, names or IDs.
  * Cached 30 s.
  */
 export const dynamic = "force-dynamic";
-const TYPE: Record<string, string> = { main_op: "MAIN OP", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP" };
+const TYPE: Record<string, string> = { main_op: "OPERATIONS", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP" };
 
 type Ev = {
   title?: string; startAtISO?: string; endAtISO?: string; status?: string; attendanceEventId?: string | null;

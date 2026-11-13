@@ -9,10 +9,10 @@ import { Rsvp } from "../components/Rsvp";
  * Detail = Details + Live status, with Edit · Refresh · Repost with ping · End · Cancel · Delete. Cortana does the Discord side.
  * Attendance check opens the in-app Attendance Tracker.
  */
-const OPT: Record<string, [string, string]> = { main_op: ["Main Op", "#ff4d5e"], patrol: ["Patrol", "#b48cff"], training: ["Training", "#1fc8ff"], fun_op: ["Fun Op", "#ffb020"] };
+const OPT: Record<string, [string, string]> = { main_op: ["Operations", "#ff4d5e"], patrol: ["Patrol", "#b48cff"], training: ["Training", "#1fc8ff"], fun_op: ["Fun Op", "#ffb020"] };
 const REPEAT: Record<string, string> = { none: "Does not repeat", weekly: "Every week", fortnightly: "Every 2 weeks" };
 const PRESETS: [string, EvButton[]][] = [
-  ["Going / Can't go", [{ emoji: "✅", label: "Going", style: "green", limit: 0, attending: true }, { emoji: "❌", label: "Can't go", style: "grey", limit: 0, attending: false }]],
+  ["Attending / Not attending", [{ emoji: "✅", label: "Attending", style: "green", limit: 0, attending: true }, { emoji: "❌", label: "Not attending", style: "grey", limit: 0, attending: false }]],
   ["BLUFOR / OPFOR", [{ emoji: "🔵", label: "BLUFOR", style: "blue", limit: 0, attending: true }, { emoji: "🔴", label: "OPFOR", style: "red", limit: 0, attending: true }, { emoji: "❌", label: "Can't make it", style: "grey", limit: 0, attending: false }]],
   ["Attend / Can't make it", [{ emoji: "👍", label: "Attend", style: "green", limit: 0, attending: true }, { emoji: "👎", label: "Can't make it", style: "grey", limit: 0, attending: false }]],
 ];

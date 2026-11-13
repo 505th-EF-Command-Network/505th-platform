@@ -9,7 +9,7 @@ const ID = /^[A-Za-z0-9_-]{1,64}$/;
 /** Same lists and fields as the Terminal's aar.js. */
 const UNITS: Record<string, string> = { alpha: "Alpha Company", forcerecon: "JTF-23 Force Recon", corpsman: "Hospital Corpsman", airwing: "54th Air Wing", combined: "Combined Arms" };
 const RES: Record<string, string> = { success: "MISSION SUCCESS", partial: "PARTIAL SUCCESS", failure: "MISSION FAILURE" };
-const OPS: Record<string, string> = { main_op: "Main Op", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
+const OPS: Record<string, string> = { main_op: "Operations", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
 const CLS = ["CL-5", "CL-4", "CL-3", "CL-2", "CL-1"];
 const TEXT = ["title", "commander", "filedBy", "author", "location", "mainObjective", "commanderIntent", "objectiveStandards", "plannedExecution", "unitsInvolved", "enemyFaction", "enemyCasualties", "enemyTactics", "enemyDisposition",
   "successfulManeuvers", "mistakes", "unexpected", "objectiveOutcome", "lessonsLearned", "recommended", "miscComments", "result", "unit"];

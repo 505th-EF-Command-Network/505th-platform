@@ -9,7 +9,7 @@ const Body = ({ f, p }: { f: (p: P) => React.ReactNode; p: P }) => <>{f(p)}</>;
 /**
  * App Dashboard (approved mock 2026-11-11 — app only, better than the website):
  * widget grid you can customise (drag to move · S/M/L/XL/FULL · ✕ remove · ＋ add · reset), saved to your account.
- * Widgets: Manpower snapshot · Next op · My service · Attendance trend · Alerts · Staff on duty · This week · Recruitment
+ * Widgets: Manpower snapshot · Next event · My service · Attendance trend · Alerts · Staff on duty · This week · Recruitment
  * · BCT queue · System status · Live activity · Quick actions. Each opens its page inside the app.
  */
 export type Dash = [string, number][];
@@ -31,9 +31,9 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       [m?.bct ?? "—", "WAITING BCT", m?.bct ? "#f59e0b" : "#fff", "panel-register"], [m?.tickets ?? "—", "TICKETS WAITING", m?.tickets ? "#ff4d4d" : "#fff", "panel-tickets"]] as [string | number, string, string, string][]).map(([v, l, c, pg]) => (
       <button key={l} type="button" onClick={() => onPage(pg)} className="flex flex-col justify-between border border-cyan/10 p-2.5 text-left hover:border-cyan/40"><span className="text-[10px] tracking-[2px] text-dim">{l}</span>
         <b className="font-head text-[34px] leading-none" style={{ color: c }}>{v}</b>{l === "ACTIVE" && m ? <small className="text-[10.5px] text-dim">{m.reserves} reserves · {m.at3} at 3/3</small> : <small /> }</button>))}</div>; } },
-  next: { title: "NEXT OPERATION", desc: "Live countdown + change your sign-up (updates Discord)", size: 3, page: "panel-events", live: true, body: ({ sum, now, onRefresh }) => {
+  next: { title: "NEXT EVENT", desc: "Live countdown + change your sign-up (updates Discord)", size: 3, page: "panel-events", live: true, body: ({ sum, now, onRefresh }) => {
     const op = sum.ops[0];
-    if (!op) return <Empty t="NO OPS SCHEDULED" />;
+    if (!op) return <Empty t="NO EVENTS SCHEDULED" />;
     const ms = Date.parse(op.startAtISO) - now;
     return <>
       <div className="text-[10px] tracking-[2px] text-dim">{op.title.toUpperCase()} · {ukTime(op.startAtISO, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()} UK</div>

@@ -26,6 +26,22 @@ export async function connectDb(uri = process.env.MONGODB_URI, dbName = process.
   return cache.promise;
 }
 
+/**
+ * After a database network / overload error, throw away this copy's connection so the NEXT request
+ * opens a fresh one (a warm Vercel copy could otherwise keep failing for minutes — 13 Nov 23:24).
+ */
+let lastReset = 0;
+export function resetDbIfBroken(err: unknown) {
+  const e = err as { name?: string; errorLabelSet?: Set<string>; code?: string } | null;
+  const broken = !!e && (e.name === "MongoNetworkError" || e.name === "MongoServerSelectionError" || e.errorLabelSet?.has("SystemOverloadedError") || e.errorLabelSet?.has("ResetPool"));
+  if (!broken || Date.now() - lastReset < 10_000) return broken;
+  lastReset = Date.now();
+  const p = cache.promise;
+  cache.promise = null;
+  void p?.then((m) => m.disconnect()).catch(() => {});
+  return true;
+}
+
 export async function disconnectDb() {
   if (cache.promise) {
     await (await cache.promise).disconnect();

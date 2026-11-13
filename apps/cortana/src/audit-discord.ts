@@ -223,6 +223,7 @@ async function onMemberUpdate(a: GuildMember | PartialGuildMember, b: GuildMembe
       details: `${tag(b.user)} nickname: "${a.nickname ?? b.user.username}" → "${b.nickname ?? b.user.username}"${ex && ex.id !== b.id ? ` (by ${ex.name})` : ""}` });
   }
   if (a.avatar !== undefined && a.avatar !== b.avatar) {
+    void syncAvatar(b.user, b);
     await write({ cat: "members", action: "AVATAR CHANGED", by: tag(b.user), byId: b.id, target: tag(b.user), targetId: b.id, extra: { scope: "server", oldAvatar: a.avatarURL?.({ size: 128 }) ?? null, newAvatar: b.displayAvatarURL({ size: 128 }) },
       details: `${tag(b.user)} changed their server profile picture` });
   }
@@ -243,11 +244,36 @@ async function onMemberUpdate(a: GuildMember | PartialGuildMember, b: GuildMembe
       details: active ? `${nameOf(b)} timed out until ${new Date(t1).toLocaleString("en-GB", { timeZone: "Europe/London" })}${ex ? ` by ${ex.name}` : ""}${ex?.reason ? ` — "${ex.reason}"` : ""}` : `${nameOf(b)} timeout removed${ex ? ` by ${ex.name}` : ""}` });
   }
 }
+/**
+ * Discord picture changed → update the 505th record so the website, Hub and Terminal show the new one.
+ * Server picture wins over the account picture. If the member UPLOADED their own 505th picture, only
+ * discordAvatarUrl changes (their upload stays).
+ */
+async function syncAvatar(u: User, m: GuildMember | null) {
+  const url = (m ?? u).displayAvatarURL({ size: 256, extension: "png", forceStatic: true });
+  const docs = (await TerminalDoc.find({ parent: "users", "data.discordId": u.id }, { _id: 1, "data.photo": 1, "data.discordAvatarUrl": 1 }).lean()) as Record<string, any>[];
+  for (const d of docs) {
+    if (d.data?.discordAvatarUrl === url) continue;
+    const upload = d.data?.photo?.source === "upload" && d.data?.photo?.url;
+    await TerminalDoc.updateOne({ _id: d._id }, { $set: { "data.discordAvatarUrl": url, ...(upload ? {} : { "data.photoUrl": url, "data.photoURL": url }), updateTime: new Date() } }).catch(() => {});
+    log.info(`Picture synced from Discord: ${tag(u)}`);
+  }
+}
+/** Once at start: catch picture changes made while Cortana was off. */
+async function syncAllAvatars(g: Guild) {
+  const linked = (await TerminalDoc.find({ parent: "users", "data.discordId": { $regex: "^\\d{17,20}$" } }, { "data.discordId": 1 }).lean()) as Record<string, any>[];
+  const ids = linked.map((d) => String(d.data.discordId));
+  if (!ids.length) return;
+  const members = await g.members.fetch({ user: ids }).catch(() => null);
+  if (members) for (const m of members.values()) await syncAvatar(m.user, m);
+}
+
 async function onUserUpdate(a: User | PartialUser, b: User) {
   if (b.bot || a.partial) return;
   if (a.username !== b.username || a.globalName !== b.globalName)
     await write({ cat: "members", action: "RENAMED", by: b.tag, byId: b.id, target: b.tag, targetId: b.id, before: a.globalName ?? a.username, after: b.globalName ?? b.username,
       details: `${b.tag} Discord name: "${a.globalName ?? a.username}" → "${b.globalName ?? b.username}"` });
+  if (a.avatar !== b.avatar) void syncAvatar(b, home?.members.cache.get(b.id) ?? null);
   if (a.avatar !== b.avatar)
     await write({ cat: "members", action: "AVATAR CHANGED", by: b.tag, byId: b.id, target: b.tag, targetId: b.id, extra: { scope: "global", oldAvatar: a.displayAvatarURL({ size: 128 }), newAvatar: b.displayAvatarURL({ size: 128 }) },
       details: `${b.tag} changed their profile picture` });
@@ -281,6 +307,7 @@ export function startDiscordAudit(client: Client<true>) {
   const g = client.guilds.cache.get(env.AUTHORISED_GUILD_ID);
   home = g ?? null;
   if (g) void loadInvites(g);
+  if (g) setTimeout(() => void syncAllAvatars(g).catch((e) => log.warn(`Picture sync: ${(e as Error).message}`)), 20_000);
   if (!CLOUD) log.info("Audit: CLOUDINARY_* not set — deleted pictures/clips will not be kept");
   const mine = (x: { guild?: Guild | null; id?: string } | null | undefined) => x?.guild?.id === env.AUTHORISED_GUILD_ID || x?.id === env.AUTHORISED_GUILD_ID;
   const safe = (f: () => Promise<unknown>) => void f().catch((e) => log.warn(`Audit event failed: ${(e as Error).message}`));

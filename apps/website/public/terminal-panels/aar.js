@@ -15,7 +15,7 @@ import { cortanaJob } from "./discord-common.js";
 const ROOT = "aarV2";
 const UNITS = { alpha: ["Alpha Company", "/images/logos/Alpha Company.png"], forcerecon: ["JTF-23 Force Recon", "/images/logos/Stalker_Patch.png"], corpsman: ["Hospital Corpsman", "/images/logos/Hospital_Corpsman.png"], airwing: ["54th Air Wing", "/images/logos/54th Air Wing.png"], combined: ["Combined Arms", "/images/logo.png"] };
 const RES = { success: ["MISSION SUCCESS", "#22e07a", "✓"], partial: ["PARTIAL SUCCESS", "#f5c518", "◐"], failure: ["MISSION FAILURE", "#ff4d4d", "✕"] };
-const OPS = { main_op: "Main Op", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
+const OPS = { main_op: "Operations", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
 function opName(t) {
   if (!t) return "—";
   const k = String(t).toLowerCase().trim().replace(/[\s-]+/g, "_");

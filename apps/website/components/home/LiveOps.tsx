@@ -61,7 +61,7 @@ export default function LiveOps() {
       )}
       {data.next.length > 0 && (
         <>
-          <div className="lo-nh">◷ NEXT OPERATIONS</div>
+          <div className="lo-nh">◷ NEXT EVENTS</div>
           <div className="lo-next" style={{ gridTemplateColumns: `repeat(${Math.min(data.next.length, 3)}, 1fr)` }}>
             {data.next.map((o) => {
               const c = COLOUR[o.typeKey] ?? COLOUR.other;

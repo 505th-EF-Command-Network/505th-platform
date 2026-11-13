@@ -41,12 +41,12 @@ const chanLabel = (ref) => { const c = discordChans.find((x) => x.id === ref); r
 const ROOT = "evV2";
 const LIMITS = { title: 100, description: 1000, location: 100, maxGoing: 500, buttons: 5, buttonLabel: 40 };
 const PRESETS = [
-  ["Going / Can't go", [["✅", "Going", "green", 0, true], ["❌", "Can't go", "grey", 0, false]]],
+  ["Attending / Not attending", [["✅", "Attending", "green", 0, true], ["❌", "Not attending", "grey", 0, false]]],
   ["BLUFOR / OPFOR", [["🔵", "BLUFOR", "blue", 0, true], ["🔴", "OPFOR", "red", 0, true], ["❌", "Can't make it", "grey", 0, false]]],
   ["Attend / Can't make it", [["👍", "Attend", "green", 0, true], ["👎", "Can't make it", "grey", 0, false]]],
 ];
 const REPEAT = { none: "Does not repeat", weekly: "Every week", fortnightly: "Every 2 weeks" };
-const ATT_TYPES = { main_op: "Main Op", patrol: "Patrol", training: "Training", fun_op: "Fun Op" };
+const ATT_TYPES = { main_op: "Operations", patrol: "Patrol", training: "Training", fun_op: "Fun Op" };
 const STEPS = ["LOCATION", "DETAILS", "SIGN-UPS", "REVIEW"];
 const mkB = (a) => ({ emoji: a[0], label: a[1], style: a[2], limit: a[3], attending: a[4] });
 

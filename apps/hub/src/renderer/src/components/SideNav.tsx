@@ -17,9 +17,9 @@ const GROUPS: Group[] = [
     { id: "panel-active", label: "Personnel Files", icon: "✎", key: "pers", app: true }, { id: "panel-register", label: "BCT Approvals", icon: "✚", key: "bct", app: true, count: "bct" },
     { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob", app: true },
     { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat", app: true }] },
-  { id: "operations", label: "OPERATIONS", icon: "⚙", links: [
+  { id: "operations", label: "EVENTS", icon: "⚙", links: [
     { id: "panel-attendance", label: "Attendance Tracker", icon: "▣", key: "att", app: true }, { id: "panel-att-history", label: "Attendance History", icon: "☷", key: "att", app: true },
-    { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }, { id: "panel-events", label: "Events", icon: "⚑", key: "ev", app: true }] },
+    { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }, { id: "panel-events", label: "Create Events", icon: "⚑", key: "ev", app: true }] },
   { id: "comms", label: "COMMS", icon: "✉", links: [
     { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", app: true, count: "tickets" }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send", app: true }] },
   { id: "intel", label: "INTEL ARCHIVE", icon: "▤", links: [{ id: "panel-media", label: "Media (Gallery + Videos)", icon: "▧", key: "media", app: true }] },

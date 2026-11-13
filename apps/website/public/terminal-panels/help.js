@@ -12,7 +12,7 @@ import { addCss, esc, mountPanel, onReady } from "./_common.js";
 /* ───────── content ───────── */
 // who: shown to the reader · key: access item needed to open the page (null = everyone)
 const H = {
-  "panel-dashboard": { g: "GETTING STARTED", t: "Dashboard", who: "Everyone", key: null, s: "Your home screen: unit status, upcoming ops, your tasks and live widgets.",
+  "panel-dashboard": { g: "GETTING STARTED", t: "Dashboard", who: "Everyone", key: null, s: "Your home screen: unit status, upcoming events, your tasks and live widgets.",
     how: ["Press CUSTOMISE to add, remove or move widgets.", "Click a widget (Notes, Projects) to open it.", "Your layout is saved to your account."] },
   "panel-register": { g: "MANPOWER", t: "BCT Approvals", who: "Recruiter+", key: "bct", s: "Approve or deny people who signed up, after Basic Training.",
     how: ["Open a pending recruit.", "Check their details and Discord.", "Approve (they become a member) or Deny with a reason."] },
@@ -29,15 +29,15 @@ const H = {
   "panel-roster": { g: "MANPOWER", t: "Roster", who: "NCO+", key: "roster", s: "The live battalion roster by platoon and squad." },
   "panel-unitcards": { g: "MANPOWER", t: "Order of Battle", who: "Staff NCO+", key: "oob", s: "Unit structure cards shown on the website." },
   "panel-recruit-source": { g: "MANPOWER", t: "Recruit Stats", who: "NCO+", key: "rstat", s: "Where recruits come from and how many join." },
-  "panel-attendance": { g: "OPERATIONS", t: "Attendance", who: "NCO+", key: "att", s: "Tick who turned up to an op. Staff NCO+ locks it when done.",
+  "panel-attendance": { g: "EVENTS", t: "Attendance", who: "NCO+", key: "att", s: "Tick who turned up to an event. Staff NCO+ locks it when done.",
     how: ["Open the op (events linked to Attendance show sign-ups as SIGNED UP).", "Tick who actually attended, Excused or No-show.", "Staff NCO+ presses LOCK."] },
-  "panel-att-history": { g: "OPERATIONS", t: "Attendance History", who: "NCO+", key: "att", s: "Past ops and each member's attendance." },
-  "panel-aar": { g: "OPERATIONS", t: "AAR", who: "NCO+", key: "aar", s: "Write and read After Action Reports." },
-  "panel-gallery": { g: "OPERATIONS", t: "Gallery", who: "NCO+", key: "media", s: "Upload screenshots for the website gallery." },
-  "panel-videos": { g: "OPERATIONS", t: "Videos", who: "NCO+", key: "media", s: "Add YouTube videos to the website." },
-  "panel-events": { g: "OPERATIONS", t: "Events", who: "NCO+", key: "ev", s: "Create an op once — Cortana posts the 505th sign-up in Discord, pings, locks at start and logs attendance.",
+  "panel-att-history": { g: "EVENTS", t: "Attendance History", who: "NCO+", key: "att", s: "Past ops and each member's attendance." },
+  "panel-aar": { g: "EVENTS", t: "AAR", who: "NCO+", key: "aar", s: "Write and read After Action Reports." },
+  "panel-gallery": { g: "EVENTS", t: "Gallery", who: "NCO+", key: "media", s: "Upload screenshots for the website gallery." },
+  "panel-videos": { g: "EVENTS", t: "Videos", who: "NCO+", key: "media", s: "Add YouTube videos to the website." },
+  "panel-events": { g: "EVENTS", t: "Events", who: "NCO+", key: "ev", s: "Create an event once — Cortana posts the 505th sign-up in Discord, pings, locks at start and logs attendance.",
     how: ["Click ＋ NEW EVENT.", "Pick where it happens, then the operation type, title, date and time.", "Pick the sign-up channel (squad channels ping only that squad) and the buttons.", "Press CREATE — Cortana posts it in Discord within a second."],
-    tips: ["Sign-ups appear live. At the start going members are pinged and the buttons lock 🔒; 30 min later it's logged to #mission-log.", "Use ✓ END EVENT if an op finishes early."],
+    tips: ["Sign-ups appear live. At the start going members are pinged and the buttons lock 🔒; 30 min later it's logged to #mission-log.", "Use ✓ END EVENT if an event finishes early."],
     warn: "DELETE removes the Discord post and sign-ups — it can't be undone.",
     tour: [
       { sel: '#evV2 [data-act="new"]', h: "CREATE AN OPERATION", p: "Click <b>＋ NEW EVENT</b> to start. The form opens on this page." },
@@ -162,7 +162,7 @@ const H = {
     ] },
   "panel-cmd-settings": { g: "COMMAND", t: "Settings", who: "Dev / Command", key: "set", s: "Webhooks, terminal role → Discord role map and system settings." },
 };
-const GROUPS = ["GETTING STARTED", "MANPOWER", "OPERATIONS", "DISCORD", "WORKSPACE", "SECURITY", "COMMAND"];
+const GROUPS = ["GETTING STARTED", "MANPOWER", "EVENTS", "DISCORD", "WORKSPACE", "SECURITY", "COMMAND"];
 const CMDS = [["Everyone", "/modlist · /coinflip · /ping · /status · /help"], ["Staff NCO+", "/warn · /timeout · /purge"], ["Officer+", "/kick · /ban (confirm first)"],
   ["Posting", "/announce (form) · /say · /poll"], ["Developers / Command", "/auxmod (Added / Changed / Fixed / Removed) · /modlist with a preset · /restart"]];
 const FAQ = [["Why can't I see a page?", "Your access doesn't include it. Ask a Staff NCO or above (Security → Officer Management)."],

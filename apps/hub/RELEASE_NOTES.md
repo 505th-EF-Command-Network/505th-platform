@@ -1,6 +1,15 @@
+505th Command Network v0.4.4
+- "Operations" renamed to "Events" (Next Event, Event starting soon); menu EVENTS → Create Events
+- Event types: Operations, Patrol, Training, Fun Op
+- Sign-up buttons: Attending / Not attending, no counter on the button
+- 12-hour clock now works everywhere (Messages, Tickets, Events…)
+
 505th Command Network v0.4.3
 - NEW Staff Online widget: who's on the Hub or the Terminal now, time this week, days on, last 7 days
 - NEW alert sounds: pick a sound for each alert, volume, upload your own (MP3 / WAV)
+- "Operations" renamed to "Events" (Next Event, Event starting soon)
+- Sign-up buttons: Attending / Not attending, no counter on the button
+- 12-hour clock now works everywhere (Messages, Tickets, Events…)
 - Staff alerts (owner only): only for Hub and Terminal, with VIEW STAFF and MESSAGE buttons
 
 505th Command Network v0.4.2

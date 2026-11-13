@@ -38,7 +38,7 @@ type Ev = {
 
 const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
 const FOOTER = "Cortana Main Operation System";
-const ATT_LABEL: Record<string, string> = { main_op: "MAIN OP", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP" };
+const ATT_LABEL: Record<string, string> = { main_op: "OPERATIONS", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP" };
 const TZ: [string, string][] = [["🇬🇧 UK", "Europe/London"], ["🇪🇺 EU", "Europe/Paris"], ["🇺🇸 EST", "America/New_York"], ["🇺🇸 CST", "America/Chicago"], ["🇺🇸 PST", "America/Los_Angeles"]];
 const tzLine = (iso: string) => TZ.map(([l, z]) => `\`${l} ${new Date(iso).toLocaleTimeString("en-GB", { timeZone: z, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}\``).join(" ");
 const active = (ev: Ev) => (ev.signups ?? []).filter((x) => !x.waiting);
@@ -56,8 +56,8 @@ const pingRoles = async (channelId?: string): Promise<{ everyone: boolean; roles
 };
 const STYLE: Record<string, ButtonStyle> = { green: ButtonStyle.Success, grey: ButtonStyle.Secondary, blue: ButtonStyle.Primary, red: ButtonStyle.Danger };
 const DEFAULT_BUTTONS: Btn[] = [
-  { key: "b1", emoji: "✅", label: "Going", style: "green", limit: 0, attending: true },
-  { key: "b2", emoji: "❌", label: "Can't go", style: "grey", limit: 0, attending: false },
+  { key: "b1", emoji: "✅", label: "Attending", style: "green", limit: 0, attending: true },
+  { key: "b2", emoji: "❌", label: "Not attending", style: "grey", limit: 0, attending: false },
 ];
 const nowISO = () => new Date().toISOString();
 const ts = (iso: string, f = "F") => `<t:${Math.floor(Date.parse(iso) / 1000)}:${f}>`;

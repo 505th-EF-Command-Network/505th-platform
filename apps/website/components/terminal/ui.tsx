@@ -88,4 +88,4 @@ export function Empty({ children }: { children: ReactNode }) {
 export const fmtDate = (s: string | null | undefined) => (s ? s.slice(0, 10) : "—");
 export const fmtTime = (s: string | null | undefined) => (s ? s.replace("T", " ").slice(0, 16) : "—");
 
-export const OP_TYPE: Record<string, string> = { main_op: "MAIN OP", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP", other: "OTHER" };
+export const OP_TYPE: Record<string, string> = { main_op: "OPERATIONS", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP", other: "OTHER" };

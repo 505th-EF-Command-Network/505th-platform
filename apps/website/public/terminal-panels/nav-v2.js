@@ -31,7 +31,7 @@ const NEEDS_CORTANA = {
 
 const GROUPS = [
   { id: "nav-discord", icon: "&#9672;", label: "DISCORD", tip: "Tickets, events, messages, info posts and moderation — sent to Discord by Cortana.", links: [
-    ["panel-tickets", "&#127915; Tickets"], ["panel-events", "&#9873; Events"], ["panel-send", "&#9993; Send Message"],
+    ["panel-tickets", "&#127915; Tickets"], ["panel-events", "&#9873; Create Events"], ["panel-send", "&#9993; Send Message"],
     ["panel-quick", "&#8682; Quick Upload"], ["panel-info", "&#128204; Info Posts"], ["panel-mod", "&#9960; Moderation"], ["panel-modlist", "&#128230; Modlist"]] },
   { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes and the public website pages.", links: [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"]] },

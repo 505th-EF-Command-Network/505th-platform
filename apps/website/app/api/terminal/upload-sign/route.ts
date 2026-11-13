@@ -27,7 +27,8 @@ export async function POST(req: NextRequest) {
   }
   if (clearanceOf(actor.role) < TERMINAL_CLEARANCE) return json({ error: "permission-denied" }, 403);
 
-  const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: secret } = process.env;
+  // .trim(): a space or new line pasted into Vercel breaks every signature ("Invalid Signature").
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim(), apiKey = process.env.CLOUDINARY_API_KEY?.trim(), secret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloudName || !apiKey || !secret) return json({ error: "Uploads not configured" }, 503);
 
   let folder = "";

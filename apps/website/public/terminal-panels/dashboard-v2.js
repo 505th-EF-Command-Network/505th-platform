@@ -176,10 +176,10 @@ const WID = {
     const m = monthAtt(0);
     return `<div class="d2-kpis"><button class="d2-kpi" data-go="panel-register" style="cursor:pointer"><b style="color:#f59e0b">${pending().length}</b><span>WAITING FOR BCT</span></button><div class="d2-kpi"><b>${active().length}</b><span>ACTIVE MEMBERS</span></div><div class="d2-kpi"><b style="color:#22e07a">${onlineNow().length}</b><span>ONLINE IN TERMINAL</span></div><div class="d2-kpi"><b>${m.pct == null ? "—" : m.pct + "%"}</b><span>ATTENDANCE (${m.label})</span></div></div>`;
   } },
-  ops: { t: "⚑ NEXT OPS", d: "Upcoming events and sign-ups", ico: "⚑", g: "UNIT", b: () => {
+  ops: { t: "⚑ NEXT EVENTS", d: "Upcoming events and sign-ups", ico: "⚑", g: "UNIT", b: () => {
     const t = new Date().toISOString().slice(0, 10);
     const evs = D.events.filter((e) => (e.date || "") >= t).sort((a, z) => `${a.date}${a.startTime}`.localeCompare(`${z.date}${z.startTime}`)).slice(0, 3);
-    if (!evs.length) return empty("NO OPS SCHEDULED.");
+    if (!evs.length) return empty("NO EVENTS SCHEDULED.");
     return evs.map((e) => {
       const d = new Date(`${e.date}T12:00:00`);
       const n = Array.isArray(e.signups) ? e.signups.length : e.signupCount ?? e.goingCount;
@@ -569,7 +569,7 @@ function hello() {
   const c0 = D.cortana || {};
   const light = (n, ok) => `<span class="d3-li" style="color:${ok === true ? "#22e07a" : ok === false ? "#ff4d4d" : "#4b5765"}" title="${n}: ${ok === true ? "online" : ok === false ? "down" : "not running"}"><i></i>${n}</span>`;
   document.getElementById("d2Sub").innerHTML = `${esc(day)} · ${time} UK
-    <div class="d3-pills">${nxt ? `<span>NEXT OP <b>${esc(String(nxt.title).toUpperCase())} · ${new Date(nxt.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</b></span>` : ""}<span>YOUR ATT <b>${Math.min(3, D.me?.attendance || 0)}/3</b></span><span>PT <b>${D.me?.promotionTracker || 0}</b></span>${k ? `<span class="hot"><b>${k}</b> NEED${k === 1 ? "S" : ""} YOU</span>` : "<span>NOTHING NEEDS YOU</span>"}</div>
+    <div class="d3-pills">${nxt ? `<span>NEXT EVENT <b>${esc(String(nxt.title).toUpperCase())} · ${new Date(nxt.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</b></span>` : ""}<span>YOUR ATT <b>${Math.min(3, D.me?.attendance || 0)}/3</b></span><span>PT <b>${D.me?.promotionTracker || 0}</b></span>${k ? `<span class="hot"><b>${k}</b> NEED${k === 1 ? "S" : ""} YOU</span>` : "<span>NOTHING NEEDS YOU</span>"}</div>
     <div class="d3-lights">${light("WEBSITE", D.ping.web != null ? true : D.ping.webErr ? false : null)}${light("DATABASE", D.ping.db != null ? true : D.ping.dbErr ? false : null)}${light("CORTANA", c0.online ? true : c0.lastHeartbeatISO ? false : null)}${light("HUB", D.hub?.released ? true : null)}</div>`;
   paintMe();
   const [l, c] = OPS[D.status.opStatus] || ["NOT SET", "#7d8a99"];

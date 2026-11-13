@@ -11,7 +11,8 @@ export async function POST(req: NextRequest) {
   if (!origin || origin !== req.nextUrl.origin) return json({ error: "Bad origin" }, 403);
   const v = await getViewer();
   if (!v?.member || !["ACTIVE", "LOA", "RESERVE"].includes(v.member.status)) return json({ error: "Only active members can upload a picture" }, 403);
-  const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: secret } = process.env;
+  // .trim(): a space or new line pasted into Vercel breaks every signature ("Invalid Signature").
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim(), apiKey = process.env.CLOUDINARY_API_KEY?.trim(), secret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloudName || !apiKey || !secret) return json({ error: "Uploads not configured" }, 503);
   const folder = "505th_pfp";
   const timestamp = Math.floor(Date.now() / 1000);

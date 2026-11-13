@@ -18,7 +18,8 @@ export async function POST(req: Request) {
   if (key === undefined) return hubJson({ error: "Bad folder" }, 400);
   // "" = any signed-in staff (Messages images).
   if (key && !can(a.role, a.access, key)) return hubJson({ error: "permission-denied" }, 403);
-  const { CLOUDINARY_CLOUD_NAME: cloudName, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: secret } = process.env;
+  // .trim(): a space or new line pasted into Vercel breaks every signature ("Invalid Signature").
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim(), apiKey = process.env.CLOUDINARY_API_KEY?.trim(), secret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloudName || !apiKey || !secret) return hubJson({ error: "Uploads not configured" }, 503);
   const timestamp = Math.floor(Date.now() / 1000);
   const signature = createHash("sha1").update(`folder=${folder}&timestamp=${timestamp}${secret}`).digest("hex");

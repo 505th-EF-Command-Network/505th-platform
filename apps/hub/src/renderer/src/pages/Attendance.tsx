@@ -9,7 +9,7 @@ import { memberName, rankOrder } from "./Personnel";
  * (click THIS OP to cycle ✓ → E → –, excused reason, tick all signed up, clear) · rename / delete · LOCK / UNLOCK (Staff NCO+).
  * Every rule is checked again on the server. App extras: rows slide in, hover glow, live updates.
  */
-const TYPE: Record<string, [string, string]> = { main_op: ["MAIN OP", "#00D9FF"], patrol: ["PATROL", "#22e07a"], training: ["TRAINING", "#f59e0b"], fun_op: ["FUN OP", "#a78bfa"] };
+const TYPE: Record<string, [string, string]> = { main_op: ["OPERATIONS", "#00D9FF"], patrol: ["PATROL", "#22e07a"], training: ["TRAINING", "#f59e0b"], fun_op: ["FUN OP", "#a78bfa"] };
 const PLATOONS = ["Command", "1st Platoon", "2nd Platoon", "3rd Platoon", "Force Recon", "Corpsmen", "Pilot", "Awaiting BCT", ""];
 const plOrder = (p: string) => { const i = PLATOONS.indexOf(p); return i < 0 ? 99 : i; };
 const rateC = (p: number | null) => (p == null ? "#4b5765" : p >= 75 ? "#22e07a" : p >= 50 ? "#f59e0b" : "#ff4d4d");
@@ -103,7 +103,7 @@ export function Attendance(p: { onPage: (id: string) => void }) {
             <label htmlFor="nf_ce" className="mb-1 mt-3 block text-[10px] tracking-[2px] text-dim">PICK EVENT</label>
             <select id="nf_ce" value={nf.ce} className={`${inp} w-full`} onChange={(x) => { const c = d.discord.find((y) => y.id === x.target.value); setNf({ ...nf, ce: x.target.value, title: c?.title ?? nf.title, date: c ? new Date(c.startAtISO).toLocaleDateString("en-CA", { timeZone: "Europe/London" }) : nf.date, type: c && TYPE[c.type] ? c.type : nf.type }); }}>
               <option value="">{d.discord.length ? "— pick —" : "No Discord events without an attendance sheet"}</option>
-              {d.discord.map((c) => <option key={c.id} value={c.id}>{c.title} — {new Date(c.startAtISO).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", timeZone: "Europe/London" })} · {c.going} going</option>)}
+              {d.discord.map((c) => <option key={c.id} value={c.id}>{c.title} — {new Date(c.startAtISO).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", timeZone: "Europe/London" })} · {c.going} attending</option>)}
             </select>
           </>}
           <div className="mt-3 grid grid-cols-3 gap-2.5">

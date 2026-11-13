@@ -19,7 +19,7 @@ export const TERMINAL_NAV: TermGroup[] = [
   },
   {
     key: "operations",
-    label: "OPERATIONS",
+    label: "EVENTS",
     icon: "◈",
     links: [
       { label: "Attendance Tracker", href: "/terminal/operations/attendance", ready: true },

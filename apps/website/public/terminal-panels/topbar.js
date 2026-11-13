@@ -171,7 +171,7 @@ function build() {
   wrap.className = "tb2";
   wrap.innerHTML = `
     <span class="tb2-crumb" id="tb2Crumb"></span>
-    <button class="tb3-pill tb3-op" id="tb3Op" aria-haspopup="true" aria-expanded="false" aria-controls="tb3OpDd" hidden><i class="tb3-dot" style="background:#f59e0b;color:#f59e0b"></i>NEXT OP <b id="tb3Cd">—</b></button>
+    <button class="tb3-pill tb3-op" id="tb3Op" aria-haspopup="true" aria-expanded="false" aria-controls="tb3OpDd" hidden><i class="tb3-dot" style="background:#f59e0b;color:#f59e0b"></i>NEXT EVENT <b id="tb3Cd">—</b></button>
     <button class="tb3-pill tb3-sys" id="tb3Sys" aria-haspopup="true" aria-expanded="false" aria-controls="tb3SysDd"><i class="tb3-dot" id="tb3SysDot"></i><span id="tb3SysTx">CORTANA · SITE</span></button>
     <span class="tb3-pill tb3-clk" aria-label="UK time"><b id="tb3Clk">--:--</b><small>UK</small></span>
     <button class="tb2-search" id="tb2Search" aria-label="Search the terminal (Ctrl+K)">⌕ <span>SEARCH TERMINAL</span><kbd>CTRL K</kbd></button>
@@ -187,7 +187,7 @@ function build() {
       <div class="tb2-list" id="tb2AlList"><div class="tb2-empty">LOADING…</div></div>
       <div class="tb2-alh" style="border:0;border-top:1px solid rgba(0,217,255,.15)"><a class="tb2-lnk" style="margin:0;text-decoration:none" href="/profile?tab=notif">⚙ ALERT SETTINGS</a></div>
     </div>
-    <div class="tb2-dd tb3-dd" id="tb3OpDd" hidden role="dialog" aria-label="Next ops" style="right:420px"><div class="tb2-alh"><b>NEXT OPS</b><button class="tb2-lnk" id="tb3OpGo">EVENTS →</button></div><div id="tb3OpList"></div></div>
+    <div class="tb2-dd tb3-dd" id="tb3OpDd" hidden role="dialog" aria-label="Next events" style="right:420px"><div class="tb2-alh"><b>NEXT EVENTS</b><button class="tb2-lnk" id="tb3OpGo">EVENTS →</button></div><div id="tb3OpList"></div></div>
     <div class="tb2-dd tb3-dd" id="tb3SysDd" hidden role="dialog" aria-label="System status" style="right:330px;width:300px"><div class="tb2-alh"><b>SYSTEM STATUS</b></div><div id="tb3SysList"></div></div>
     <div class="tb2-dd tb2-mm" id="tb2Mm" hidden role="menu">
       <div class="tb3-h">MY STATUS</div>

@@ -6,7 +6,7 @@ import { NAV_LINKS } from "./SideNav";
 import logo from "../../../../assets/logo.png";
 
 /**
- * Top bar (approved mock 2026-11-11): logo · breadcrumb · Ctrl K jump-to · NEXT OP card (live countdown + sign-up bar)
+ * Top bar (approved mock 2026-11-11): logo · breadcrumb · Ctrl K jump-to · NEXT EVENT card (live countdown + sign-up bar)
  * · Cortana ping + 505th Net · UK clock · refresh · messages · alerts dropdown (mark read). Your name lives in the side-nav card.
  */
 const ALERT_ICON: Record<string, [string, string]> = {
@@ -56,7 +56,7 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
       <div className="flex-1" />
       {op && (
         <button type="button" onClick={() => p.onPage("panel-events")} title={op.title} className="grid min-w-[210px] shrink-0 grid-cols-[1fr_auto] items-center gap-x-3 border border-amber/40 bg-amber/5 px-2.5 py-1 text-left hover:border-amber">
-          <span className="text-[9px] tracking-[2px] text-amber">{ms <= 0 ? "● LIVE NOW" : "NEXT OP"}</span>
+          <span className="text-[9px] tracking-[2px] text-amber">{ms <= 0 ? "● LIVE NOW" : "NEXT EVENT"}</span>
           <b className="row-span-2 min-w-[118px] text-right font-head text-[18px] tabular-nums tracking-[1px] text-amber">{ms <= 0 ? "LIVE" : countdown(ms)}</b>
           <span className="max-w-[150px] truncate text-[11.5px] tracking-[1px] text-white">{op.title.toUpperCase()}</span>
           <i className="col-span-2 mt-0.5 block h-[2px] bg-amber/15"><i className="block h-full bg-ok" style={{ width: `${Math.min(100, op.signedUp * 4)}%` }} /></i>

@@ -128,7 +128,7 @@ function General({ s, onChange, onPage }: P) {
       <Note>Op times on the website and in Discord stay in UK time — the unit's time.</Note>
     </Group>
     <Group t="UPDATES">
-      <Row t="Install updates by itself" d="Only when you're away from the PC — never while an op is running"><Toggle on={s.autoUpdate} onChange={(v) => set({ autoUpdate: v })} label="Auto-install updates" /></Row>
+      <Row t="Install updates by itself" d="Only when you're away from the PC — never while an event is running"><Toggle on={s.autoUpdate} onChange={(v) => set({ autoUpdate: v })} label="Auto-install updates" /></Row>
       <Row t="Check now"><UpdateCheck /></Row>
       <Row t="What's new"><Btn onClick={() => setNews(true)}>✨ WHAT'S NEW</Btn></Row>
       <Row t="Help pages" d="Plain-English guides"><Btn onClick={() => onPage("my-about")}>OPEN HELP</Btn></Row>
@@ -255,7 +255,7 @@ function Notifs({ s, onChange }: P) {
         {(pct(from) <= pct(to) ? [[pct(from), pct(to)]] : [[pct(from), 100], [0, pct(to)]]).map(([a, b], i) => <div key={i} className="absolute top-0 h-3 bg-bad/40" style={{ left: `${a}%`, width: `${b! - a!}%` }} />)}
         <div className="absolute -top-0.5 h-4 w-0.5 bg-cyan" style={{ left: `${pct(new Date().toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }))}%` }} /></div>
         <div className="mt-1 flex justify-between text-[9.5px] text-dimmer"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00 UK</span></div></div>}
-      <Row t="Let op alerts through" d="Ops starting still pop up during do not disturb"><Toggle on={n.letOps} onChange={(v) => set({ letOps: v })} label="Let op alerts through" /></Row>
+      <Row t="Let event alerts through" d="Events starting still pop up during do not disturb"><Toggle on={n.letOps} onChange={(v) => set({ letOps: v })} label="Let event alerts through" /></Row>
     </Group>
     <Group t="HOW">
       <Row t="Pop-up cards" d="Bottom right of the screen — shows over games and other apps"><Toggle on={n.popup} onChange={(v) => set({ popup: v })} label="Pop-up cards" /></Row>
@@ -270,7 +270,7 @@ function Notifs({ s, onChange }: P) {
       <table className="w-full border-collapse text-[12.5px]"><thead><tr className="text-[9.5px] tracking-[2px] text-dim"><th className="px-3.5 py-2 text-left font-normal">EVENT</th>
         {(["popup", "bell", "flash"] as const).map((c) => <th key={c} className="w-[86px] py-2 text-center font-normal"><button type="button" onClick={() => setCols({ ...cols, [c]: !cols[c] })} className="hover:text-white">{c === "popup" ? "POP-UP" : c.toUpperCase()} {cols[c] ? "▾" : "▸"}</button>
           {cols[c] && <button type="button" onClick={() => colFlip(c)} className="block w-full text-[9px] text-dimmer hover:text-cyan">ALL ON/OFF</button>}</th>)}</tr></thead>
-        <tbody>{EVENTS.map(([k, ic, l]) => <tr key={k} className="border-t border-white/5"><td className="px-3.5 py-2 text-white">{ic} {k === "op" ? <>Op starting in <select value={n.opMins} onChange={(e) => set({ opMins: Number(e.target.value) })} aria-label="Minutes before an op" className="border border-cyan/20 bg-[#070a0f] px-1 text-[11px] text-white">{[5, 10, 15, 30, 60].map((m) => <option key={m} value={m}>{m} min</option>)}</select></> : l}</td>
+        <tbody>{EVENTS.map(([k, ic, l]) => <tr key={k} className="border-t border-white/5"><td className="px-3.5 py-2 text-white">{ic} {k === "op" ? <>Event starting in <select value={n.opMins} onChange={(e) => set({ opMins: Number(e.target.value) })} aria-label="Minutes during an event" className="border border-cyan/20 bg-[#070a0f] px-1 text-[11px] text-white">{[5, 10, 15, 30, 60].map((m) => <option key={m} value={m}>{m} min</option>)}</select></> : l}</td>
           {(["popup", "bell", "flash"] as const).map((c) => <td key={c} className="py-2 text-center">{cols[c] ? box(n.ev[k][c], () => set({ ev: { ...n.ev, [k]: { ...n.ev[k], [c]: !n.ev[k][c] } } }), `${l} — ${c}`) : <span className="text-dimmer">·</span>}</td>)}</tr>)}</tbody></table>
       <Row t="Test it" d="Pick what to try, then press the button">
         <Seg v={test} label="What to test" opts={[["all", "ALL"], ["popup", "POP-UP"], ["win", "WINDOWS"], ["edge", "SCREEN"], ["bar", "TASKBAR"], ["sound", "🔊"], ["every", "ALL + 🔊"]]} onChange={setTest} />

@@ -10,7 +10,7 @@ import type { Aar, AarData } from "../../../preload/api";
  */
 const UNITS: Record<string, string> = { alpha: "Alpha Company", forcerecon: "JTF-23 Force Recon", corpsman: "Hospital Corpsman", airwing: "54th Air Wing", combined: "Combined Arms" };
 const RES: Record<string, [string, string, string]> = { success: ["MISSION SUCCESS", "#22e07a", "✓"], partial: ["PARTIAL SUCCESS", "#f5c518", "◐"], failure: ["MISSION FAILURE", "#ff4d4d", "✕"] };
-const OPS: Record<string, string> = { main_op: "Main Op", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
+const OPS: Record<string, string> = { main_op: "Operations", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
 const CLS = ["CL-5", "CL-4", "CL-3", "CL-2", "CL-1"];
 const ATT2OP: Record<string, string> = { main_op: "main_op", patrol: "patrol", training: "deployment", fun_op: "fun_op" };
 const SECTIONS: [string, string[]][] = [["BRIEFING", ["title", "date", "opType", "unit", "commander"]], ["MISSION PLAN", ["mainObjective"]], ["WHAT HAPPENED", ["actualExecution"]], ["ENEMY", ["enemyFaction"]], ["DEBRIEF", ["result", "objectiveOutcome"]], ["ATTACHMENTS", []]];

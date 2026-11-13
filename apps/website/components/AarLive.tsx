@@ -20,7 +20,7 @@ const UNIT_LOGOS: Record<string, string> = {
 const UNIT_LABELS: Record<string, string> = {
   alpha: "Alpha Company", forcerecon: "JTF-23 Force Recon", corpsman: "Hospital Corpsman", airwing: "54th Air Wing", combined: "Combined Arms",
 };
-const TYPE_LABELS: Record<string, string> = { main_op: "Main Op", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
+const TYPE_LABELS: Record<string, string> = { main_op: "Operations", patrol: "Patrol", deployment: "Deployment", fun_op: "Fun Op" };
 const RESULT_LABELS: Record<string, string> = { success: "Mission Success", partial: "Partial Success", failure: "Mission Failure" };
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

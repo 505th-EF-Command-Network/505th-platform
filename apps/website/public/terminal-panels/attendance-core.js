@@ -1,7 +1,7 @@
 /**
  * Shared monthly attendance rules:
  *  - addPip: +1 ATT this month (max 3) · promotePT: +1 PT and ATT back to 0 (at 3/3)
- *  - snapshotMonth: saves a month to attendance_history (MISSED counts Main Op only — per Drake, 2026-07-24)
+ *  - snapshotMonth: saves a month to attendance_history (MISSED counts Operations only — per Drake, 2026-07-24)
  *  - Monthly reset: Cortana runs it at 00:00 on the 1st (apps/cortana/src/monthly-reset.ts).
  *    runReset here is the website backup (missed / early) — same rules and the same lock.
  *  - rebuildMonth / snapshotCurrentMonth / backfillHistory: Attendance History

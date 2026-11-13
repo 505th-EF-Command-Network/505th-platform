@@ -14,7 +14,7 @@ import { cortanaSettings } from "./util.ts";
 const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
 const UNITS: Record<string, string> = { alpha: "Alpha Company", forcerecon: "JTF-23 Force Recon", corpsman: "Hospital Corpsman", airwing: "54th Air Wing", combined: "Combined Arms" };
 const RES: Record<string, [string, number]> = { success: ["✅ Mission Success", 0x22e07a], partial: ["🟡 Partial Success", 0xf5c518], failure: ["❌ Mission Failure", 0xff4d4d] };
-const OPS: Record<string, string> = { main_op: "🔴 Main Op", patrol: "🔵 Patrol", deployment: "🟢 Deployment", fun_op: "🟡 Fun Op" };
+const OPS: Record<string, string> = { main_op: "🔴 Operations", patrol: "🔵 Patrol", deployment: "🟢 Deployment", fun_op: "🟡 Fun Op" };
 const cut = (s: unknown, n: number) => { const t = String(s ?? "").trim(); return t.length > n ? t.slice(0, n - 1) + "…" : t; };
 
 async function post(client: Client<true>, job: { data: { requestedBy?: string; payload?: Record<string, unknown> } }) {

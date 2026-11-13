@@ -73,8 +73,8 @@ document.addEventListener("click", (e) => {
 const CARDS = {
   UNIT: [
     ["panel-cmd-status", "cmd_status", "◉", "UNIT STATUS", "Commander · Developer", "Tell everyone what the unit is doing right now, and open or close recruitment.", "going on deployment, standing down, maintenance, or pausing sign-ups.", "status"],
-    ["panel-cmd-sitrep", "cmd_sitrep", "✉", "SITREP", "Commander · Officer", "Post a situation report — orders, news or priorities — for your staff.", "before an op, after a big change, or for weekly orders.", "sitrep"],
-    ["panel-cmd-staff", "cmd_staff", "♟", "COMMAND STAFF", "Commander", "See your leadership team at a glance — who holds which role and who is active.", "checking cover before an op, or reviewing who is inactive.", "staff"],
+    ["panel-cmd-sitrep", "cmd_sitrep", "✉", "SITREP", "Commander · Officer", "Post a situation report — orders, news or priorities — for your staff.", "before an event, after a big change, or for weekly orders.", "sitrep"],
+    ["panel-cmd-staff", "cmd_staff", "♟", "COMMAND STAFF", "Commander", "See your leadership team at a glance — who holds which role and who is active.", "checking cover before an event, or reviewing who is inactive.", "staff"],
     ["panel-cmd-promote", "cmd_promote", "▲", "COMMAND PROMOTIONS", "Commander", "Give command-tier roles — Officer, Developer — with a record.", "appointing new leadership. Normal ranks are in the Roster.", "promote"],
     ["panel-cmd-suspend", "cmd_suspend", "⛔", "SUSPENSIONS", "Commander · Developer", "Block someone from the Terminal for a while, with a reason and an end date.", "investigations or serious conduct. Discord-only: use Moderation.", "suspend"],
     ["panel-roster", "roster", "↻", "MONTHLY RESET", "Staff NCO+", "Done by Cortana at 00:00 on the 1st. Shown here so you can see it ran.", "checking the month rolled over.", "reset"],
