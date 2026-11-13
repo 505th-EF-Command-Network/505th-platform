@@ -5,9 +5,12 @@ module.exports = {
   apps: [
     {
       name: "Cortana_V2",
-      // Finds tsx whether npm put it in apps/cortana/node_modules or the repo root (workspaces).
-      script: require.resolve("tsx/cli", { paths: [__dirname] }),
-      args: "--env-file=.env.local src/index.ts",
+      // Runs node directly with tsx loaded inside it (no extra child process), so Windows doesn't
+      // open empty "node.exe" console windows. windowsHide hides PM2's own window too.
+      script: "src/index.ts",
+      interpreter: "node",
+      node_args: "--import tsx --env-file=.env.local",
+      windowsHide: true,
       cwd: __dirname,
       autorestart: true,
       stop_exit_codes: [0],
