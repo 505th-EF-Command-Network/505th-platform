@@ -80,7 +80,8 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       <Row key={s.uid}><i className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATE[s.state].color }} /><span className="min-w-0 flex-1 truncate text-white">{s.name}</span>
         {s.where && <span title={s.where === "both" ? "On the Hub app and the website Terminal" : s.where === "hub" ? "On the Hub app" : "On the website Terminal"}
           className={`shrink-0 border px-1 text-[8.5px] tracking-[1px] ${s.where === "terminal" ? "border-gold/50 text-gold" : "border-cyan/50 text-cyan"}`}>{s.where === "both" ? "HUB + WEB" : s.where === "hub" ? "HUB" : "TERMINAL"}</span>}
-        <small className="max-w-[110px] truncate text-[10.5px]" style={{ color: STATE[s.state].color }}>{s.state === "dnd" ? (s.note || "DND") : pageName(s.page) || "online"}</small></Row>))}
+        {s.voice && <span title="In Discord voice" className="max-w-[110px] shrink-0 truncate border border-[#a78bfa]/60 px-1 text-[8.5px] tracking-[1px] text-[#a78bfa]">🔊 {s.voice.toUpperCase()}</span>}
+        <small className="max-w-[110px] truncate text-[10.5px]" style={{ color: STATE[s.state].color }}>{s.state === "dnd" ? (s.note || "DND") : pageName(s.page) || (s.voice ? "" : s.discord ? "Discord" : "online")}</small></Row>))}
       <div className="mt-1 text-[10.5px] text-dim">{on.length} / {sum.staff.length} staff on</div></> : <Empty t="NO STAFF ONLINE" />; } },
   events: { title: "THIS WEEK", desc: "7-day mini calendar of ops", size: 4, page: "panel-events", body: ({ ov, onPage }) => {
     const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: "Europe/London" }));

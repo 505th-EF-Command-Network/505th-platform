@@ -13,6 +13,15 @@ const COLS = ["#00d9ff", "#22e07a", "#f59e0b", "#8b93f8", "#f472b6", "#2dd4bf", 
 const col = (u) => COLS[[...String(u)].reduce((s, c) => s + c.charCodeAt(0), 0) % COLS.length];
 const ini = (n) => (String(n).replace(/^[A-Za-z0-9]+\.\s*/, "").replace(/["“”]/g, "").match(/\b\w/g) || ["?"]).slice(0, 2).join("").toUpperCase();
 const day = (iso) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }) : "");
+function devState(p) {
+  const on = p.lastUsedISO && Date.now() - Date.parse(p.lastUsedISO) < 5 * 60000;
+  if (p.suspended) return ["SUSPENDED", "#ff4d4d", ""];
+  if (p.status === "revoked") return ["REVOKED", "#ff4d4d", ""];
+  if (p.status === "requested") return ["PENDING", "#f59e0b", "waiting for approval"];
+  if (p.devices) return on ? ["● ONLINE", "#22e07a", `${p.devices} device${p.devices === 1 ? "" : "s"}`] : ["○ OFFLINE", "#7d8a99", `last seen ${ago(p.lastUsedISO)}`];
+  if (p.status === "granted" || p.status === "always") return ["NOT INSTALLED", "#4b5765", ""];
+  return ["—", "#4b5765", ""];
+}
 const ago = (iso) => { if (!iso) return ""; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 5 ? "active now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 const ROLE = { commander: "Commander", developer: "Developer", officer: "Officer", staff_nco: "Staff NCO", nco: "NCO", recruiter: "Recruiter" };
 async function call(method, body, q = "") {
@@ -79,7 +88,7 @@ function draw() {
   <table><thead><tr><th>MEMBER</th><th>ACCESS</th><th>GIVEN / CHANGED BY</th><th>DEVICES</th><th></th></tr></thead><tbody>
   ${list.map((p) => `<tr class="${p.status === "revoked" ? "rv" : ""}"><td><div class="who">${av(p)}<div><b>${esc(p.name)}</b><small>${esc(ROLE[p.role] || p.role)}</small></div></div></td><td>${st(p)}</td>
     <td>${p.always ? "—" : p.byName ? `${esc(p.byName)} · ${day(p.atISO)}${p.reason ? `<small>“${esc(p.reason)}”</small>` : ""}` : "—"}</td>
-    <td>${p.devices ? `${p.devices} · ${ago(p.lastUsedISO)}` : p.status === "granted" || p.status === "always" ? '<span class="dim">not installed yet</span>' : "—"}</td><td style="text-align:right">${btn(p)}</td></tr>`).join("") || '<tr><td colspan="5" class="dim" style="text-align:center;padding:24px">NO ONE MATCHES</td></tr>'}</tbody></table>
+    <td>${(() => { const [l, c, sub] = devState(p); return l === "—" ? "—" : `<span style="border:1px solid ${c}66;color:${c};padding:0 6px;font-size:9.5px;letter-spacing:1.5px">${l}</span>${sub ? ` <small class="dim" style="display:inline;margin-left:6px">${esc(sub)}</small>` : ""}`; })()}</td><td style="text-align:right">${btn(p)}</td></tr>`).join("") || '<tr><td colspan="5" class="dim" style="text-align:center;padding:24px">NO ONE MATCHES</td></tr>'}</tbody></table>
   <div class="notes"><div><b>REVOKE = INSTANT</b>Their Hub signs out on every PC within seconds, the download card locks, and they can't sign in again. A reason is required and goes in the Audit Log.</div>
     <div><b>ALWAYS</b>Commander and Developer always have access and can't be revoked here.</div><div><b>POLICY</b>Everyone must accept the 505th Software Use Policy in the app before they can use it.</div></div>`;
 }

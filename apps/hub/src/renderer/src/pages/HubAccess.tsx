@@ -11,6 +11,16 @@ const COLS = ["#00d9ff", "#22e07a", "#f59e0b", "#8b93f8", "#f472b6", "#2dd4bf", 
 const col = (u: string) => COLS[[...u].reduce((s, c) => s + c.charCodeAt(0), 0) % COLS.length]!;
 const ini = (n: string) => (n.replace(/^[A-Za-z0-9]+\.\s*/, "").replace(/["“”]/g, "").match(/\b\w/g) ?? ["?"]).slice(0, 2).join("").toUpperCase();
 const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }) : "");
+/** Devices column: ● ONLINE / ○ OFFLINE / PENDING / SUSPENDED / REVOKED / NOT INSTALLED. */
+function devState(p: { status: string; suspended?: boolean; devices: number; lastUsedISO: string }): [string, string, string] {
+  const on = p.lastUsedISO && Date.now() - Date.parse(p.lastUsedISO) < 5 * 60_000;
+  if (p.suspended) return ["SUSPENDED", "#ff4d4d", ""];
+  if (p.status === "revoked") return ["REVOKED", "#ff4d4d", ""];
+  if (p.status === "requested") return ["PENDING", "#f59e0b", "waiting for approval"];
+  if (p.devices) return on ? ["● ONLINE", "#22e07a", `${p.devices} device${p.devices === 1 ? "" : "s"}`] : ["○ OFFLINE", "#7d8a99", `last seen ${ago(p.lastUsedISO)}`];
+  if (p.status === "granted" || p.status === "always") return ["NOT INSTALLED", "#4b5765", ""];
+  return ["—", "#4b5765", ""];
+}
 const ago = (iso: string) => { if (!iso) return ""; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 5 ? "active now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 const ST: Record<string, [string, string]> = { always: ["★ ALWAYS", "#c9a227"], granted: ["✓ ACCESS", "#22e07a"], revoked: ["✕ REVOKED", "#ff4d4d"], requested: ["✋ ASKED", "#f59e0b"], denied: ["DECLINED", "#7d8a99"], none: ["NO ACCESS", "#4b5765"] };
 
@@ -70,7 +80,7 @@ export function HubAccess() {
             <td className="px-3.5 py-2"><div className="flex items-center gap-2.5"><Av p={p} /><div><b className="font-normal text-white">{p.name}</b><small className="block text-[10.5px] text-dim">{ROLE[p.role] ?? p.role}</small></div></div></td>
             <td className="px-3.5"><span className="border px-1.5 text-[9.5px] tracking-[1.5px]" style={{ color: c, borderColor: `${c}66` }}>{l}</span></td>
             <td className="px-3.5 text-[#c6d0da]">{p.always ? "—" : p.byName ? <>{p.byName} · {day(p.atISO)}{p.reason && <small className="block text-[10.5px] text-dim">“{p.reason}”</small>}</> : "—"}</td>
-            <td className="px-3.5 text-[#c6d0da]">{p.devices ? `${p.devices} · ${ago(p.lastUsedISO)}` : p.status === "granted" || p.status === "always" ? <span className="text-dim">not installed yet</span> : "—"}</td>
+            <td className="px-3.5 text-[#c6d0da]">{(() => { const [l2, c2, sub] = devState(p); return l2 === "—" ? "—" : <><span className="border px-1.5 text-[9.5px] tracking-[1.5px]" style={{ color: c2, borderColor: `${c2}66` }}>{l2}</span>{sub && <small className="ml-2 text-[10.5px] text-dim">{sub}</small>}</>; })()}</td>
             <td className="px-3.5 text-right">{can && !p.always && (p.status === "granted" ? <button type="button" disabled={busy} onClick={() => { setWhy({ uid: p.uid, name: p.name, action: "revoke" }); setReason(""); }} className={`${sb} border-bad/50 text-bad`}>REVOKE</button>
               : p.status === "revoked" ? <button type="button" disabled={busy} onClick={() => void act({ action: "restore", uid: p.uid })} className={`${sb} border-cyan/30 text-white`}>RESTORE</button>
               : <button type="button" disabled={busy} onClick={() => void act({ action: "give", uid: p.uid })} className={`${sb} border-cyan/40 text-cyan`}>＋ GIVE ACCESS</button>)}</td>

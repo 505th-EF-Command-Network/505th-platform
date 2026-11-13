@@ -4,7 +4,7 @@
  * Everything is checked here; unknown keys are dropped.
  */
 type U = Record<string, any>;
-export const EVENTS = ["message", "tag", "ticket", "bct", "op", "project", "rank", "note", "net"] as const;
+export const EVENTS = ["message", "tag", "ticket", "bct", "op", "project", "rank", "note", "net", "staff"] as const;
 export const KEYS = ["palette", "rail", "filter", "messages", "refresh", "toggle", "notes", "newNote", "lock", "settings", "help", "dnd"] as const;
 const one = <T extends string>(v: unknown, ok: readonly T[], d: T): T => (ok.includes(v as T) ? (v as T) : d);
 const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);

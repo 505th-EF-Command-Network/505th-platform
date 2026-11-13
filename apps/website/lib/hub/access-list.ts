@@ -68,7 +68,7 @@ export async function listAccess(w: Who) {
     .map((u) => { const r = rec.get(u.id) ?? {}, dv = dev.get(u.id);
       return { uid: u.id, name: memberName(u), role: u.role || "", photo: photoOf(u), always: ALWAYS(u.role), status: ALWAYS(u.role) ? "always" : r.status || "none",
         byName: r.byName || "", atISO: r.atISO || "", reason: r.reason || "", note: r.note || "", requestAtISO: r.requestAtISO || "",
-        devices: dv?.n ?? 0, lastUsedISO: dv?.last ? new Date(dv.last).toISOString() : "" }; })
+        suspended: u.suspended === true, devices: dv?.n ?? 0, lastUsedISO: dv?.last ? new Date(dv.last).toISOString() : "" }; })
     .sort((a, b) => Number(b.always) - Number(a.always) || roleLevel(b.role) - roleLevel(a.role) || a.name.localeCompare(b.name));
   const now = Date.now();
   return { canManage: canManage(w), people, stats: {

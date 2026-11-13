@@ -19,7 +19,7 @@ export type AuthState =
   | { status: "signed-in"; user: AppUser }
   | { status: "offline"; error: string };
 export type MyStatus = { state: "online" | "dnd" | "invisible" | "offline"; note?: string; untilISO?: string | null };
-export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; where?: "hub" | "terminal" | "both" | ""; note: string; until: string | null; photo: string | null };
+export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; where?: "hub" | "terminal" | "both" | ""; voice?: string; discord?: string; note: string; until: string | null; photo: string | null };
 export type Summary = {
   me: { uid: string; name: string; role: string; rank: string; platoon: string; attendance: number; pt: number; opsAttended: number; opsEligible: number; status: MyStatus; access: Record<string, boolean> };
   ops: { id: string; title: string; startAtISO: string; opType: string; signedUp: number; mine: string | null; myChoice: string | null; myWaiting: boolean; open: boolean; linked: boolean;
@@ -59,7 +59,7 @@ export type BctPerson = { id: string; fullName: string; name: string; pfcName: s
   recruitSource: string; timezone: string; registeredAt: string; approvedAt: string; approvedBy: string; deniedAt: string; deniedBy: string; denyReason: string };
 export type BctData = { pending: BctPerson[]; approved: BctPerson[]; denied: BctPerson[]; thisMonth: number; avg: string; instructors: string[]; platoons: string[]; sources: string[]; denyReasons: string[]; canAct: boolean };
 export type HubPrefs = { dash?: [string, number][]; nav?: { order: string[]; hidden: string[]; pins: string[]; closed: string[]; rail: boolean }; settings?: AppSettings };
-export type NotifyEvent = "message" | "tag" | "ticket" | "bct" | "op" | "project" | "rank" | "note" | "net";
+export type NotifyEvent = "message" | "tag" | "ticket" | "bct" | "op" | "project" | "rank" | "note" | "net" | "staff";
 export type ShortcutId = "palette" | "rail" | "filter" | "messages" | "refresh" | "toggle" | "notes" | "newNote" | "lock" | "settings" | "help" | "dnd";
 /** My Settings / My Notifications / My Shortcuts — same shape as website lib/hub/settings.ts. */
 export type AppSettings = {
@@ -121,7 +121,7 @@ export type MsgData = {
 };
 export type HubAccessData = {
   canManage: boolean;
-  people: { uid: string; name: string; role: string; photo: string | null; always: boolean; status: string; byName: string; atISO: string; reason: string; note: string; requestAtISO: string; devices: number; lastUsedISO: string }[];
+  people: { uid: string; name: string; role: string; photo: string | null; always: boolean; status: string; byName: string; atISO: string; reason: string; note: string; requestAtISO: string; suspended?: boolean; devices: number; lastUsedISO: string }[];
   stats: { access: number; requests: number; online: number; revoked: number };
 };
 export type UpdateInfo = { available: boolean; latest: string; notes?: string[]; sizeMB?: number; sha256?: string; dateISO?: string; file?: string; url?: string | null };

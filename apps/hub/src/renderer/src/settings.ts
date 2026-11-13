@@ -7,7 +7,7 @@ import type { AppSettings, NotifyEvent, ShortcutId, Summary } from "../../preloa
 export const EVENTS: [NotifyEvent, string, string][] = [
   ["message", "💬", "Direct message"], ["tag", "@", "Tagged (projects, chats)"], ["ticket", "🎫", "Ticket waiting on staff"], ["bct", "✚", "Recruit waiting for BCT"],
   ["op", "⚑", "Op starting soon"], ["project", "☷", "Project invite / task / overdue"], ["rank", "★", "My rank / role / medal / account"],
-  ["note", "📝", "Note reminder"], ["net", "📡", "Network Status (Cortana / website down)"],
+  ["note", "📝", "Note reminder"], ["net", "📡", "Network Status (Cortana / website down)"], ["staff", "🟢", "Staff came online (Discord / Hub / website)"],
 ];
 /** Shortcut groups for My Shortcuts. "anywhere" = works even when the Hub is hidden. */
 export const SHORTCUT_GROUPS: [string, [ShortcutId, string, boolean?][]][] = [
@@ -113,6 +113,7 @@ export const isKey = (e: KeyboardEvent, id: ShortcutId) => !current.keysOff.incl
 /** Which setting an alert belongs to (from its type / title). */
 export function alertKind(a: Summary["alerts"][number]): NotifyEvent {
   const t = `${a.type} ${a.title}`.toLowerCase();
+  if (a.type === "staff_online") return "staff";
   if (/tagged|mention/.test(t)) return "tag";
   if (/message|dm|chat/.test(a.type)) return "message";
   if (/project|task/.test(t)) return "project";

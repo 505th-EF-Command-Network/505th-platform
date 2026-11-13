@@ -30,13 +30,21 @@ export async function GET(req: Request) {
   const a = await getHubActor(req);
   if (!a) return hubJson({ error: "unauthenticated" }, 401);
   const now = Date.now();
-  const [users, pres, evs, alerts, bot] = await Promise.all([
+  const [users, pres, evs, alerts, bot, dlDoc, spDoc] = await Promise.all([
     TerminalDoc.find({ parent: "users" }, { docId: 1, data: 1 }).lean(),
     TerminalDoc.find({ parent: "presence_sessions" }, { data: 1 }).lean(),
     TerminalDoc.find({ parent: "community_events" }, { docId: 1, data: 1 }).lean(),
     TerminalDoc.find({ parent: `notifications/${a.uid}/items` }, { docId: 1, data: 1 }).sort({ "data.createdAt": -1 }).limit(20).lean(),
     TerminalDoc.findById("bot_status/cortana", { data: 1 }).lean(),
+    TerminalDoc.findById("bot_status/discord_live", { data: 1 }).lean(),
+    TerminalDoc.findById("bot_status/staff_presence", { data: 1 }).lean(),
   ]);
+  // Discord voice (fresh = Cortana wrote it in the last 5 min) + Discord status (presence intent on) — same as the website STAFF ONLINE widget.
+  const dl = ((dlDoc as U | null)?.data ?? {}) as U, sp = ((spDoc as U | null)?.data ?? {}) as U;
+  const voiceOf = new Map<string, string>();
+  if (dl.atISO && now - Date.parse(dl.atISO) < 5 * 60_000) for (const ch of (dl.voice ?? []) as U[]) for (const m of (ch.members ?? []) as U[]) voiceOf.set(String(m.id), String(ch.name ?? ""));
+  const discordOf = new Map<string, string>();
+  if (sp.enabled) for (const x of (sp.staff ?? []) as U[]) if (x.uid) discordOf.set(String(x.uid), String(x.status ?? ""));
   // Who has the Hub app open (any call in the last few minutes — the app polls every 60 s).
   const hubLive = await HubSession.find({ revokedAt: { $exists: false }, lastUsedAt: { $gt: new Date(now - ONLINE_MS) } }, { member: 1 }).lean();
   const hubMembers = hubLive.length ? await Member.find({ _id: { $in: hubLive.map((s) => s.member) } }, { legacyId: 1 }).lean() : [];
@@ -55,12 +63,15 @@ export async function GET(req: Request) {
     .map((u) => {
       const p = lastSeen.get(u.id);
       const hub = onHub.has(u.id) || u.id === a.uid;
-      const st = u.id === a.uid ? stateOf(u, true) : stateOf(u, !!p || hub);
-      const where = st === "offline" ? "" : p && hub ? "both" : hub ? "hub" : "terminal";
+      const voice = (u.discordId && voiceOf.get(String(u.discordId))) || "";
+      const discord = discordOf.get(u.id) || "";
+      const onDiscord = !!voice || (!!discord && discord !== "offline");
+      const st = u.id === a.uid ? stateOf(u, true) : stateOf(u, !!p || hub || onDiscord);
+      const where = st === "offline" ? "" : p && hub ? "both" : hub ? "hub" : p ? "terminal" : "";
       return {
         uid: u.id, name: nameOf(u), role: u.role, level: roleLevel(u.role), state: st,
         page: st === "online" ? p?.panel || "" : "",
-        where,
+        where, voice, discord,
         note: st === "dnd" ? String(u.myStatus?.note || "") : "",
         until: st === "dnd" ? u.myStatus?.untilISO || null : null,
         photo: [u.photoUrl, u.photoURL, u.discordAvatarUrl].find((p) => typeof p === "string" && p.startsWith("https://")) ?? null,

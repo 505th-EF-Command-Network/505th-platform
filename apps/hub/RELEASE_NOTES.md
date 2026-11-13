@@ -1,3 +1,9 @@
+505th Command Network v0.4.2
+- Staff On Duty: counts staff on Discord and in voice (🔊 channel), same as the website
+- NEW notification setting: Staff came online (Discord / Hub / website)
+- Hub Access: Devices shows Online / Offline / Pending / Suspended / Revoked / Not installed
+- Network Status: search box removed
+
 505th Command Network v0.4.1
 - Dashboard widgets now scroll — nothing gets cut off
 - Alerts: icons, and repeats grouped (×3)

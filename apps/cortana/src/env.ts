@@ -24,6 +24,8 @@ const schema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().regex(/^[\w-]+$/, "CLOUDINARY_CLOUD_NAME looks wrong").optional().or(z.literal("").transform(() => undefined)),
   CLOUDINARY_API_KEY: z.string().regex(/^\d{6,20}$/, "CLOUDINARY_API_KEY must be numbers").optional().or(z.literal("").transform(() => undefined)),
   CLOUDINARY_API_SECRET: z.string().min(10, "CLOUDINARY_API_SECRET looks wrong").optional().or(z.literal("").transform(() => undefined)),
+  // Optional — your Discord ID. Only this person gets "staff came online" alerts (staff-watch.ts).
+  CORTANA_OWNER_DISCORD_ID: z.string().regex(/^\d{15,22}$/, "CORTANA_OWNER_DISCORD_ID must be a Discord ID").optional().or(z.literal("").transform(() => undefined)),
   PRESENCE_INTENT: z.enum(["true", "false", ""]).optional().transform((v) => v === "true"),
 });
 
