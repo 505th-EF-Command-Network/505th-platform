@@ -313,7 +313,7 @@ export function checkWrite(
   if (target.top === "users" && ["photo", "photoUrl", "discordAvatarUrl", "notifyPrefs"].some((f) => fields.has(f))) deny("Pictures and alert settings are changed on the profile page");
 
   // Access overrides are only changed through Officer Management (/api/terminal/access).
-  if (target.top === "users" && fields.has("access")) deny("Access is changed in Officer Management only");
+  if (target.top === "users" && (fields.has("access") || fields.has("accessUntil"))) deny("Access is changed in Officer Management only");
   if (target.top === "users" && fields.has("cmdGrant")) deny("Command Access is changed in Command → Command Access only");
 
   if (target.top !== "users" || target.path.split("/").length !== 2) return;

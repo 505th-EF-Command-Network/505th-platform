@@ -28,7 +28,7 @@ const GROUPS: Group[] = [
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
     { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web" }] },
   { id: "security", label: "SECURITY", icon: "⛉", links: [
-    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om" }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true }, { id: "panel-network", label: "Network Status", icon: "◉", key: "net", app: true }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit" }] },
+    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true }, { id: "panel-network", label: "Network Status", icon: "◉", key: "net", app: true }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit" }] },
 ];
 const ALL_LINKS = GROUPS.flatMap((g) => g.links);
 export const PAGES: Record<string, string> = {

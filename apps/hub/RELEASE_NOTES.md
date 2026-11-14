@@ -1,3 +1,10 @@
+505th Command Network v0.4.5
+- NEW Officer Management in the app: People (access in groups, reason, time-limited access, recent changes + UNDO), Role defaults, Change log
+- Personnel File: tab names no longer break onto two lines
+- Personnel File: action buttons (Promote … Stats) wrap instead of going off the window
+- Greeting follows your own time zone (no more "good morning" at 9 pm)
+- Background picture: everyone can choose from the 505th gallery (no Media access needed)
+
 505th Command Network v0.4.4
 - "Operations" renamed to "Events" (Next Event, Event starting soon); menu EVENTS → Create Events
 - Event types: Operations, Patrol, Training, Fun Op

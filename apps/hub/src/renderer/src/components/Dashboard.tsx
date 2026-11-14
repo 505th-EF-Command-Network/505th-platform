@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { myTz } from "../settings";
 import type { NetState, Overview, Summary } from "../../../preload/api";
 import { STATE, countdown, pageName, ukTime } from "../ui";
 import { Rsvp } from "./Rsvp";
@@ -131,8 +132,9 @@ export function Dashboard(p: { sum: Summary; ov: Overview | null; net: NetState;
   const [over, setOver] = useState<number | null>(null);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const me = p.sum.me;
-  const hour = Number(ukTime(now, { hour: "2-digit", hour12: false }));
-  const greet = hour < 12 ? "GOOD MORNING" : hour < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
+  // Greeting follows MY time zone (Settings → Time & Region), not UK time — 9 pm in the US is "evening".
+  const hour = Number(new Date(now).toLocaleString("en-GB", { timeZone: myTz(), hour: "2-digit", hourCycle: "h23" }));
+  const greet = hour >= 5 && hour < 12 ? "GOOD MORNING" : hour >= 12 && hour < 18 ? "GOOD AFTERNOON" : "GOOD EVENING";
   const first = (/"([^"]+)"/.exec(me.name)?.[1] ?? me.name.trim().split(/\s+/).pop() ?? "").toUpperCase();
   const dash = p.dash.filter(([k]) => W[k]);
   const props: P = { sum: p.sum, ov: p.ov, net: p.net, onPage: p.onPage, onRefresh: p.onRefresh, now };

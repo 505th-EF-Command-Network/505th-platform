@@ -15,8 +15,10 @@ const ytId = (url: string) => /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|sho
 export async function GET(req: Request) {
   const a = await getHubActor(req);
   if (!a) return hubJson({ error: "unauthenticated" }, 401);
-  if (!can(a.role, a.access, "media")) return hubJson({ error: "You don't have Media access." }, 403);
-  const docs = await TerminalDoc.find({ parent: "media" }, { docId: 1, data: 1 }).lean();
+  // Everyone with the Hub can SEE the visible gallery pictures (Settings → Appearance → background picture).
+  // Hidden items and videos stay Media-access only.
+  const full = can(a.role, a.access, "media");
+  const docs = (await TerminalDoc.find({ parent: "media", ...(full ? {} : { "data.type": { $ne: "video" }, "data.enabled": { $ne: false } }) }, { docId: 1, data: 1 }).lean());
   const items = docs.map((d) => { const m = (d.data ?? {}) as U; return { id: d.docId, type: m.type === "video" ? "video" : "image", url: String(m.url || ""), name: String(m.name || "Untitled"),
     description: String(m.description || ""), category: String(m.category || "operations"), uploadedAt: String(m.uploadedAt || ""), enabled: m.enabled !== false }; })
     .sort((x, y) => y.uploadedAt.localeCompare(x.uploadedAt));

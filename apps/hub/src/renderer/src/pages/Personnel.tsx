@@ -241,14 +241,14 @@ export function FileWindow(p: { id: string; me: string; onClose: () => void }) {
               <p className="mt-4 text-[11px] text-dimmer">{f.discordLinked ? `◈ DISCORD @${f.discordUsername || "linked"}` : "○ DISCORD NOT LINKED"}</p>
             </aside>
             <div className="flex min-w-0 flex-1 flex-col">
-              <div role="tablist" className="flex border-b border-cyan/15">
+              <div role="tablist" className="flex flex-wrap border-b border-cyan/15">
                 {([["details", "DETAILS"], ["record", "SERVICE RECORD"], ["medals", "MEDALS"], ["att", "ATTENDANCE"], ["warn", "WARNINGS"]] as const).map(([k, l]) => (
-                  <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={`border-b-2 px-5 py-3 text-[12px] tracking-[2px] ${tab === k ? "border-cyan text-cyan" : "border-transparent text-dim"}`}>{l}</button>
+                  <button key={k} role="tab" aria-selected={tab === k} type="button" onClick={() => setTab(k)} className={`whitespace-nowrap border-b-2 px-4 py-3 text-[12px] tracking-[2px] ${tab === k ? "border-cyan text-cyan" : "border-transparent text-dim"}`}>{l}</button>
                 ))}
                 {f.canEdit ? (
-                  <span className="ml-auto flex items-center gap-1.5 self-center pr-3">
+                  <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5 self-center px-3 py-1.5">
                     {([["promote", "▲ PROMOTE", "#22e07a"], ["transfer", "⇄ TRANSFER", "#00D9FF"], ["warn", "⚠ WARN", "#f59e0b"], ["medal", "★ MEDAL", "#a78bfa"], ["stats", "✎ STATS", "#00D9FF"]] as const).map(([k, l, c]) => (
-                      <button key={k} type="button" onClick={() => setAct({ kind: k })} className="border px-2.5 py-1 text-[10.5px] tracking-[1.5px]" style={{ color: c, borderColor: c + "88" }}>{l}</button>
+                      <button key={k} type="button" onClick={() => setAct({ kind: k })} className="whitespace-nowrap border px-2.5 py-1 text-[10.5px] tracking-[1.5px]" style={{ color: c, borderColor: c + "88" }}>{l}</button>
                     ))}
                   </span>
                 ) : <span className="ml-auto self-center pr-4 text-[10.5px] tracking-[1.5px] text-dimmer">{f.retired ? "RETIRED — FILE FROZEN" : "VIEW ONLY"}</span>}

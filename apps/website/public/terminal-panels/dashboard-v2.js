@@ -558,7 +558,8 @@ async function load() {
 /* ───────── welcome bar ───────── */
 function hello() {
   const n = new Date();
-  const h = Number(n.toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: "Europe/London" }));
+  // Greeting follows the viewer's own clock (not UK time) — 9 pm in the US is "evening".
+  const h = Number(n.toLocaleString("en-GB", { hour: "numeric", hourCycle: "h23" }));
   const part = h < 5 || h >= 18 ? "EVENING" : h < 12 ? "MORNING" : "AFTERNOON";
   const name = String(D.me?.callsign || D.me?.firstName || "").toUpperCase();
   document.getElementById("d2Hello").textContent = `GOOD ${part}${name ? ", " + name : ""}`;

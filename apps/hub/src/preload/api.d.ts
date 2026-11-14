@@ -79,6 +79,11 @@ export type AppSettings = {
   sounds: { vol: number; map: Partial<Record<NotifyEvent, string>>; mine: { id: string; name: string; url: string }[] };
   keys: Record<ShortcutId, string>; keysOff: ShortcutId[]; pageKeys: boolean;
 };
+export type OmItem = { key: string; label: string; group: string; min: number; locked?: boolean };
+export type OmMember = { uid: string; role: string; callsign: string; firstName: string; lastName: string; rank: string; overrides: Record<string, 0 | 1>; until: Record<string, string>; photo: string | null; lastSeen: unknown };
+export type OmLog = { id: string; atISO: string; byName: string; targetUid: string; targetName: string; changes: string[]; reason: string; undone?: boolean; undoneBy?: string };
+export type OmData = { me: { uid: string; role: string; access: Record<string, boolean> }; items: OmItem[]; members?: OmMember[]; assignable?: string[]; log?: OmLog[] };
+export type RaData = { canEdit: boolean; items: OmItem[]; roles: { key: string; count: number }[]; builtIn: Record<string, Record<string, boolean>>; current: Record<string, Record<string, 0 | 1>> };
 export type SysInfo = { version: string; windows: string; installedISO: string; upMins: number; freeGB: number; idleSecs: number };
 export type Device = { id: string; name: string; appVersion: string; os: string; current: boolean; signedInAt: string; lastUsedAt: string; expiresAt: string; revokedAt: string; revokedReason: string };
 export type Overview = {
@@ -214,6 +219,10 @@ declare global {
         devices(): Promise<{ devices: Device[]; recent: Device[] } | { error: string }>;
         devicesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         feedbackAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        officers(): Promise<OmData | { error: string }>;
+        officersAction(body: Record<string, unknown>): Promise<{ ok?: boolean; saved?: number; error?: string }>;
+        roles(): Promise<RaData | { error: string }>;
+        rolesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; changed?: number; error?: string }>;
         projectsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; id?: string; msg?: string; error?: string }>;
         sendAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         setStatus(s: { state: string; note?: string; untilISO?: string | null }): Promise<{ ok?: boolean; error?: string }>;
