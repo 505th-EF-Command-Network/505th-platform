@@ -29,8 +29,11 @@ export function useSummary() {
       clearTimeout(t);
       t = setTimeout(() => void load(), 300); // several signals at once → one reload
     });
-    const timer = setInterval(() => void load(), 120_000);
-    return () => { off(); clearInterval(timer); clearTimeout(t); };
+    // Backup only (live push does the work). Hub hidden in the tray: no timed calls — saves Vercel CPU (15 Nov).
+    const timer = setInterval(() => { if (!document.hidden) void load(); }, 300_000);
+    const vis = () => { if (!document.hidden) void load(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { off(); clearInterval(timer); clearTimeout(t); document.removeEventListener("visibilitychange", vis); };
   }, [load]);
   return { data, error, reload: load };
 }

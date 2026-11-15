@@ -27,7 +27,7 @@ let all = [], meta = {}, archives = null, chans = [];
 let view = "log", src = "", cat = "", q = "", days = 7, openId = null;
 
 async function load() {
-  const r = await fetch("/api/terminal/audit", { cache: "no-store" });
+  const r = await fetch(`/api/terminal/audit?days=${days}`, { cache: "no-store" }); // only the chosen days (Vercel CPU, 15 Nov)
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
     body().innerHTML = `<div class="empty">🔒 ${r.status === 403 ? "YOU DON'T HAVE AUDIT LOG ACCESS" : "COULD NOT LOAD THE AUDIT LOG"}</div>`;
@@ -335,7 +335,7 @@ onReady(() => {
     if (act === "bulktxt") return bulkTxt();
   });
   root.addEventListener("change", (e) => {
-    if (e.target.dataset.f === "days") (days = +e.target.value), render();
+    if (e.target.dataset.f === "days") { days = +e.target.value; render(); load().then(render).catch(() => {}); }
   });
   root.addEventListener("input", (e) => {
     if (e.target.dataset.f !== "q") return;

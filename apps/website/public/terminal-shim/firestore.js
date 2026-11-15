@@ -10,8 +10,10 @@
  * straight after any write from this page.
  */
 const API = "/api/terminal/fs";
-const POLL_MS = 2500;
-const POLL_HIDDEN_MS = 15000;
+// 15 Nov: Vercel CPU limit. Every listener = one server call per poll, for every open Terminal, all day.
+// Now: live push (Cortana → Ably) does the work; polling is only a slow safety net, and stops in a hidden tab.
+const POLL_MS = 10000; // live push NOT connected
+const POLL_HIDDEN_MS = 60000; // tab hidden: don't poll; check again in a minute
 
 // ───────────── Values ─────────────
 
@@ -335,18 +337,20 @@ async function pollAll() {
 function ensureTimer() {
   if (timer) return;
   const tick = async () => {
-    await pollAll();
+    if (!document.hidden) await pollAll();
     timer = setTimeout(tick, document.hidden ? POLL_HIDDEN_MS : liveOk ? POLL_LIVE_MS : POLL_MS);
   };
   timer = setTimeout(tick, POLL_MS);
 }
 
 function pokeListeners() { setTimeout(pollAll, 50); }
+// Back to the tab: catch up at once (nothing was loaded while hidden).
+document.addEventListener("visibilitychange", () => { if (!document.hidden) pokeListeners(); });
 
 // ───────────── Instant updates (Ably, RCD-style) ─────────────
 // Cortana sends "this collection changed" on Ably channel 505th-live (no data). We re-load only the
 // listeners on that collection straight away. Polling stays as the backup (slower while live works).
-const POLL_LIVE_MS = 15000;
+const POLL_LIVE_MS = 60000; // live push connected: safety net only (was 15 s)
 let liveOk = false;
 let liveState = null; // null = not set up / signed out · true = connected · false = reconnecting (polling)
 window.__terminalLive = () => liveState;

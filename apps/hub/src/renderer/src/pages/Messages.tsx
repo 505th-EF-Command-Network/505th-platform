@@ -45,7 +45,7 @@ export function Messages(p: { me: string }) {
     void load();
     let t: ReturnType<typeof setTimeout> | undefined;
     const off = window.cn.net.onTopic((x) => { if (x === "conversations" || x === "presence_sessions") { clearTimeout(t); t = setTimeout(() => void load(), 250); } });
-    const poll = setInterval(() => void load(), 30_000);
+    const poll = setInterval(() => { if (!document.hidden) void load(); }, 60_000);
     return () => { off(); clearTimeout(t); clearInterval(poll); };
   }, [load]);
   // Open a chat → load its messages + mark read.

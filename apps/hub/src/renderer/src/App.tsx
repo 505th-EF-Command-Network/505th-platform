@@ -9,6 +9,7 @@ import { HubAccess } from "./pages/HubAccess";
 import { Network } from "./pages/Network";
 import { Notes } from "./pages/Notes";
 import { Officers } from "./pages/Officers";
+import { Audit } from "./pages/Audit";
 import { PolicyGate } from "./components/Policy";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { alertKind, applySettings, isKey, mergeSettings, quietNow } from "./settings";
@@ -114,9 +115,12 @@ function Shell({ net }: { net: NetState }) {
     void loadOv();
     void window.cn.info().then((i) => i && setVersion(i.version));
     let t: ReturnType<typeof setTimeout> | undefined;
-    const off = window.cn.net.onTopic((x) => { if (["users", "attendance_events", "community_events", "tickets", "audit_logs", "bot_status"].includes(x)) { clearTimeout(t); t = setTimeout(() => void loadOv(), 600); } });
-    const timer = setInterval(() => void loadOv(), 60_000);
-    return () => { off(); clearTimeout(t); clearInterval(timer); };
+    const off = window.cn.net.onTopic((x) => { if (["users", "attendance_events", "community_events", "tickets", "bot_status"].includes(x)) { clearTimeout(t); t = setTimeout(() => void loadOv(), 600); } });
+    // Was every 60 s, even hidden in the tray, and on EVERY audit log entry. Now: live push + 5-min backup while visible.
+    const timer = setInterval(() => { if (!document.hidden) void loadOv(); }, 300_000);
+    const vis = () => { if (!document.hidden) void loadOv(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { off(); clearTimeout(t); clearInterval(timer); document.removeEventListener("visibilitychange", vis); };
   }, [loadOv]);
   /** Layout changes save to the account 800 ms after the last change. */
   const save = (patch: HubPrefs) => {
@@ -221,6 +225,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-msg2" ? <Messages me={data.me.role} />
           : pg === "panel-hubaccess" ? <HubAccess />
           : pg === "panel-officers" ? <Officers />
+          : pg === "panel-auditv2" ? <Audit />
           : pg === "panel-network" ? <Network />
           : pg === "panel-notes" ? <Notes />
           : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} onLock={lockNow} onStatus={(x) => void setStatus(x)} pins={navP.pins} />

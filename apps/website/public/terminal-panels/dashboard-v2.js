@@ -447,7 +447,7 @@ document.addEventListener("click", (e) => { if (e.target.closest?.("[data-bell]"
 // Staff Online v2: filter tabs + search, and fresh usage every minute.
 document.addEventListener("click", (e) => { const b = e.target.closest?.("[data-stf]"); if (b) { window.__stfF = b.dataset.stf; drawW(); } });
 document.addEventListener("input", (e) => { if (e.target.matches?.("[data-stfq]")) { window.__stfQ = e.target.value; const p = e.target.selectionStart; drawW(); const i = document.querySelector("[data-stfq]"); if (i) { i.focus(); i.setSelectionRange(p, p); } } });
-setInterval(() => { fetch("/api/terminal/staff-usage", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((x) => { if (x) { D.su = x; if (!editing) drawW(); } }).catch(() => {}); }, 60_000);
+setInterval(() => { if (document.hidden || document.getElementById("panel-dashboard")?.classList.contains("hidden")) return; fetch("/api/terminal/staff-usage", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((x) => { if (x) { D.su = x; if (!editing) drawW(); } }).catch(() => {}); }, 120_000);
 function needsList() {
   const out = [];
   // 🔔 Unread alerts from the bell (message alerts are counted from the chats below, so nothing is counted twice).
@@ -669,7 +669,7 @@ onReady(() => {
       document.getElementById("d2Hex").innerHTML = hexAvatar(D.me || {}, "lg");
       drawW();
       await refresh();
-      setInterval(() => (document.getElementById("panel-dashboard")?.classList.contains("hidden") ? hello() : refresh()), 60000);
+      setInterval(() => { if (document.hidden) return; (document.getElementById("panel-dashboard")?.classList.contains("hidden") ? hello() : refresh()); }, 60000);
       // Online Now / Staff Online update live (instant updates), not once a minute.
       let seen = null;
       onSnapshot(query(collection(db, "conversations"), where("participants", "array-contains", uid)), (s) => { D.convs = s.docs.map((d) => ({ id: d.id, ...d.data() })); hello(); if (!editing && (L.includes("msgs") || L.includes("todo"))) drawW(); }, () => {});

@@ -210,10 +210,10 @@ async function start() {
     pins = Array.isArray(me?.navPins) ? me.navPins.filter((p) => typeof p === "string") : [];
     drawPins();
     counts(acc);
-    setInterval(() => counts(acc), 120_000);
+    setInterval(() => { if (!document.hidden) counts(acc); }, 120_000); // hidden tab: no server calls (Vercel CPU)
   });
   cortana();
-  setInterval(cortana, 60_000);
+  setInterval(() => { if (!document.hidden) cortana(); }, 120_000);
 }
 const CSS = `
 #sidebar{display:flex;flex-direction:column;width:272px;padding:0;transition:width .15s}

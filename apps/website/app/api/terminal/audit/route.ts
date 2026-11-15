@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { TerminalDoc } from "@505th/db";
 import { AUDIT_DELETE_ROLES, can } from "@/lib/terminal/access";
 import { FsError, getActor } from "@/lib/terminal/fs";
+import { AUDIT_COLLS, CLEAR_ROLES, auditDelete, AuditError, hidePrivate, normalise } from "@/lib/terminal/audit-core";
 
 /**
  * AUDIT LOG v3
@@ -13,8 +14,7 @@ import { FsError, getActor } from "@/lib/terminal/fs";
 export const dynamic = "force-dynamic";
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
-const COLLS = ["audit_logs", "audit_log"]; // new format + the original Command Panel's format
-const CLEAR_ROLES = new Set(["commander", "developer"]);
+const COLLS = AUDIT_COLLS;
 
 async function actorOr(): Promise<Awaited<ReturnType<typeof getActor>> | Response> {
   try {
@@ -23,36 +23,6 @@ async function actorOr(): Promise<Awaited<ReturnType<typeof getActor>> | Respons
     const code = e instanceof FsError ? e.code : "internal";
     return json({ error: code }, code === "unauthenticated" ? 401 : 403);
   }
-}
-
-const iso = (v: unknown): string | null => (v instanceof Date ? v.toISOString() : typeof v === "string" ? v : null);
-const WEB_CAT: Record<string, string> = {
-  manpower: "manpower", battalion_ops: "operations", operations: "operations", intel: "operations", public_comms: "workspace", workspace: "workspace",
-  discord: "discord", discord_network: "command", commander: "command", command: "command", security: "security",
-};
-
-/** Both audit formats → one shape. */
-function normalise(d: { _id: string; data?: unknown; createTime?: Date | null }) {
-  const x = (d.data ?? {}) as Record<string, any>;
-  const source = x.source === "discord" ? "discord" : x.source === "hub" ? "hub" : x.role === "cortana" || x.source === "cortana" ? "cortana" : "website";
-  const section = String(x.section || x.category || "other").toLowerCase();
-  return {
-    id: d._id,
-    at: iso(x.createdAt) || x.createdAtISO || iso(x.timestamp) || iso(d.createTime) || null,
-    source,
-    cat: String(x.cat || (source === "discord" ? "server" : source === "hub" ? "hub" : WEB_CAT[section] || "command")),
-    section,
-    action: String(x.action || "—"),
-    details: String(x.details ?? x.detail ?? ""),
-    by: String(x.by || x.operatorName || "—"),
-    role: String(x.role || ""),
-    locked: x.locked === true,
-    target: x.target ?? null, channel: x.channel ?? null, before: x.before ?? null, after: x.after ?? null, content: x.content ?? null,
-    media: Array.isArray(x.media) ? x.media.map((m: any) => ({ url: String(m.url ?? ""), name: String(m.name ?? ""), kind: String(m.kind ?? "file") })) : null,
-    mediaRemoved: x.mediaRemoved === true,
-    bulk: Array.isArray(x.bulk) ? x.bulk.map((b: any) => ({ at: b.at, author: b.author, content: b.content, media: (b.media ?? []).map((m: any) => ({ url: m.url, name: m.name, kind: m.kind })) })) : null,
-    extra: { reason: x.reason ?? null, count: x.count ?? null, added: x.added ?? null, removed: x.removed ?? null, invite: x.invite ?? null, accountAgeDays: x.accountAgeDays ?? null, roles: x.roles ?? null, oldAvatar: x.oldAvatar ?? null, newAvatar: x.newAvatar ?? null, until: x.until ?? null, messageUrl: x.messageUrl ?? null },
-  };
 }
 
 export async function GET(req: NextRequest) {
@@ -74,17 +44,30 @@ export async function GET(req: NextRequest) {
     return json({ archives: docs.map((d) => ({ id: d.docId, ...(d.data ?? {}) })) });
   }
 
-  const docs = await TerminalDoc.find({ parent: { $in: COLLS } }, { parent: 1, docId: 1, data: 1, createTime: 1 }).sort({ createTime: -1 }).limit(5000).lean();
+  // ?days=1|7|30 → only those days, filtered in the database (was always 5000 rows). No ?days / 9999 = everything (old pages).
+  const dd = Number(sp.get("days") ?? 9999);
+  const since = dd > 0 && dd < 9999 ? { createTime: { $gte: new Date(Date.now() - Math.min(dd, 366) * 864e5) } } : {};
+  const docs = await TerminalDoc.find({ parent: { $in: COLLS }, ...since }, { parent: 1, docId: 1, data: 1, createTime: 1 }).sort({ createTime: -1 }).limit(5000).lean();
   const ms = (v: string | null) => (v ? Date.parse(v) || 0 : 0);
   // Discord message text, pictures and edits are private: Officer and above only.
-  const seeText = AUDIT_DELETE_ROLES.has(actor.role);
-  const entries = docs.map(normalise).sort((a, b) => ms(b.at) - ms(a.at)).map((e) =>
-    seeText || e.source !== "discord" || e.cat !== "messages" ? e : { ...e, details: e.action === "BULK DELETE" ? e.details.replace(/ · from .*/, "") : `${e.target ?? "Member"} — ${e.channel ?? ""} (text hidden: Officer and above)`, content: null, before: null, after: null, media: null, bulk: null, private: true },
-  );
+  const entries = docs.map(normalise).sort((a, b) => ms(b.at) - ms(a.at)).map((e) => hidePrivate(e, actor.role));
   const s = ((await TerminalDoc.findById("settings/audit", { data: 1 }).lean())?.data ?? {}) as Record<string, any>;
   const { lastCleanup, lastPurgeISO: _old, retentionDays: _r, ...settings } = s;
   return json({
     entries, settings, lastCleanup: lastCleanup ?? null,
     canClean: AUDIT_DELETE_ROLES.has(actor.role), canClear: CLEAR_ROLES.has(actor.role), canSettings: can(actor.role, actor.access, "set") && AUDIT_DELETE_ROLES.has(actor.role),
   });
+}
+
+/** POST { action: "delete", ids, reason } — "Delete selected" (Commander / Developer). Archive first, locked record left. */
+export async function POST(req: NextRequest) {
+  const actor = await actorOr();
+  if (actor instanceof Response) return actor;
+  const b = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!b || b.action !== "delete") return json({ error: "Bad request" }, 400);
+  try {
+    return json(await auditDelete({ uid: actor.uid, role: actor.role, access: (actor.access ?? {}) as Record<string, unknown>, displayName: actor.displayName }, b.ids, b.reason));
+  } catch (e) {
+    return e instanceof AuditError ? json({ error: e.message }, e.status) : json({ error: "Something went wrong" }, 500);
+  }
 }

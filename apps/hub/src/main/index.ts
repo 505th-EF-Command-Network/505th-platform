@@ -197,6 +197,12 @@ for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/m
     return call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   });
 }
+// Audit Log: GET ?days=1|7|30 · POST { action: "delete", ids, reason }.
+ipcMain.handle("hub:audit", (e, days: unknown) => (fromMain(e) ? call(`/api/hub/audit?days=${[1, 7, 30].includes(Number(days)) ? Number(days) : 7}`) : null));
+ipcMain.handle("hub:audit-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/audit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 // Network Status: GET can ask one monitor's chart (?mon=id&range=24H).
 ipcMain.handle("hub:network", (e, mon: unknown, range: unknown) => {
   if (!fromMain(e)) return null;

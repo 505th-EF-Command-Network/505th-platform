@@ -12,7 +12,7 @@ import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } 
 import { auth, db, getMe, onReady } from "./_common.js";
 import { onAuthStateChanged } from "/terminal-shim/auth.js";
 
-const BEAT_MS = 30_000;
+const BEAT_MS = 60_000; // still inside the 2-minute online window (was 30 s — Vercel CPU)
 let sid = null, timer = null, panel = "admin_dashboard", starting = false;
 
 const nowISO = () => new Date().toISOString();

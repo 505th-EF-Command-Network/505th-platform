@@ -6,6 +6,11 @@ export interface NoteItem { id: string; title: string; body: string; text: strin
   updatedAtISO: string | null; updatedByName: string | null; x: number | null; y: number | null; pin: boolean; arch: boolean; rem: { atISO: string; repeat: string; sentISO?: string } | null }
 export interface NotesData { me: string; canCreate: boolean; notes: NoteItem[]; people: { uid: string; name: string; role: string; photoUrl: string | null; callsign: string }[]; groups: { key: string; label: string }[]; colours: string[] }
 /** Network Status v2 (lib/net/core.ts). Beat = [minuteOfDay or minute, ms (-1 = no answer), 0 up | 1 slow | 2 down]. */
+/** Audit Log (same shape as the website's /api/terminal/audit entries). */
+export interface AuditEntry { id: string; at: string | null; source: "website" | "discord" | "hub" | "cortana"; cat: string; section: string; action: string; details: string; by: string; role: string; locked: boolean;
+  target: string | null; channel: string | null; before: unknown; after: unknown; content: string | null; media: { url: string; name: string; kind: string }[] | null; mediaRemoved: boolean;
+  bulk: { at: string; author: string; content: string }[] | null; private?: boolean; extra: { reason: unknown; messageUrl: unknown; [k: string]: unknown } }
+export interface AuditData { days: number; entries: AuditEntry[]; canDelete: boolean; canSeeText: boolean }
 export type NetBeat = [number, number, number];
 export interface NetMonitor { id: string; name: string; group: string; type: string; target: string; builtin: boolean; third: boolean; paused: boolean; muted: boolean; slowMs: number; status: "up" | "slow" | "down" | "paused" | "stale" | "pending"; ms: number | null; info: string; error: string; checkedAtISO: string; downSinceISO: string; certValidToISO: string; last: NetBeat[]; up24: number | null; up30: number | null; avg24: number | null }
 export interface NetData { canEdit: boolean; cortanaChecking: boolean; lastCheckISO: string; monitors: NetMonitor[] }
@@ -219,6 +224,8 @@ declare global {
         devices(): Promise<{ devices: Device[]; recent: Device[] } | { error: string }>;
         devicesAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         feedbackAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        audit(days?: number): Promise<AuditData | { error: string }>;
+        auditAction(body: Record<string, unknown>): Promise<{ ok?: boolean; removed?: number; archive?: string; error?: string }>;
         officers(): Promise<OmData | { error: string }>;
         officersAction(body: Record<string, unknown>): Promise<{ ok?: boolean; saved?: number; error?: string }>;
         roles(): Promise<RaData | { error: string }>;

@@ -333,7 +333,7 @@ async function start(user) {
   onSnapshot(collection(db, "community_events"), (s) => { ops = s.docs.map((d) => ({ id: d.id, ...d.data() })); drawOps(); }, () => {});
   setInterval(drawOps, 60000);
   sysCheck();
-  setInterval(sysCheck, 120000);
+  setInterval(() => { if (!document.hidden) sysCheck(); }, 120000);
   onSnapshot(query(collection(db, "notifications", uid, "items"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
     const fresh = alerts.length || snap.metadata?.fromCache === false ? snap.docs.filter((d) => !alerts.some((x) => x.id === d.id) && !d.data().read) : [];
     const first = !window.__tbSeen; window.__tbSeen = true;

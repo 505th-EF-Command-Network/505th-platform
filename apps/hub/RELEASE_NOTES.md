@@ -1,3 +1,11 @@
+505th Command Network v0.4.11
+- Lighter on the server: no timed refreshes while the Hub is hidden in the tray (live updates and alerts still arrive)
+- Pages catch up as soon as you open the Hub
+
+505th Command Network v0.4.10
+- New: Audit Log in the app (Website, Discord, Hub and Cortana in one feed)
+- Commander / Developer: tick entries → Delete selected (reason required, saved to Archives first, locked record left)
+
 505th Command Network v0.4.9
 - Network Status opens fast again (it could time out)
 - Network Status keeps 7 days of history (charts: 1H / 24H / 7D)
