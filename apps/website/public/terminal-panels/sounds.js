@@ -37,7 +37,7 @@ export function alertSound(kind, title) {
     try {
       const A = new AudioContext(); A.resume();
       let t = A.currentTime + 0.03;
-      for (const [f, d] of SOUNDS[id] || SOUNDS.chime) { if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.25 * vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); } t += d; }
+      for (const [f, d] of SOUNDS[id] || SOUNDS.chime) { if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.type = 'triangle'; g.gain.setValueAtTime(0.9 * vol, t); g.gain.setValueAtTime(0.9 * vol, t + d * 0.7); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); } t += d; }
       setTimeout(() => A.close(), (t - A.currentTime) * 1000 + 300);
     } catch { /* no audio */ }
   }

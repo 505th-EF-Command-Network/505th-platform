@@ -164,7 +164,7 @@ export function playSound(id: string, s: AppSettings = current): string {
     const A = new AudioContext(); void A.resume();
     let t = A.currentTime + 0.03;
     for (const [f, d] of x[2]) {
-      if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.25 * v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); }
+      if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.type = "triangle"; g.gain.setValueAtTime(0.9 * v, t); g.gain.setValueAtTime(0.9 * v, t + d * 0.7); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); }
       t += d;
     }
     setTimeout(() => void A.close(), (t - A.currentTime) * 1000 + 300);
@@ -180,7 +180,7 @@ export function playDing() {
     const n = A.currentTime + 0.05;
     for (const [f, t] of [[880, 0], [1320, 0.16]] as const) {
       const o = A.createOscillator(), g = A.createGain();
-      o.frequency.value = f; g.gain.setValueAtTime(0, n + t); g.gain.linearRampToValueAtTime(0.25, n + t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, n + t + 0.3);
+      o.frequency.value = f; g.gain.setValueAtTime(0, n + t); g.gain.linearRampToValueAtTime(0.9, n + t + 0.02); g.gain.exponentialRampToValueAtTime(0.001, n + t + 0.3);
       o.connect(g); g.connect(A.destination); o.start(n + t); o.stop(n + t + 0.32);
     }
     setTimeout(() => void A.close(), 800);

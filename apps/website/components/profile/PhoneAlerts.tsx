@@ -31,7 +31,7 @@ export function playSound(id: string, vol: number, mine: Sounds["mine"] = []) {
     const A = new AudioContext(); void A.resume();
     let t = A.currentTime + 0.02;
     for (const [f, d] of s[2]) {
-      if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.25 * (vol / 100), t); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); }
+      if (f) { const o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.type = "triangle"; const L = Math.max(0.01, 0.9 * (vol / 100)); g.gain.setValueAtTime(L, t); g.gain.setValueAtTime(L, t + d * 0.7); g.gain.exponentialRampToValueAtTime(0.001, t + d); o.connect(g); g.connect(A.destination); o.start(t); o.stop(t + d); }
       t += d;
     }
     setTimeout(() => void A.close(), (t - A.currentTime) * 1000 + 300);

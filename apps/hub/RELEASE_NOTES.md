@@ -1,4 +1,5 @@
-505th Command Network v0.4.7
+505th Command Network v0.4.8
+- Alert sounds are much louder
 - Sound alerts now play even if you haven't clicked the Hub first
 - Your own uploaded alert sounds now play
 - Tray menu: "Quit Hub" was hidden at the bottom — now shows
