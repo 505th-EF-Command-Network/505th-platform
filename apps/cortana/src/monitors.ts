@@ -2,7 +2,7 @@
  * NETWORK STATUS v2 (approved mock 2026-11-12) — Cortana checks every 505th service every 60 s, 24/7.
  *   net_monitors/{id}  config  { name, group, type, target, paused, muted, third, builtin, order, slowMs }
  *   net_status/{id}    live    { status: up|slow|down|paused, ms, checkedAtISO, fails, downSinceISO, alerted, info, certValidToISO, last: [[epochMin, ms|-1, s]] (90) }
- *   net_days/{id}_{YYYY-MM-DD}  { mon, day, b: [[minuteOfDay, ms|-1, s]] }  — kept 90 days (s: 0 up · 1 slow · 2 down)
+ *   net_days/{id}_{YYYY-MM-DD}  { mon, day, b: [[minuteOfDay, ms|-1, s]] }  — kept 7 days, rolling (s: 0 up · 1 slow · 2 down)
  *   net_events/{id}    incidents { mon, name, startedAtISO, endedAtISO, error, note }
  * Every save is pushed through the 505th Net (topics net_status / net_events), so the website + Hub pages update within a second.
  * Down for 3 checks in a row (not muted) → Discord alert (log channel) + 🔔 alert to Commander / Developer. Back up → "recovered after X min".
@@ -21,7 +21,7 @@ import { LOGO, cortanaSettings } from "./util.ts";
 
 const EVERY_MS = 60_000;
 const FAILS_FOR_ALERT = 3;
-const KEEP_DAYS = 90;
+const KEEP_DAYS = 7; // 15 Nov: was 90 — long history made Network Status slow on the free database
 type U = Record<string, any>;
 type Mon = { id: string; name: string; group: string; type: string; target: string; paused?: boolean; muted?: boolean; third?: boolean; builtin?: boolean; order: number; slowMs?: number };
 type Res = { ms: number | null; info?: string; error?: string };
@@ -228,7 +228,7 @@ async function oldDashboard(v: U) {
   await patchDoc("bot_status", "monitors", { ...out, checkedAtISO: new Date().toISOString() });
 }
 
-/** Delete day records older than 90 days (once a day). */
+/** Delete day records older than 7 days (once a day). */
 async function prune() {
   const cut = ukDay(new Date(Date.now() - KEEP_DAYS * 864e5));
   await TerminalDoc.deleteMany({ parent: "net_days", "data.day": { $lt: cut } });

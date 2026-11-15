@@ -1,3 +1,7 @@
+505th Command Network v0.4.9
+- Network Status opens fast again (it could time out)
+- Network Status keeps 7 days of history (charts: 1H / 24H / 7D)
+
 505th Command Network v0.4.8
 - Alert sounds are much louder
 - Sound alerts now play even if you haven't clicked the Hub first

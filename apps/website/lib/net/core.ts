@@ -39,31 +39,58 @@ async function days(mon: string | null, n: number) {
   return by;
 }
 
+/**
+ * 7-day (field name up30 kept so older Hub versions still work) + 24-hour uptime and 24-hour average, counted INSIDE the database (15 Nov: downloading every
+ * minute of 30 days — 563 KB — took 15 s on the free M0 cluster, so the Hub gave up). Returns a few numbers per monitor.
+ * Last 24 h = today + yesterday from this minute of the day (UK time).
+ */
+async function uptimeSums() {
+  const now = new Date(), today = ukDay(now), yest = ukDay(new Date(now.getTime() - 864e5));
+  const [hh, mm] = now.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).split(":").map(Number);
+  const minOfDay = hh! * 60 + mm!;
+  const isDown = { $eq: [{ $arrayElemAt: ["$$this", 2] }, 2] };
+  const rows = (await TerminalDoc.aggregate([
+    { $match: { parent: "net_days", "data.day": { $gte: ukDay(new Date(now.getTime() - 7 * 864e5)) } } },
+    { $project: { mon: "$data.mon", b: { $ifNull: ["$data.b", []] },
+      recent: { $switch: { branches: [
+        { case: { $eq: ["$data.day", today] }, then: { $ifNull: ["$data.b", []] } },
+        { case: { $eq: ["$data.day", yest] }, then: { $filter: { input: { $ifNull: ["$data.b", []] }, cond: { $gte: [{ $arrayElemAt: ["$$this", 0] }, minOfDay] } } } },
+      ], default: [] } } } },
+    { $project: { mon: 1, n: { $size: "$b" }, dn: { $size: { $filter: { input: "$b", cond: isDown } } },
+      rn: { $size: "$recent" }, rdn: { $size: { $filter: { input: "$recent", cond: isDown } } },
+      okMs: { $filter: { input: { $map: { input: "$recent", in: { $arrayElemAt: ["$$this", 1] } } }, cond: { $gte: ["$$this", 0] } } } } },
+    { $group: { _id: "$mon", n: { $sum: "$n" }, dn: { $sum: "$dn" }, rn: { $sum: "$rn" }, rdn: { $sum: "$rdn" }, ms: { $sum: { $sum: "$okMs" } }, mc: { $sum: { $size: "$okMs" } } } },
+  ])) as { _id: string; n: number; dn: number; rn: number; rdn: number; ms: number; mc: number }[];
+  return new Map(rows.map((r) => [String(r._id), r]));
+}
+
 /** List: every monitor with its live status, last 90 beats and 24 h / 30 d uptime. */
 export async function overview(w: Who) {
   if (!can(w.role, w.access, "net")) throw new NetError("You don't have Network Status access.", 403);
-  const [mons, sts, hist] = await Promise.all([
+  const [mons, sts, sums] = await Promise.all([
     TerminalDoc.find({ parent: "net_monitors" }, { docId: 1, data: 1 }).lean(),
     TerminalDoc.find({ parent: "net_status" }, { docId: 1, data: 1 }).lean(),
-    days(null, 30),
+    uptimeSums(),
   ]);
   const st = new Map(sts.map((s) => [String(s.docId), (s.data ?? {}) as U]));
-  const now = Date.now(), nowMin = Math.floor(now / 60000);
+  const now = Date.now();
   const list = mons.map((d) => ({ id: String(d.docId), ...((d.data ?? {}) as U) }) as U).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).map((m) => {
     const s = st.get(m.id) ?? {};
-    const h = hist.get(m.id) ?? [];
+    const sm = sums.get(m.id);
     const stale = !m.paused && (!s.checkedAtISO || now - Date.parse(s.checkedAtISO) > STALE_MS);
     const status = m.paused ? "paused" : stale ? "stale" : s.status || "pending";
     return { id: m.id, name: m.name, group: m.group || "OTHER", type: m.type, target: m.type === "http" || m.type === "game" ? m.target || "" : "", builtin: !!m.builtin, third: !!m.third,
       paused: !!m.paused, muted: !!m.muted, slowMs: m.slowMs ?? null, status, ms: s.ms ?? null, info: s.info || "", error: s.error || "", checkedAtISO: s.checkedAtISO || "",
       downSinceISO: s.downSinceISO || "", certValidToISO: s.certValidToISO || "", last: (Array.isArray(s.last) ? s.last : []) as Beat[],
-      up24: pct(h.filter((x) => x[0] > nowMin - 1440)), up30: pct(h), avg24: avg(h.filter((x) => x[0] > nowMin - 1440)) };
+      up24: sm ? (sm.rn ? Math.round(((sm.rn - sm.rdn) / sm.rn) * 10000) / 100 : null) : null,
+      up30: sm ? (sm.n ? Math.round(((sm.n - sm.dn) / sm.n) * 10000) / 100 : null) : null,
+      avg24: sm?.mc ? Math.round(sm.ms / sm.mc) : null };
   });
   const lastCheck = list.reduce((a, m) => (m.checkedAtISO > a ? m.checkedAtISO : a), "");
   return { canEdit: canEdit(w), cortanaChecking: !!lastCheck && now - Date.parse(lastCheck) < STALE_MS, lastCheckISO: lastCheck, monitors: list };
 }
 
-const RANGES: Record<string, number> = { "1H": 60, "24H": 1440, "7D": 10080, "30D": 43200, "90D": 129600 };
+const RANGES: Record<string, number> = { "1H": 60, "24H": 1440, "7D": 10080 };
 /** One monitor: chart points for a range (down-sampled to ≤ 360 points) + incidents. */
 export async function detail(w: Who, id: string, range: string) {
   if (!can(w.role, w.access, "net")) throw new NetError("You don't have Network Status access.", 403);

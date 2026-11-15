@@ -9,7 +9,7 @@ import { askBox } from "../components/Confirm";
  */
 const COL = ["#22e07a", "#f59e0b", "#ff4d4d"];
 const ST: Record<string, [string, string]> = { up: ["UP", "#22e07a"], slow: ["SLOW", "#f59e0b"], down: ["DOWN", "#ff4d4d"], paused: ["PAUSED", "#7d8a99"], stale: ["NO DATA", "#7d8a99"], pending: ["WAITING", "#7d8a99"] };
-const RANGES = ["1H", "24H", "7D", "30D", "90D"];
+const RANGES = ["1H", "24H", "7D"];
 const hm = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 const dt = (iso: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—");
 const dur = (a: string, b?: string) => { const m = Math.max(1, Math.round(((b ? Date.parse(b) : Date.now()) - Date.parse(a)) / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h`; };
@@ -121,7 +121,7 @@ export function Network() {
         <button type="button" className={btn} onClick={() => void act({ action: "check" })}>↻ CHECK NOW</button>
       </div>
       <div className="mb-3 grid grid-cols-4 gap-2.5">
-        {([[c("up"), "UP", "#22e07a"], [c("down") + c("stale"), "DOWN / NO DATA", "#ff4d4d"], [c("slow"), "SLOW", "#f59e0b"], [all, "UPTIME · 30 DAYS · ALL", "#00D9FF"]] as const).map(([v, l, col]) => (
+        {([[c("up"), "UP", "#22e07a"], [c("down") + c("stale"), "DOWN / NO DATA", "#ff4d4d"], [c("slow"), "SLOW", "#f59e0b"], [all, "UPTIME · 7 DAYS · ALL", "#00D9FF"]] as const).map(([v, l, col]) => (
           <div key={l} className="border border-line bg-panel px-3 py-2"><b className="block font-head text-[23px]" style={{ color: col }}>{v}</b><span className="text-[9.5px] tracking-[2px] text-dim">{l}</span></div>))}
       </div>
       <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr] gap-3">
@@ -156,8 +156,8 @@ export function Network() {
                 {m.status === "down" && m.downSinceISO && <b className="text-bad"> · down for {dur(m.downSinceISO)}{m.muted ? " (alerts muted)" : " — alert sent after 3 checks"}</b>}
                 {m.error && m.status === "down" && <><br /><span className="text-[#ffb3b3]">{m.error}</span></>}</div></div>
             <div className={`${card} grid grid-cols-5 text-center`}>
-              {([["RESPONSE", "current", m.ms != null ? `${m.ms} ms` : "—"], ["AVG. RESPONSE", "24-hour", m.avg24 != null ? `${m.avg24} ms` : "—"], ["UPTIME", "24-hour", m.up24 != null ? `${m.up24}%` : "—"], ["UPTIME", "30-day", m.up30 != null ? `${m.up30}%` : "—"],
-                m.certValidToISO ? ["CERT EXP.", dt(m.certValidToISO).split(",")[0], `${Math.round((Date.parse(m.certValidToISO) - Date.now()) / 864e5)} days`] : ["INCIDENTS", "30-day", String(inc.filter((i) => Date.now() - Date.parse(i.startedAtISO) < 30 * 864e5).length)]] as const).map(([a, b, v], i) => (
+              {([["RESPONSE", "current", m.ms != null ? `${m.ms} ms` : "—"], ["AVG. RESPONSE", "24-hour", m.avg24 != null ? `${m.avg24} ms` : "—"], ["UPTIME", "24-hour", m.up24 != null ? `${m.up24}%` : "—"], ["UPTIME", "7-day", m.up30 != null ? `${m.up30}%` : "—"],
+                m.certValidToISO ? ["CERT EXP.", dt(m.certValidToISO).split(",")[0], `${Math.round((Date.parse(m.certValidToISO) - Date.now()) / 864e5)} days`] : ["INCIDENTS", "7-day", String(inc.filter((i) => Date.now() - Date.parse(i.startedAtISO) < 7 * 864e5).length)]] as const).map(([a, b, v], i) => (
                 <div key={i}><b className="block font-head text-[14px] tracking-[1.5px] text-white">{a}</b><small className="block text-[10px] text-dim">({b})</small><span className="mt-1 block text-[13px] text-cyan">{v}</span></div>))}
             </div>
             <div className={card}><div role="radiogroup" aria-label="Chart range" className="mb-1.5 flex justify-end gap-1">
