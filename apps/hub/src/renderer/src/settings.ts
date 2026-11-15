@@ -157,7 +157,7 @@ export const SOUNDS: [string, string, [number, number][]][] = [
 /** Play a sound by id (built-in or one of mine). Returns its name for the caption. */
 export function playSound(id: string, s: AppSettings = current): string {
   if (id === "none") return "";
-  const v = s.sounds.vol / 100, mine = s.sounds.mine.find((m) => m.id === id);
+  const v = Math.max(0.01, s.sounds.vol / 100), mine = s.sounds.mine.find((m) => m.id === id);
   if (mine) { const a = new Audio(mine.url); a.volume = v; void a.play().catch(() => {}); return mine.name; }
   const x = SOUNDS.find((z) => z[0] === id) ?? SOUNDS[2]!;
   try {

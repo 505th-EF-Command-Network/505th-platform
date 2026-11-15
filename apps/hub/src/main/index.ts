@@ -15,6 +15,8 @@ import { createTrayMenu, type TrayInfo, type TrayNet } from "./tray-menu";
 import { createRealtime, type RealtimeState } from "./realtime";
 
 if (!app.requestSingleInstanceLock()) app.quit();
+// Let alert sounds play without a click first (Chromium blocks audio until the user clicks).
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 app.setAppUserModelId("com.505th.commandnetwork");
 
 // cn505:// links (sign-in) open this app. In development Electron needs the script path too.

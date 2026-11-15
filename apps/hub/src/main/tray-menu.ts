@@ -45,7 +45,8 @@ ${i ? `<div class="sec">${row("dnd", "🔕", "Do Not Disturb", sw(i.dnd))}${row(
 <div class="sec" style="border:0">${row("quit", "✕", "Quit Hub", "", "q")}</div>
 <div class="ft"><span>v${esc(d.version())}</span><span>© 505th EF · RCD</span></div></div></body></html>`;
   };
-  const height = () => (info ? 404 : 210);
+  // Rows: header 59 + who 31 + 4 links + 2 switches + 2 links + Quit + footer ≈ 440. Was 404, which cut Quit off.
+  const height = () => (info ? 456 : 220);
 
   function close() { if (win && !win.isDestroyed()) win.close(); win = null; }
 

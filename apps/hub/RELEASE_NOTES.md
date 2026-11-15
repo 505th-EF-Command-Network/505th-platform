@@ -1,3 +1,9 @@
+505th Command Network v0.4.7
+- Sound alerts now play even if you haven't clicked the Hub first
+- Your own uploaded alert sounds now play
+- Tray menu: "Quit Hub" was hidden at the bottom — now shows
+- Faster: website server moved next to the database (Dublin)
+
 505th Command Network v0.4.6
 - Notes: fixed the title showing 3–4 times (ghost copies) in the editor
 - "Promote" is now "Change Rank": pick Marine, Corpsman, Pilot / Air Wing, Officer or Reserve, or search
