@@ -13,9 +13,14 @@
  */
 import { doc, getDoc, updateDoc } from "/terminal-shim/firestore.js";
 import {
-  db, esc, memberName, RANK_LIST, PLATOON_ORDER, rankOrder, today,
+  db, esc, memberName, RANK_LIST, rankAbbr, PLATOON_ORDER, rankOrder, today,
   getMe, getUsers, audit, notifyMember, notify, addCss, openModal, closeModal, ask, tell,
 } from "./_common.js";
+
+/** Change Rank (Commander 2026-11-15): pick a branch tab, then search — no more blob of ranks. Grade + title decide the branch (E5 Staff Sergeant = Air, E6 = Marine). */
+const BRANCHES = [["marine", "MARINE"], ["corpsman", "CORPSMAN"], ["air", "PILOT / AIR WING"], ["officer", "OFFICER"], ["reserve", "RESERVE"]];
+const AIR = /^(E1 \/ Airman Basic|E2 \/ Airman|E3 \/ Airman First Class|E4 \/ Senior Airman|E5 \/ Staff Sergeant|E6 \/ Technical Sergeant|E7 \/ Master Sergeant|E8 \/ Senior Master Sergeant|E9 \/ Chief Master Sergeant)$/;
+const branchOf = (r) => (/^O\d/.test(r) ? "officer" : /corpsman|hospital/i.test(r) ? "corpsman" : AIR.test(r) ? "air" : /reserv/i.test(r) ? "reserve" : "marine");
 
 const EDIT_ROLES = new Set(["commander", "officer", "developer", "staff_nco"]);
 const MEDALS = [
@@ -69,13 +74,22 @@ export async function promote(uid, cb) {
   const cur = u.rank || "";
   const ranks = RANK_LIST.slice().sort((a, b) => rankOrder(b) - rankOrder(a));
   let pick = "";
-  const ov = win("▲ PROMOTE / CHANGE RANK", "#22e07a", `${who(u)}
-    <label>NEW RANK</label><div class="ma-ranks">${ranks.map((r) => `<button type="button" class="ma-chip ${r === cur ? "cur" : ""}" data-r="${esc(r)}" ${r === cur ? "disabled" : ""}>${esc(r)}${r === cur ? " · NOW" : ""}</button>`).join("")}</div>
+  const ov = win("▲ CHANGE RANK", "#22e07a", `${who(u)}
+    <label>NEW RANK</label><div class="ma-brt" role="tablist">${BRANCHES.map(([k, l]) => `<button type="button" role="tab" data-br="${k}" class="${k === branchOf(cur) ? "on" : ""}">${l}</button>`).join("")}</div>
+    <input class="ma-rq" placeholder="⌕ Search rank (e.g. sergeant, HM2, E5)…" aria-label="Search rank">
+    <div class="ma-ranks">${ranks.map((r) => `<button type="button" class="ma-chip ${r === cur ? "cur" : ""}" data-r="${esc(r)}" data-b="${branchOf(r)}" ${r === cur ? "disabled" : ""}>${esc(r)}${r === cur ? " · NOW" : ""}</button>`).join("")}</div>
     <div class="ma-row"><div><label for="maD">DATE</label><input id="maD" type="date" value="${today()}"></div><div class="ma-dir" aria-live="polite"></div></div>
     <label for="maN">REASON / NOTE</label><input id="maN" maxlength="200" placeholder="e.g. Completed NCO course">
     <label class="ma-ck"><input type="checkbox" id="maPT"> RESET PROMOTION TRACKER (PT) TO 0</label>
     <label class="ma-ck"><input type="checkbox" id="maNt" checked> NOTIFY THE MEMBER + POST TO DISCORD</label>`, "PROMOTE");
+  let br = branchOf(cur);
+  const filt = () => { const q = ov.querySelector(".ma-rq").value.trim().toLowerCase();
+    ov.querySelectorAll("[data-r]").forEach((x) => { const r = x.dataset.r.toLowerCase(); x.hidden = q ? !(r.includes(q) || rankAbbr(x.dataset.r).toLowerCase().includes(q)) : x.dataset.b !== br; }); };
+  ov.querySelector(".ma-rq").addEventListener("input", filt);
+  filt();
   ov.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-br]");
+    if (t) { br = t.dataset.br; ov.querySelector(".ma-rq").value = ""; ov.querySelectorAll("[data-br]").forEach((x) => x.classList.toggle("on", x === t)); return filt(); }
     const b = e.target.closest("[data-r]");
     if (!b) return;
     pick = b.dataset.r;
@@ -367,7 +381,9 @@ const CSS = `
 .ma-who{font:700 16px Rajdhani,sans-serif;letter-spacing:1.5px;color:#fff}.ma-who small{display:block;font:11px 'Share Tech Mono',monospace;color:var(--d);letter-spacing:1px}
 .ma-row{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.ma-row .wide{grid-column:1/-1}.ma-row4{display:grid;grid-template-columns:repeat(4,1fr);gap:0 10px}
 .ma-dir{align-self:end;padding-bottom:8px;font-size:12px}
-.ma-ranks{display:flex;flex-wrap:wrap;gap:5px;max-height:170px;overflow:auto;padding:2px}
+.ma-ranks{display:flex;flex-wrap:wrap;gap:5px;max-height:170px;overflow:auto;padding:2px}.ma-ranks [hidden]{display:none}
+.ma-brt{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 6px}.ma-brt button{background:none;border:1px solid rgba(0,217,255,.2);color:#7d8a99;font:inherit;font-size:10px;letter-spacing:1.5px;padding:4px 9px;cursor:pointer}.ma-brt button.on{border-color:#22e07a;color:#22e07a;background:rgba(34,224,122,.08)}
+.ma-rq{width:100%;box-sizing:border-box;margin-bottom:6px;background:#070a0f;border:1px solid rgba(0,217,255,.25);color:#fff;font:inherit;font-size:12px;padding:6px 8px}
 .ma-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.ma-grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .ma-chip{all:unset;cursor:pointer;box-sizing:border-box;padding:7px 9px;border:1px solid var(--l);font-size:10.5px;letter-spacing:1px;color:#c9d3de;text-align:center}
 .ma-chip small{display:block;color:var(--d);font-size:9px;margin-top:2px}

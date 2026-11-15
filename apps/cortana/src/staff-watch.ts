@@ -4,7 +4,7 @@
  * Nobody else gets these. Checks every minute; the first check after start only learns who is on (no alerts).
  * Same person again within 30 min on the same place = no repeat alert.
  */
-import { HubSession, Member, TerminalDoc } from "@505th/db";
+import { HubSession, Member, TerminalDoc, parseRank } from "@505th/db";
 import { hasTerminal } from "../../website/lib/terminal/access.ts";
 import { env } from "./env.ts";
 import { log } from "./log.ts";
@@ -15,6 +15,13 @@ const ONLINE_MS = 3 * 60_000, QUIET_MS = 30 * 60_000;
 let prev: Record<"hub" | "web", Set<string>> | null = null;
 const lastSent = new Map<string, number>();
 
+/** "SSgt K. Kain" / "GySgt H. "Handler" Hoffman" / "Capt C. Marston" — rank short + first initial + "callsign" + last name. */
+function fullName(d: U) {
+  const rank = parseRank(String(d.rank ?? ""))?.abbrev ?? "";
+  const first = String(d.firstName ?? "").trim(), last = String(d.lastName ?? "").trim(), cs = String(d.callsign ?? "").trim();
+  const n = [rank, first ? `${first[0]!.toUpperCase()}.` : "", cs ? `"${cs}"` : "", last].filter(Boolean).join(" ");
+  return (n || String(d.name || d.displayName || "Staff member")).slice(0, 60);
+}
 const ukDay = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
 
@@ -45,10 +52,10 @@ async function extraLine(uid: string, k: "hub" | "web") {
 async function tick() {
   const ownerId = env.CORTANA_OWNER_DISCORD_ID;
   const now = Date.now();
-  const users = (await TerminalDoc.find({ parent: "users" }, { docId: 1, "data.discordId": 1, "data.role": 1, "data.callsign": 1, "data.name": 1, "data.displayName": 1, "data.suspended": 1 }).lean()) as U[];
+  const users = (await TerminalDoc.find({ parent: "users" }, { docId: 1, "data.discordId": 1, "data.role": 1, "data.callsign": 1, "data.name": 1, "data.displayName": 1, "data.suspended": 1, "data.rank": 1, "data.firstName": 1, "data.lastName": 1 }).lean()) as U[];
   const owner = ownerId ? users.find((u) => String(u.data?.discordId ?? "") === ownerId) : undefined;
   const staff = new Map<string, string>();
-  for (const u of users) if (hasTerminal(String(u.data?.role ?? "")) && u.data?.suspended !== true) staff.set(String(u.docId), String(u.data?.callsign || u.data?.name || u.data?.displayName || "Staff").slice(0, 60));
+  for (const u of users) if (hasTerminal(String(u.data?.role ?? "")) && u.data?.suspended !== true) staff.set(String(u.docId), fullName(u.data ?? {}));
 
   const [hubs, pres] = await Promise.all([
     HubSession.find({ revokedAt: { $exists: false }, lastUsedAt: { $gt: new Date(now - ONLINE_MS) } }, { member: 1 }).lean(),

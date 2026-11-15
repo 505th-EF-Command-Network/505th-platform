@@ -189,7 +189,8 @@ export function Notes() {
                 {d.canCreate && <button type="button" className={btn} onClick={() => void create({ rem: { atISO: new Date(`${selDay}T19:00`).toISOString(), repeat: "none" } })}>＋ NEW NOTE ON THIS DAY</button>}</> : "Click a day to select it · ＋ adds a note with a reminder on that day."} · Your reminders only.</p></div>; })()}
         </div>
 
-        <div className="sticky top-0 max-h-[calc(100vh-150px)] overflow-auto border border-cyan/15 bg-panel p-3">
+        {/* Own GPU layer + contain: stops Chromium leaving "ghost" copies of the title when the sticky editor scrolls (tester report 2026-11-15). */}
+        <div className="sticky top-0 isolate max-h-[calc(100vh-150px)] overflow-auto border border-cyan/15 bg-panel p-3 [contain:paint] [transform:translateZ(0)]">
           {!cur ? <p className="py-10 text-center text-[11px] tracking-[2px] text-dimmer">PICK A NOTE</p> : <>
             <div className="text-[9.5px] tracking-[1.5px] text-dim">{ro ? `VIEW ONLY · ${cur.ownerName}` : cur.access === "owner" ? "YOUR NOTE" : `SHARED BY ${cur.ownerName} · CAN EDIT`} <span className="text-dimmer">{saved}</span></div>
             <input key={cur.id} ref={titleRef} defaultValue={cur.title} readOnly={ro} onInput={queue} maxLength={120} aria-label="Title" className="w-full border-b border-cyan/20 bg-transparent py-1 font-head text-[18px] font-bold tracking-[1px] text-white outline-none focus:border-cyan" />

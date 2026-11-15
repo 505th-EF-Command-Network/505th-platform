@@ -1,3 +1,9 @@
+505th Command Network v0.4.6
+- Notes: fixed the title showing 3–4 times (ghost copies) in the editor
+- "Promote" is now "Change Rank": pick Marine, Corpsman, Pilot / Air Wing, Officer or Reserve, or search
+- Staff alerts show the full name (e.g. SSgt K. Kain)
+- Fewer database connections (more reliable)
+
 505th Command Network v0.4.5
 - NEW Officer Management in the app: People (access in groups, reason, time-limited access, recent changes + UNDO), Role defaults, Change log
 - Personnel File: tab names no longer break onto two lines

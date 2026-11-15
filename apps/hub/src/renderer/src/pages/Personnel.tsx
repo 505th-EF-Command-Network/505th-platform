@@ -247,7 +247,7 @@ export function FileWindow(p: { id: string; me: string; onClose: () => void }) {
                 ))}
                 {f.canEdit ? (
                   <span className="ml-auto flex flex-wrap items-center justify-end gap-1.5 self-center px-3 py-1.5">
-                    {([["promote", "▲ PROMOTE", "#22e07a"], ["transfer", "⇄ TRANSFER", "#00D9FF"], ["warn", "⚠ WARN", "#f59e0b"], ["medal", "★ MEDAL", "#a78bfa"], ["stats", "✎ STATS", "#00D9FF"]] as const).map(([k, l, c]) => (
+                    {([["promote", "▲ CHANGE RANK", "#22e07a"], ["transfer", "⇄ TRANSFER", "#00D9FF"], ["warn", "⚠ WARN", "#f59e0b"], ["medal", "★ MEDAL", "#a78bfa"], ["stats", "✎ STATS", "#00D9FF"]] as const).map(([k, l, c]) => (
                       <button key={k} type="button" onClick={() => setAct({ kind: k })} className="whitespace-nowrap border px-2.5 py-1 text-[10.5px] tracking-[1.5px]" style={{ color: c, borderColor: c + "88" }}>{l}</button>
                     ))}
                   </span>

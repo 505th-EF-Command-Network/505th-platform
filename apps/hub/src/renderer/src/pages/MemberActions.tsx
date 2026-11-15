@@ -21,7 +21,7 @@ const FIELDS: Record<string, [string, string, string?][]> = {
   ribbon: [["date", "DATE", "date"], ["title", "TITLE"], ["note", "NOTE"]],
 };
 const TITLE: Record<string, [string, string]> = {
-  promote: ["▲ PROMOTE / CHANGE RANK", "#22e07a"], transfer: ["⇄ TRANSFER", "#00D9FF"], warn: ["⚠ WARN", "#f59e0b"], medal: ["★ AWARD MEDAL", "#a78bfa"],
+  promote: ["▲ CHANGE RANK", "#22e07a"], transfer: ["⇄ TRANSFER", "#00D9FF"], warn: ["⚠ WARN", "#f59e0b"], medal: ["★ AWARD MEDAL", "#a78bfa"],
   stats: ["✎ EDIT STATS", "#00D9FF"], "edit-entry": ["✎ EDIT ENTRY", "#ffd166"], "delete-entry": ["🗑 DELETE ENTRY", "#ff4d4d"],
 };
 
@@ -81,7 +81,7 @@ export function ActionWindow(p: { f: MemberFile; name: string; action: Action; o
           <div className="font-head text-[16px] font-bold tracking-[1.5px] text-white">{p.name}<small className="block font-mono text-[11px] font-normal text-dim">{f.rank || "No rank"} · {f.platoon || "No platoon"}</small></div>
 
           {action.kind === "promote" && (<>
-            {label("NEW RANK", "ma-rank")}{chips("rank", [...f.lists.ranks].sort((a, b) => rankOrder(b) - rankOrder(a)), f.rank)}
+            {label("NEW RANK", "ma-rank")}<RankPicker ranks={f.lists.ranks} cur={f.rank} value={typeof v.rank === "string" ? v.rank : ""} color={color} onPick={(r) => set("rank", r)} />
             {typeof v.rank === "string" && <p className="mt-2 text-[12px]" style={{ color: rankOrder(v.rank) < rankOrder(f.rank) ? "#22e07a" : "#ff4d4d" }}>{f.rank || "—"} → {v.rank} {rankOrder(v.rank) < rankOrder(f.rank) ? "▲" : "▼ DEMOTION"}</p>}
             <div className="grid grid-cols-2 gap-3"><div>{label("DATE", "ma-date")}{input("date", "date")}</div><div>{label("REASON / NOTE", "ma-note")}{input("note", "text", { maxLength: 200 })}</div></div>
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-[12px] text-[#c9d3de]"><input type="checkbox" checked={v.resetPt === true} onChange={(e) => set("resetPt", e.target.checked)} className="accent-cyan" /> RESET PROMOTION TRACKER (PT) TO 0</label>
@@ -143,4 +143,24 @@ export function ActionWindow(p: { f: MemberFile; name: string; action: Action; o
       </div>
     </div>
   );
+}
+
+/** Change Rank (Commander 2026-11-15): branch tabs + search instead of one blob of ranks. Grade + title decide the branch (E5 Staff Sergeant = Air, E6 = Marine). */
+const BRANCHES: [string, string][] = [["marine", "MARINE"], ["corpsman", "CORPSMAN"], ["air", "PILOT / AIR WING"], ["officer", "OFFICER"], ["reserve", "RESERVE"]];
+const AIR = /^(E1 \/ Airman Basic|E2 \/ Airman|E3 \/ Airman First Class|E4 \/ Senior Airman|E5 \/ Staff Sergeant|E6 \/ Technical Sergeant|E7 \/ Master Sergeant|E8 \/ Senior Master Sergeant|E9 \/ Chief Master Sergeant)$/;
+const branchOf = (r: string) => (/^O\d/.test(r) ? "officer" : /corpsman|hospital/i.test(r) ? "corpsman" : AIR.test(r) ? "air" : /reserv/i.test(r) ? "reserve" : "marine");
+function RankPicker(p: { ranks: string[]; cur: string; value: string; color: string; onPick: (r: string) => void }) {
+  const [br, setBr] = useState(branchOf(p.cur || ""));
+  const [q, setQ] = useState("");
+  const list = [...p.ranks].sort((a, b) => rankOrder(b) - rankOrder(a)).filter((r) => (q ? r.toLowerCase().includes(q.toLowerCase()) : branchOf(r) === br));
+  return <div>
+    <div role="tablist" className="mb-1.5 flex flex-wrap gap-1">{BRANCHES.map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={!q && br === k} onClick={() => { setBr(k); setQ(""); }}
+      className={`border px-2 py-0.5 text-[10px] tracking-[1.5px] ${!q && br === k ? "border-ok bg-ok/10 text-ok" : "border-cyan/20 text-dim hover:text-white"}`}>{l}</button>)}</div>
+    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="⌕ Search rank (e.g. sergeant, corpsman, E5)…" aria-label="Search rank"
+      className="mb-1.5 w-full border border-cyan/25 bg-black/55 px-2.5 py-1.5 text-[12px] text-white outline-none focus:border-cyan" />
+    <div className="flex max-h-[170px] flex-wrap gap-1.5 overflow-auto">
+      {list.map((o) => <button key={o} type="button" disabled={o === p.cur} aria-pressed={p.value === o} onClick={() => p.onPick(o)}
+        className="border px-2.5 py-1.5 text-[11px] tracking-[1px] disabled:opacity-40" style={{ borderColor: p.value === o ? p.color : "rgba(0,217,255,.18)", color: p.value === o ? p.color : "#c9d3de" }}>{o}{o === p.cur ? " · NOW" : ""}</button>)}
+      {!list.length && <span className="text-[11px] text-dim">No rank matches.</span>}
+    </div></div>;
 }

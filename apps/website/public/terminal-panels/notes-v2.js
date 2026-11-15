@@ -237,7 +237,7 @@ addCss("notesV3", `
 #notesV3 .nv-c.s{border-color:#c9a227;box-shadow:inset 0 0 0 1px #c9a227}#notesV3 .nv-c:focus-visible{outline:2px solid #00D9FF}
 #notesV3 .nv-dn{color:var(--d)}#notesV3 .nv-add{float:right;background:none;border:1px solid transparent;color:#4b5765;font:inherit;font-size:13px;line-height:1;padding:0 4px;cursor:pointer}#notesV3 .nv-c:hover .nv-add,#notesV3 .nv-c.s .nv-add{color:#00D9FF}#notesV3 .nv-add:hover{border-color:#00D9FF}
 #notesV3 .nv-ev{display:block;margin-top:3px;padding:1px 4px;border-left:3px solid;background:#121a24;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#notesV3 .nv-ed{border:1px solid var(--l);background:var(--p);padding:13px;position:sticky;top:10px;max-height:calc(100vh - 140px);overflow:auto}
+#notesV3 .nv-ed{border:1px solid var(--l);background:var(--p);padding:13px;position:sticky;top:10px;max-height:calc(100vh - 140px);overflow:auto;contain:paint;transform:translateZ(0)}
 #notesV3 .nv-sub{font-size:9.5px;letter-spacing:1.5px;color:var(--d)}
 #notesV3 .nv-title{width:100%;background:none;border:0;border-bottom:1px solid var(--l);font:700 18px Rajdhani,sans-serif;letter-spacing:1px;color:#fff;padding:4px 0;outline:0}#notesV3 .nv-title:focus{border-bottom-color:#00D9FF}
 #notesV3 .nv-tb{display:flex;gap:3px;flex-wrap:wrap;padding:5px;border:1px solid var(--l);background:#070a0f;margin:10px 0}
