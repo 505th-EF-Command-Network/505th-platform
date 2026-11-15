@@ -29,6 +29,8 @@ const schema = z.object({
   // Optional — phone push alerts (push.ts). Make once with: npx web-push generate-vapid-keys. Public key also goes on Vercel as VAPID_PUBLIC_KEY.
   VAPID_PUBLIC_KEY: z.string().min(40).optional().or(z.literal("").transform(() => undefined)),
   VAPID_PRIVATE_KEY: z.string().min(20).optional().or(z.literal("").transform(() => undefined)),
+  // Optional — where nightly backups go (default apps/cortana/backups). E.g. D:\\505th-backups
+  BACKUP_DIR: z.string().min(2).optional().or(z.literal("").transform(() => undefined)),
   PRESENCE_INTENT: z.enum(["true", "false", ""]).optional().transform((v) => v === "true"),
 });
 

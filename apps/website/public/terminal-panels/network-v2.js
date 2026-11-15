@@ -12,7 +12,7 @@ import { mountControl } from "./cortana-control.js";
 const API = "/api/terminal/network";
 const COL = { 0: "#22e07a", 1: "#f59e0b", 2: "#ff4d4d" };
 const ST = { up: ["UP", "#22e07a"], slow: ["SLOW", "#f59e0b"], down: ["DOWN", "#ff4d4d"], paused: ["PAUSED", "#7d8a99"], stale: ["NO DATA", "#7d8a99"], pending: ["WAITING", "#7d8a99"] };
-let D = null, det = null, sel = null, range = "24H", q = "", root = null, acc = {}, unsub = null, poll = null, lastLoad = 0, tick = null;
+let D = null, det = null, sel = null, range = "24H", root = null, acc = {}, unsub = null, poll = null, lastLoad = 0, tick = null;
 const live = () => (typeof window.__terminalLive === "function" ? window.__terminalLive() : null);
 const hm = (ms) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 const dt = (iso) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—");
@@ -57,7 +57,7 @@ function draw() {
   const up30 = ms.filter((x) => x.up30 != null && !x.paused), all = up30.length ? (up30.reduce((a, x) => a + x.up30, 0) / up30.length).toFixed(2) + "%" : "—";
   const ago = Math.round((Date.now() - lastLoad) / 1000);
   let g = "";
-  const list = ms.filter((x) => x.name.toLowerCase().includes(q.toLowerCase())).map((x) => { const h = x.group !== g ? `<div class="grp">${esc((g = x.group))}</div>` : "";
+  const list = ms.map((x) => { const h = x.group !== g ? `<div class="grp">${esc((g = x.group))}</div>` : "";
     return h + `<button class="mon ${x.id === sel ? "on" : ""}" data-m="${x.id}" aria-current="${x.id === sel}">${pill(x)}<span class="nm"><b>${esc(x.name)}</b>${x.third ? '<small class="t3">3RD-PARTY</small>' : ""}${x.muted ? '<small class="mu">🔕</small>' : ""}</span>${mini(x.last)}</button>`; }).join("");
   const [sl, sc] = m ? ST[m.status] || ST.pending : ["", ""];
   const beats = m ? m.last.slice(-60) : [];
@@ -150,8 +150,6 @@ onReady(() => {
   });
   if (!root) return;
   addCss("netV3", CSS);
-  // The old Network Status (network.js) is no longer mounted on this panel.
-  root.addEventListener("input", (e) => { if (e.target.id === "ntQ") { q = e.target.value; const p = e.target.selectionStart; draw(); const i = root.querySelector("#ntQ"); i.focus(); i.setSelectionRange(p, p); } });
   root.addEventListener("click", async (e) => {
     const mon = e.target.closest("[data-m]"); if (mon) { sel = mon.dataset.m; det = null; draw(); det = await call("GET", null, `?mon=${encodeURIComponent(sel)}&range=${range}`).catch(() => null); return draw(); }
     const r = e.target.closest("[data-r]"); if (r) { range = r.dataset.r; det = await call("GET", null, `?mon=${encodeURIComponent(sel)}&range=${range}`).catch(() => det); return draw(); }

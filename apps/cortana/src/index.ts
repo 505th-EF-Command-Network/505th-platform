@@ -27,6 +27,7 @@ import { handleTicketButton, handleTicketModal, onTicketMessage, startTickets } 
 import { startModeration } from "./moderation.ts";
 import { startModlist } from "./modlist.ts";
 import { startLegacyImport } from "./legacy-import.ts";
+import { startBackup } from "./backup.ts";
 import { startCleanup } from "./cleanup.ts";
 import { startAar } from "./aar.ts";
 import { startMonthlyReset } from "./monthly-reset.ts";
@@ -81,6 +82,7 @@ client.once(Events.ClientReady, async (ready) => {
   startAar();
   startMonthlyReset();
   startNoteReminders(); // Notes v2 ⏰ reminders → 🔔 alert + Hub pop-up
+  startBackup(); // 💾 nightly MongoDB backup to the bot server's disk (Atlas M0 has none)
   startAccessExpiry(); // Officer Management: time-limited access switches off by itself
   startPush(); // 📱 phone alerts: every new 🔔 alert → web push (iPhone / Android)
   startStaffWatch(); // owner only: 🟢 staff came online (Discord / Hub / website)
