@@ -19,7 +19,10 @@ export async function connectDb(uri = process.env.MONGODB_URI, dbName = process.
     // 15 Nov: Atlas "connections near the M0 limit" alert. Every warm Vercel copy keeps its own connections,
     // so keep each copy tiny: 2 in the pool, close idle ones after 10 s, and "poll" monitoring
     // (1 monitor connection per server instead of 2). Cortana (one long process) keeps 10.
-    maxPoolSize: process.env.VERCEL ? 2 : 10,
+    // 15 Nov 18:20: Fluid Compute is ON — ONE Vercel copy now serves many requests at once, so a pool of 2
+    // made requests queue → MongoWaitQueueTimeoutError → "website took too long". Fluid also means far fewer copies,
+    // so 10 per copy stays well under the 500 limit.
+    maxPoolSize: 10,
     minPoolSize: 0,
     maxIdleTimeMS: process.env.VERCEL ? 10_000 : 60_000,
     serverMonitoringMode: "poll",
@@ -38,7 +41,7 @@ export async function connectDb(uri = process.env.MONGODB_URI, dbName = process.
 let lastReset = 0;
 export function resetDbIfBroken(err: unknown) {
   const e = err as { name?: string; errorLabelSet?: Set<string>; code?: string } | null;
-  const broken = !!e && (e.name === "MongoNetworkError" || e.name === "MongoServerSelectionError" || e.errorLabelSet?.has("SystemOverloadedError") || e.errorLabelSet?.has("ResetPool"));
+  const broken = !!e && (e.name === "MongoNetworkError" || e.name === "MongoServerSelectionError" || e.name === "MongoWaitQueueTimeoutError" || e.errorLabelSet?.has("SystemOverloadedError") || e.errorLabelSet?.has("ResetPool"));
   if (!broken || Date.now() - lastReset < 10_000) return broken;
   lastReset = Date.now();
   const p = cache.promise;
