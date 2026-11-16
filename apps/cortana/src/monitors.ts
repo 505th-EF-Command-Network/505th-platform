@@ -203,8 +203,8 @@ async function run(client: Client<true>) {
     const last = [...(Array.isArray(prev.last) ? prev.last : []), [epochMin, r.ms ?? -1, s]].slice(-90);
     await patchDoc("net_status", m.id, { status, ms: r.ms, checkedAtISO: nowISO, fails, downSinceISO, alerted, info: r.info ?? "", error: s === 2 ? r.error ?? "No answer" : "", last,
       ...(m.type === "website" ? { certValidToISO: certISO } : {}) });
-    await TerminalDoc.updateOne({ _id: `net_days/${m.id}_${day}` }, { $push: { "data.b": [min, r.ms ?? -1, s] }, $set: { "data.mon": m.id, "data.day": day, updateTime: now },
-      $setOnInsert: { parent: "net_days", docId: `${m.id}_${day}`, createTime: now } }, { upsert: true });
+    // 16 Nov: Network Status is now a top-bar light (no uptime / charts), so minute history (net_days) is no longer saved.
+    // The daily clean-up removes what's left within 7 days.
     if (m.id === "website" || m.id === "db") old[m.id === "website" ? "web" : "db"] = r.ms;
   }
   await oldDashboard(old);

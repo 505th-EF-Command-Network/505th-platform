@@ -1,3 +1,8 @@
+505th Command Network v0.4.13
+- Network Status is now the NET light in the top bar: click it to see every service (UP / SLOW / DOWN) and CHECK NOW
+- No more uptime charts or history (lighter on the server)
+- Cortana restart and monitor settings: website → Cortana Setup
+
 505th Command Network v0.4.12
 - Instant panels: rest your mouse on a menu item and the page loads in the background — it's ready when you click
 - Pages you've opened stay ready (up to 10)

@@ -311,10 +311,21 @@ async function sysCheck() {
   const ok = await fetch("/api/terminal/access", { cache: "no-store" }).then((r) => r.ok).catch(() => false);
   if (!ok) bad++;
   rows.push(["WEBSITE / DATABASE", ok, ok ? Math.round(performance.now() - t0) + " MS" : "ERROR"]);
-  $("#tb3SysList").innerHTML = rows.map(([n, g, t]) => `<div class="tb3-row"><i class="tb3-dot" style="background:${g ? "#22e07a" : "#ff4d4d"};color:${g ? "#22e07a" : "#ff4d4d"}"></i>${n}<small>${t}</small></div>`).join("");
-  $("#tb3SysDot").style.background = bad ? "#ff4d4d" : "#22e07a";
-  $("#tb3SysDot").style.color = bad ? "#ff4d4d" : "#22e07a";
-  $("#tb3SysTx").textContent = bad ? "SYSTEM ISSUE" : "CORTANA · SITE";
+  // NET light (16 Nov — replaces the Network Status page): every service Cortana checks, live state only. Needs "net" access.
+  const net = await fetch("/api/terminal/network", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const mons = (net?.monitors || []).filter((m) => !m.paused);
+  const down = mons.filter((m) => m.status === "down" || m.status === "stale").length, slow = mons.filter((m) => m.status === "slow").length;
+  const C = { up: "#22e07a", slow: "#f59e0b", down: "#ff4d4d", stale: "#ff4d4d", pending: "#7d8a99" }, L = { up: "UP", slow: "SLOW", down: "DOWN", stale: "NO DATA", pending: "WAITING" };
+  const col = bad || down ? "#ff4d4d" : slow ? "#f59e0b" : "#22e07a";
+  $("#tb3SysList").innerHTML = rows.map(([n, g, t]) => `<div class="tb3-row"><i class="tb3-dot" style="background:${g ? "#22e07a" : "#ff4d4d"};color:${g ? "#22e07a" : "#ff4d4d"}"></i>${n}<small>${t}</small></div>`).join("")
+    + (mons.length ? `<div class="tb2-alh" style="margin-top:4px"><b>SERVICES</b>${net.cortanaChecking ? "" : '<small style="color:#ff4d4d">CORTANA ISN\'T CHECKING</small>'}</div>`
+      + mons.map((m) => `<div class="tb3-row"><i class="tb3-dot" style="background:${C[m.status] || "#7d8a99"};color:${C[m.status] || "#7d8a99"}"></i>${esc(m.name)}<small style="color:${C[m.status] || "#7d8a99"}">${L[m.status] || "—"}${m.ms != null && m.status !== "down" ? ` · ${m.ms} MS` : ""}</small></div>`).join("")
+      + `<div class="tb2-alh" style="border-top:1px solid rgba(255,255,255,.06)"><small style="color:#7d8a99">LIVE FROM CORTANA</small><button class="tb2-lnk" id="tb3NetChk">↻ CHECK NOW</button></div>` : "");
+  const chk = $("#tb3NetChk");
+  if (chk) chk.onclick = (e) => { e.stopPropagation(); chk.textContent = "CHECKING…"; fetch("/api/terminal/network", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "check" }) }).finally(() => setTimeout(sysCheck, 4000)); };
+  $("#tb3SysDot").style.background = col;
+  $("#tb3SysDot").style.color = col;
+  $("#tb3SysTx").textContent = bad ? "SYSTEM ISSUE" : down ? `NET · ${down} DOWN` : slow ? `NET · ${slow} SLOW` : mons.length ? `NET · ALL UP ${mons.length}/${mons.length}` : "CORTANA · SITE";
 }
 
 async function start(user) {
@@ -334,6 +345,7 @@ async function start(user) {
   setInterval(drawOps, 60000);
   sysCheck();
   setInterval(() => { if (!document.hidden) sysCheck(); }, 120000);
+  window.addEventListener("terminal-live", (e) => { if (e.detail === "net_status" && !document.hidden) sysCheck(); });
   onSnapshot(query(collection(db, "notifications", uid, "items"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
     const fresh = alerts.length || snap.metadata?.fromCache === false ? snap.docs.filter((d) => !alerts.some((x) => x.id === d.id) && !d.data().read) : [];
     const first = !window.__tbSeen; window.__tbSeen = true;

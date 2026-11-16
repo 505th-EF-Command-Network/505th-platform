@@ -26,10 +26,9 @@ async function call(method, body, qs = "") {
 async function load() {
   D = await call("GET"); lastLoad = Date.now();
   if (!sel || !D.monitors.some((m) => m.id === sel)) sel = D.monitors[0]?.id || null;
-  if (sel) det = await call("GET", null, `?mon=${encodeURIComponent(sel)}&range=${range}`).catch(() => det);
   draw();
 }
-const pill = (m) => { const [l, c] = m.status === "down" ? ["DOWN", "#ff4d4d"] : m.status === "paused" ? ["PAUSED", "#4b5765"] : m.status === "stale" ? ["NO DATA", "#4b5765"] : [m.up30 != null ? `${m.up30}%` : "—", m.status === "slow" ? "#f59e0b" : "#22e07a"];
+const pill = (m) => { const [l, c] = m.status === "down" ? ["DOWN", "#ff4d4d"] : m.status === "paused" ? ["PAUSED", "#4b5765"] : m.status === "stale" ? ["NO DATA", "#4b5765"] : [m.status === "slow" ? "SLOW" : m.status === "up" ? "UP" : "WAITING", m.status === "slow" ? "#f59e0b" : m.status === "up" ? "#22e07a" : "#4b5765"];
   return `<span class="pc" style="background:${c};color:${c === "#4b5765" ? "#fff" : "#000"}">${l}</span>`; };
 const mini = (last, n = 14) => { const v = last.slice(-n), pad = Array(Math.max(0, n - v.length)).fill(null);
   return `<span class="mini">${[...pad, ...v].map((b) => `<i style="background:${b ? COL[b[2]] : "#1d2630"}"></i>`).join("")}</span>`; };
@@ -54,20 +53,19 @@ function draw() {
   if (!D) { root.innerHTML = '<div class="empty">LOADING…</div>'; return; }
   const ms = D.monitors, m = ms.find((x) => x.id === sel), L = live();
   const c = (s) => ms.filter((x) => x.status === s).length;
-  const up30 = ms.filter((x) => x.up30 != null && !x.paused), all = up30.length ? (up30.reduce((a, x) => a + x.up30, 0) / up30.length).toFixed(2) + "%" : "—";
   const ago = Math.round((Date.now() - lastLoad) / 1000);
   let g = "";
   const list = ms.map((x) => { const h = x.group !== g ? `<div class="grp">${esc((g = x.group))}</div>` : "";
-    return h + `<button class="mon ${x.id === sel ? "on" : ""}" data-m="${x.id}" aria-current="${x.id === sel}">${pill(x)}<span class="nm"><b>${esc(x.name)}</b>${x.third ? '<small class="t3">3RD-PARTY</small>' : ""}${x.muted ? '<small class="mu">🔕</small>' : ""}</span>${mini(x.last)}</button>`; }).join("");
+    return h + `<button class="mon ${x.id === sel ? "on" : ""}" data-m="${x.id}" aria-current="${x.id === sel}">${pill(x)}<span class="nm"><b>${esc(x.name)}</b>${x.third ? '<small class="t3">3RD-PARTY</small>' : ""}${x.muted ? '<small class="mu">🔕</small>' : ""}</span></button>`; }).join("");
   const [sl, sc] = m ? ST[m.status] || ST.pending : ["", ""];
   const beats = m ? m.last.slice(-60) : [];
   const padB = Array(Math.max(0, 60 - beats.length)).fill(null);
   const inc = det?.incidents || [];
   root.innerHTML = `
-  <div class="top"><div><div class="h1" style="border:none;padding:0">◉ NETWORK STATUS</div><div class="sub" style="margin:3px 0 0">EVERY 505TH SERVICE · CHECKED EVERY MINUTE BY CORTANA · 90-DAY HISTORY</div></div><span style="flex:1"></span>
+  <div class="top"><div><div class="h1" style="border:none;padding:0">◉ MONITORS &amp; CORTANA CONTROLS</div><div class="sub" style="margin:3px 0 0">SERVICES CORTANA CHECKS EVERY MINUTE · LIVE STATE ONLY · OPENED FROM CORTANA SETUP</div></div><span style="flex:1"></span>
     <span class="lv" style="color:${!D.cortanaChecking ? "#ff4d4d" : L === true ? "#22e07a" : "#f59e0b"}">${!D.cortanaChecking ? "✕ CORTANA ISN'T CHECKING" : L === true ? "● LIVE" : "● POLLING"} · <span id="ntAgo">${ago < 2 ? "updated now" : `updated ${ago}s ago`}</span></span>
     ${D.canEdit ? '<button class="b" data-x="add">＋ ADD MONITOR</button>' : ""}<button class="b" data-x="check">↻ CHECK NOW</button></div>
-  <div class="sum"><div><b style="color:#22e07a">${c("up")}</b><span>UP</span></div><div><b style="color:#ff4d4d">${c("down") + c("stale")}</b><span>DOWN / NO DATA</span></div><div><b style="color:#f59e0b">${c("slow")}</b><span>SLOW</span></div><div><b style="color:#00D9FF">${all}</b><span>UPTIME · 7 DAYS · ALL</span></div></div>
+  <div class="sum"><div><b style="color:#22e07a">${c("up")}</b><span>UP</span></div><div><b style="color:#ff4d4d">${c("down") + c("stale")}</b><span>DOWN / NO DATA</span></div><div><b style="color:#f59e0b">${c("slow")}</b><span>SLOW</span></div></div>
   <div class="lay"><div class="list"><div class="ls">${list}</div></div>
   <div class="det">${!m ? '<div class="card dim">PICK A MONITOR</div>' : `
     <div class="card"><div class="dh"><div style="min-width:0"><h2>${esc(m.name)}</h2><div class="dim" style="font-size:12px">${esc(m.target || m.info || m.type.toUpperCase())}${m.info && m.target ? ` · ${esc(m.info)}` : ""}</div>
@@ -75,15 +73,8 @@ function draw() {
       ${m.id === "cortana" && acc.bot ? '<button class="b sm" data-c="sync">⇄ RE-SYNC CHANNELS</button><button class="b sm" data-c="cmds">/ RE-REGISTER COMMANDS</button>' : ""}</div></div>
       <span class="tag">${esc(m.type.toUpperCase())}</span></div></div>
     ${m.id === "cortana" ? '<div id="ctlBox"></div>' : ""}
-    <div class="card"><div class="beat"><div class="bars">${[...padB, ...beats].map((b) => (b ? `<i style="background:${COL[b[2]]}" title="${hm(b[0] * 60000)} · ${["UP", "SLOW", "DOWN"][b[2]]}${b[1] >= 0 ? ` · ${b[1]} ms` : ""}"></i>` : '<i class="e"></i>')).join("")}</div>
-      <span class="state" style="background:${sc};color:${sc === "#7d8a99" ? "#fff" : "#000"}">${sl}</span></div>
-      <div class="dim" style="font-size:11px;margin-top:6px">${m.paused ? "Paused — not checked" : `Checked every 60 seconds · last check ${m.checkedAtISO ? hm(Date.parse(m.checkedAtISO)) : "—"}`}${m.status === "down" && m.downSinceISO ? ` · <b style="color:#ff4d4d">down for ${dur(m.downSinceISO)}${m.muted ? " (alerts muted)" : " — alert sent after 3 checks"}</b>` : ""}${m.error && m.status === "down" ? `<br><span style="color:#ffb3b3">${esc(m.error)}</span>` : ""}</div></div>
-    <div class="card stats"><div><b>RESPONSE</b><small>(current)</small><u>${m.ms != null ? m.ms + " ms" : "—"}</u></div><div><b>AVG. RESPONSE</b><small>(24-hour)</small><u>${m.avg24 != null ? m.avg24 + " ms" : "—"}</u></div>
-      <div><b>UPTIME</b><small>(24-hour)</small><u>${m.up24 != null ? m.up24 + "%" : "—"}</u></div><div><b>UPTIME</b><small>(7-day)</small><u>${m.up30 != null ? m.up30 + "%" : "—"}</u></div>
-      <div><b>${m.certValidToISO ? "CERT EXP." : "INCIDENTS"}</b><small>(${m.certValidToISO ? dt(m.certValidToISO).split(",")[0] : "7-day"})</small><u>${m.certValidToISO ? Math.round((Date.parse(m.certValidToISO) - Date.now()) / 864e5) + " days" : inc.filter((i) => Date.now() - Date.parse(i.startedAtISO) < 7 * 864e5).length}</u></div></div>
-    <div class="card"><div class="rng" role="radiogroup" aria-label="Chart range">${["1H", "24H", "7D"].map((r) => `<button class="${r === range ? "on" : ""}" data-r="${r}" role="radio" aria-checked="${r === range}">${r}</button>`).join("")}</div>
-      <div class="chart">${chart(det?.points)}</div></div>
-    <div class="card"><div class="ch">INCIDENTS</div>${inc.length ? `<table><thead><tr><th>STARTED</th><th>ENDED</th><th>LENGTH</th><th>ERROR</th><th>NOTE</th></tr></thead><tbody>${inc.map((i) => `<tr><td>${dt(i.startedAtISO)}</td><td>${i.endedAtISO ? dt(i.endedAtISO) : '<b style="color:#ff4d4d">ONGOING</b>'}</td><td>${dur(i.startedAtISO, i.endedAtISO)}</td><td style="color:#ffb3b3">${esc(i.error)}</td><td>${i.note ? esc(i.note) + " " : ""}<button class="lk" data-n="${esc(i.id)}">${i.note ? "✎" : "＋ add note"}</button></td></tr>`).join("")}</tbody></table>` : '<p class="dim" style="margin:6px 0 0">No incidents ✓</p>'}</div>`}
+    <div class="card"><div class="beat"><span class="state" style="background:${sc};color:${sc === "#7d8a99" ? "#fff" : "#000"}">${sl}</span>
+      <div class="dim" style="font-size:12px">${m.paused ? "Paused — not checked" : `Response ${m.ms != null ? m.ms + " ms" : "—"} · last check ${m.checkedAtISO ? hm(Date.parse(m.checkedAtISO)) : "—"}`}${m.status === "down" && m.downSinceISO ? ` · <b style="color:#ff4d4d">down for ${dur(m.downSinceISO)}${m.muted ? " (alerts muted)" : " — alert sent after 3 checks"}</b>` : ""}${m.certValidToISO ? ` · certificate ends in ${Math.round((Date.parse(m.certValidToISO) - Date.now()) / 864e5)} days` : ""}${m.error && m.status === "down" ? `<br><span style="color:#ffb3b3">${esc(m.error)}</span>` : ""}</div></div></div>`}
   </div></div>`;
   const cb = root.querySelector("#ctlBox");
   if (cb) mountControl(cb);
@@ -116,7 +107,7 @@ async function editBox(m) {
 
 const CSS = `
 #netV3 .top{display:flex;align-items:flex-end;gap:10px;margin-bottom:12px;flex-wrap:wrap}#netV3 .lv{font-size:10.5px;letter-spacing:2px}
-#netV3 .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}#netV3 .sum div{border:1px solid var(--l);background:var(--p);padding:9px 13px}#netV3 .sum b{display:block;font:700 23px Rajdhani,sans-serif}#netV3 .sum span{font-size:9.5px;letter-spacing:2px;color:var(--d)}
+#netV3 .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}#netV3 .sum div{border:1px solid var(--l);background:var(--p);padding:9px 13px}#netV3 .sum b{display:block;font:700 23px Rajdhani,sans-serif}#netV3 .sum span{font-size:9.5px;letter-spacing:2px;color:var(--d)}
 #netV3 .lay{display:grid;grid-template-columns:320px 1fr;gap:12px}
 #netV3 .list{border:1px solid var(--l);background:var(--p);display:flex;flex-direction:column;max-height:calc(100vh - 250px);min-height:400px}#netV3 .lh{padding:9px;border-bottom:1px solid var(--l)}#netV3 .ls{overflow:auto}
 #netV3 .fld{width:100%;background:#070a0f;border:1px solid var(--l2);padding:7px 10px;font:inherit;font-size:12px;color:#d6dde6;outline:0}
@@ -151,8 +142,7 @@ onReady(() => {
   if (!root) return;
   addCss("netV3", CSS);
   root.addEventListener("click", async (e) => {
-    const mon = e.target.closest("[data-m]"); if (mon) { sel = mon.dataset.m; det = null; draw(); det = await call("GET", null, `?mon=${encodeURIComponent(sel)}&range=${range}`).catch(() => null); return draw(); }
-    const r = e.target.closest("[data-r]"); if (r) { range = r.dataset.r; det = await call("GET", null, `?mon=${encodeURIComponent(sel)}&range=${range}`).catch(() => det); return draw(); }
+    const mon = e.target.closest("[data-m]"); if (mon) { sel = mon.dataset.m; return draw(); }
     const n = e.target.closest("[data-n]");
     if (n) { const note = await ask({ kind: "reason", optional: true, title: "INCIDENT NOTE", body: "e.g. \"Vercel outage\" or \"server restart\".", label: "NOTE", go: "SAVE" }); if (note !== null) { try { await call("POST", { action: "note", incidentId: n.dataset.n, note }); await load(); } catch (err) { notify(err.message.toUpperCase(), 1); } } return; }
     const cj = e.target.closest("[data-c]");

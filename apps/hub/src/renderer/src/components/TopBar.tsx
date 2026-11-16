@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { alertKind, fmtDate, fmtTime, isKey, settingsNow } from "../settings";
-import type { NetState, Overview, Summary } from "../../../preload/api";
+import type { NetData, NetState, Overview, Summary } from "../../../preload/api";
 import { countdown, ukTime } from "../ui";
 import { NAV_LINKS } from "./SideNav";
 import logo from "../../../../assets/logo.png";
@@ -19,6 +19,54 @@ const ago = (v: unknown) => {
   const m = Math.round((Date.now() - t) / 6e4);
   return m < 1 ? "now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
 };
+
+/**
+ * NET light (16 Nov — replaces the Network Status page): every service Cortana checks, live state only (no uptime / history).
+ * Loads on start, when Cortana says a service changed (net_status, max once a minute) and when opened. Needs "net" access.
+ */
+const NC: Record<string, [string, string]> = { up: ["UP", "#22e07a"], slow: ["SLOW", "#f59e0b"], down: ["DOWN", "#ff4d4d"], stale: ["NO DATA", "#ff4d4d"], pending: ["WAITING", "#7d8a99"], paused: ["PAUSED", "#7d8a99"] };
+function NetLight() {
+  const [d, setD] = useState<NetData | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const load = async () => { const r = await window.cn.hub.network().catch(() => null); if (r && !("error" in r)) setD(r); };
+  useEffect(() => {
+    void load();
+    const off = window.cn.net.onTopic((t) => { if (t === "net_status" && !document.hidden) void load(); });
+    return off;
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const c = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest("[data-netl]")) setOpen(false); };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    addEventListener("mousedown", c); addEventListener("keydown", k);
+    return () => { removeEventListener("mousedown", c); removeEventListener("keydown", k); };
+  }, [open]);
+  if (!d) return null;
+  const ms = d.monitors.filter((m) => !m.paused);
+  const down = ms.filter((m) => m.status === "down" || m.status === "stale").length, slow = ms.filter((m) => m.status === "slow").length;
+  const col = down ? "#ff4d4d" : slow ? "#f59e0b" : "#22e07a";
+  const label = down ? `${down} DOWN` : slow ? `${slow} SLOW` : `ALL UP ${ms.length}/${ms.length}`;
+  return (
+    <div data-netl className="relative shrink-0">
+      <button type="button" aria-haspopup="true" aria-expanded={open} onClick={() => { setOpen(!open); if (!open) void load(); }} title="Network status"
+        className="flex items-center gap-2 border px-2.5 py-[9px] text-[10.5px] tracking-[2px] hover:brightness-125" style={{ borderColor: `${col}80`, color: col, background: `${col}0d` }}>
+        <i className="h-2 w-2 rounded-full" style={{ background: col }} />NET · {label}</button>
+      {open && (
+        <div role="dialog" aria-label="Network status" className="rise absolute right-0 top-[44px] z-50 w-[340px] border border-cyan/40 bg-[#0a1018] py-1.5 shadow-[0_20px_50px_rgba(0,0,0,.75)]">
+          <div className="flex items-center px-3.5 pb-1.5 pt-1 text-[10px] tracking-[2px] text-dim">NETWORK STATUS{!d.cortanaChecking && <span className="ml-auto text-bad">CORTANA ISN'T CHECKING</span>}</div>
+          {d.monitors.map((m) => { const [l, c] = NC[m.status] ?? NC.pending!; return (
+            <div key={m.id} className="flex items-center gap-2.5 px-3.5 py-[7px] text-[12.5px] hover:bg-cyan/5">
+              <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: c }} /><span className="min-w-0 flex-1 truncate text-[#c6d0da]">{m.name}</span>
+              <span className="text-[10.5px] tracking-[1px]" style={{ color: c }}>{l}</span>
+              <span className="w-[70px] text-right text-[10.5px] text-dim">{m.ms != null && m.status !== "down" ? `${m.ms} ms` : m.status === "down" && m.downSinceISO ? ago(m.downSinceISO) : "—"}</span></div>); })}
+          <div className="mt-1 flex items-center border-t border-white/5 px-3.5 pt-2 text-[10.5px] text-dim">Live from Cortana
+            <button type="button" disabled={busy} onClick={async () => { setBusy(true); await window.cn.hub.networkAction({ action: "check" }); setTimeout(() => { void load(); setBusy(false); }, 4000); }}
+              className="ml-auto border border-cyan/40 px-2 py-0.5 text-[10px] tracking-[1px] text-cyan disabled:opacity-50">{busy ? "CHECKING…" : "↻ CHECK NOW"}</button></div>
+        </div>)}
+    </div>
+  );
+}
 
 export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; page: string; onPage: (id: string) => void; onRefresh: () => void; access: Record<string, boolean>; msgOpen: boolean; onToggleMsg: () => void }) {
   const [now, setNow] = useState(Date.now());
@@ -74,6 +122,7 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
             <b className="block text-[10.5px] font-normal tracking-[2px] text-white">HUB <span style={{ color: col }}>● {ok ? "LIVE" : part ? "PARTIAL" : "OFFLINE"}</span></b>
             <small className="text-[10px] tracking-[1px]" style={{ color: col }}>{ok ? "OPERATIONAL" : part ? "DEGRADED" : "NO CONNECTION"}</small></span>; })()}
       </div>
+      {p.access.net && <NetLight />}
       {(() => { const st = settingsNow(), tm = st.time, d = new Date(now); const local = fmtTime(d, st.tz || undefined), uk = fmtTime(d, "Europe/London");
         return <div className="flex items-center gap-3 px-1">
           {st.clocks.map((c) => <div key={c.tz + c.label} className="hidden text-right leading-tight xl:block"><b className="block font-head text-[13px] text-[#c6d0da]">{fmtTime(d, c.tz)}</b><small className="text-[9px] tracking-[1.5px] text-dim">{c.label || c.tz.split("/").pop()}</small></div>)}

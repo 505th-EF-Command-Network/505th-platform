@@ -36,7 +36,7 @@ const GROUPS = [
   { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes and the public website pages.", links: [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"]] },
   { id: "nav-security", icon: "&#9961;", label: "SECURITY", tip: "Who has access to what, network health and the audit log.", links: [
-    ["panel-officers", "&#9733; Officer Management"], ["panel-hubaccess", "&#128273; Hub Access"], ["panel-network", "&#9673; Network Status"], ["panel-auditv2", "&#9741; Audit Log"]] },
+    ["panel-officers", "&#9733; Officer Management"], ["panel-hubaccess", "&#128273; Hub Access"], ["panel-auditv2", "&#9741; Audit Log"]] },
   { id: "nav-command", icon: "&#9733;", label: "COMMAND", tip: "Running the unit. Commander / Developer, plus anyone the Commander gives Command Access.", cls: "cmdg", links: [
     ["panel-cmd-home", "&#9733; Command Centre"],
     ["label", "UNIT"], ["panel-cmd-status", "&#9673; Unit Status"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-cmd-staff", "&#9823; Command Staff"],

@@ -70,7 +70,7 @@ export async function overview(w: Who) {
   const [mons, sts, sums] = await Promise.all([
     TerminalDoc.find({ parent: "net_monitors" }, { docId: 1, data: 1 }).lean(),
     TerminalDoc.find({ parent: "net_status" }, { docId: 1, data: 1 }).lean(),
-    uptimeSums(),
+    Promise.resolve(new Map<string, { n: number; dn: number; rn: number; rdn: number; ms: number; mc: number }>()), // uptime removed 16 Nov (indicator only)
   ]);
   const st = new Map(sts.map((s) => [String(s.docId), (s.data ?? {}) as U]));
   const now = Date.now();
