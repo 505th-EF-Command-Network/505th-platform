@@ -11,6 +11,10 @@ export interface AuditEntry { id: string; at: string | null; source: "website" |
   target: string | null; channel: string | null; before: unknown; after: unknown; content: string | null; media: { url: string; name: string; kind: string }[] | null; mediaRemoved: boolean;
   bulk: { at: string; author: string; content: string }[] | null; private?: boolean; extra: { reason: unknown; messageUrl: unknown; [k: string]: unknown } }
 export interface AuditData { days: number; entries: AuditEntry[]; canDelete: boolean; canSeeText: boolean }
+/** Website editor (same data as the website Terminal's editor). */
+export interface WebPage { key: string; name: string; url: string; prefix?: string; card?: string; cards?: string; home?: true; slots: string[] }
+export interface WebPhoto { id: string; url: string; name: string; at: string }
+export interface WebData { pages: WebPage[]; content: Record<string, unknown>; library: WebPhoto[]; gallery: WebPhoto[] }
 export type NetBeat = [number, number, number];
 export interface NetMonitor { id: string; name: string; group: string; type: string; target: string; builtin: boolean; third: boolean; paused: boolean; muted: boolean; slowMs: number; status: "up" | "slow" | "down" | "paused" | "stale" | "pending"; ms: number | null; info: string; error: string; checkedAtISO: string; downSinceISO: string; certValidToISO: string; last: NetBeat[]; up24: number | null; up30: number | null; avg24: number | null }
 export interface NetData { canEdit: boolean; cortanaChecking: boolean; lastCheckISO: string; monitors: NetMonitor[] }
@@ -226,6 +230,8 @@ declare global {
         feedbackAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         audit(days?: number): Promise<AuditData | { error: string }>;
         auditAction(body: Record<string, unknown>): Promise<{ ok?: boolean; removed?: number; archive?: string; error?: string }>;
+        website(): Promise<WebData | { error: string }>;
+        websiteAction(body: Record<string, unknown>): Promise<{ ok?: boolean; published?: number; id?: string; error?: string }>;
         officers(): Promise<OmData | { error: string }>;
         officersAction(body: Record<string, unknown>): Promise<{ ok?: boolean; saved?: number; error?: string }>;
         roles(): Promise<RaData | { error: string }>;

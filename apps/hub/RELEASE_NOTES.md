@@ -1,3 +1,7 @@
+505th Command Network v0.4.14
+- New: Website page in the app — edit the public 505th pages, photos and video, then PUBLISH CHANGES
+- Same content as the website Terminal's editor; every publish is in the Audit Log
+
 505th Command Network v0.4.13
 - Network Status is now the NET light in the top bar: click it to see every service (UP / SLOW / DOWN) and CHECK NOW
 - No more uptime charts or history (lighter on the server)

@@ -10,6 +10,7 @@ import { Network } from "./pages/Network";
 import { Notes } from "./pages/Notes";
 import { Officers } from "./pages/Officers";
 import { Audit } from "./pages/Audit";
+import { Website } from "./pages/Website";
 import { PolicyGate } from "./components/Policy";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { alertKind, applySettings, isKey, mergeSettings, quietNow } from "./settings";
@@ -233,6 +234,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-hubaccess" ? <HubAccess />
           : pg === "panel-officers" ? <Officers />
           : pg === "panel-auditv2" ? <Audit />
+          : pg === "panel-website" ? <Website />
           : pg === "panel-network" ? <Network />
           : pg === "panel-notes" ? <Notes />
           : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} onLock={lockNow} onStatus={(x) => void setStatus(x)} pins={navP.pins} />

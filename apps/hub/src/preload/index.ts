@@ -86,6 +86,8 @@ contextBridge.exposeInMainWorld("cn", {
     feedbackAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:feedback-action", body),
     audit: (days?: number) => ipcRenderer.invoke("hub:audit", days),
     auditAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:audit-action", body),
+    website: () => ipcRenderer.invoke("hub:website"),
+    websiteAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:website-action", body),
     officers: () => ipcRenderer.invoke("hub:officers"),
     officersAction: (body: Record<string, unknown>) => ipcRenderer.invoke("hub:officers-action", body),
     roles: () => ipcRenderer.invoke("hub:roles"),

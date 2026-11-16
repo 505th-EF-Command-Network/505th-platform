@@ -26,7 +26,7 @@ const GROUPS: Group[] = [
   { id: "discord", label: "DISCORD", icon: "◈", links: [
     { id: "panel-quick", label: "Quick Upload", icon: "⇪", key: "qu" }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw" }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
-    { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web" }] },
+    { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web", app: true }] },
   { id: "security", label: "SECURITY", icon: "⛉", links: [
     { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit", app: true }] },
 ];
