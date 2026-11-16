@@ -1,3 +1,8 @@
+505th Command Network v0.4.12
+- Instant panels: rest your mouse on a menu item and the page loads in the background — it's ready when you click
+- Pages you've opened stay ready (up to 10)
+- Much lighter on the server: the Dashboard no longer reloads on every Cortana heartbeat
+
 505th Command Network v0.4.11
 - Lighter on the server: no timed refreshes while the Hub is hidden in the tray (live updates and alerts still arrive)
 - Pages catch up as soon as you open the Hub

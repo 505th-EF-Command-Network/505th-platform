@@ -34,7 +34,7 @@ export default function LiveOps() {
     let stop = false;
     const load = () => fetch("/api/public/ops").then((r) => r.json()).then((d) => !stop && setData(d)).catch(() => {});
     load();
-    const a = setInterval(load, 60_000);
+    const a = setInterval(() => { if (!document.hidden) load(); }, 120_000); // hidden tab: no calls (Vercel CPU)
     const b = setInterval(() => setNow(Date.now()), 1000);
     return () => { stop = true; clearInterval(a); clearInterval(b); };
   }, []);

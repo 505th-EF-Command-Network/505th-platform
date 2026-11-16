@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Summary } from "../../preload/api";
 
 /** Topics on the 505th Net that change what the Dashboard shows. */
-const TOPICS = new Set(["users", "presence_sessions", "community_events", "notifications", "bot_status", "attendance_events"]);
+// bot_status removed 16 Nov: Cortana heartbeat (every 10 s) made every Hub reload the Dashboard 6×/min.
+const TOPICS = new Set(["users", "presence_sessions", "community_events", "notifications", "attendance_events"]);
 
 /** Loads /api/hub/summary, then reloads when the 505th Net signals a change (and every 2 min as a backup). */
 export function useSummary() {

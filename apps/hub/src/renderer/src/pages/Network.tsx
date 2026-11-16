@@ -82,7 +82,7 @@ export function Network() {
     const offS = window.cn.net.onState((s: unknown) => setLive((s as { state?: string })?.state === "live" || s === "live"));
     let t: ReturnType<typeof setTimeout> | undefined;
     const offT = window.cn.net.onTopic((x) => { if (x === "net_status" || x === "net_monitors" || x === "net_events") { clearTimeout(t); t = setTimeout(() => void load(), 400); } });
-    const poll = setInterval(() => { if (!document.hidden && Date.now() - last.current > 60_000) void load(); }, 60_000);
+    const poll = setInterval(() => { if (!document.hidden && document.documentElement.dataset.page === "panel-network" && Date.now() - last.current > 60_000) void load(); }, 60_000);
     const sec = setInterval(() => tick((n) => n + 1), 1000);
     return () => { offS(); offT(); clearTimeout(t); clearInterval(poll); clearInterval(sec); };
   }, [load]);

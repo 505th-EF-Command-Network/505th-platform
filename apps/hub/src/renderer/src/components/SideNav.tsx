@@ -40,7 +40,7 @@ export type NavPrefs = NonNullable<HubPrefs["nav"]>;
 export const DEFAULT_NAV: NavPrefs = { order: GROUPS.map((g) => g.id), hidden: [], pins: [], closed: ["workspace", "security"], rail: false };
 
 export function SideNav(p: {
-  sum: Summary; ov: Overview | null; page: string; onPage: (id: string) => void; prefs: NavPrefs; onPrefs: (n: NavPrefs) => void;
+  sum: Summary; ov: Overview | null; page: string; onPage: (id: string) => void; onHover?: (id: string) => void; prefs: NavPrefs; onPrefs: (n: NavPrefs) => void;
   onStatus: (s: StateKey) => void; onMyFile: () => void; onSignOut: () => void; version: string;
 }) {
   const { prefs } = p;
@@ -68,6 +68,8 @@ export function SideNav(p: {
     return () => removeEventListener("mousedown", c);
   }, [card]);
 
+  // Instant panels: resting the mouse on a menu item for 0.3 s loads that page in the background (one at a time).
+  const hoverT = useRef<ReturnType<typeof setTimeout>>(undefined);
   const acc = p.sum.me.access;
   const count = (l: Link) => (l.count ? p.ov?.counts[l.count] ?? 0 : 0);
   const order = useMemo(() => [...prefs.order.filter((id) => GROUPS.some((g) => g.id === id)), ...GROUPS.map((g) => g.id).filter((id) => !prefs.order.includes(id))], [prefs.order]);
@@ -77,7 +79,8 @@ export function SideNav(p: {
   const initials = p.sum.me.name.split(" ")[0] || "ME";
 
   const linkBtn = (l: Link, inPins = false) => (
-    <button key={(inPins ? "pin-" : "") + l.id} type="button" onClick={() => p.onPage(l.id)} title={l.app ? undefined : "Coming to the app soon"}
+    <button key={(inPins ? "pin-" : "") + l.id} type="button" onClick={() => p.onPage(l.id)}
+      onMouseEnter={() => { clearTimeout(hoverT.current); if (l.app && p.onHover) hoverT.current = setTimeout(() => p.onHover!(l.id), 300); }} onMouseLeave={() => clearTimeout(hoverT.current)} title={l.app ? undefined : "Coming to the app soon"}
       className={`group flex w-full items-center gap-2.5 border-l-2 px-3 py-[7px] text-left text-[13px] ${p.page === l.id ? "border-cyan bg-cyan/10 text-white" : "border-transparent text-[#aeb9c4] hover:bg-cyan/5 hover:text-white"}`}>
       {edit ? <span role="button" tabIndex={0} aria-label={prefs.pins.includes(l.id) ? `Unpin ${l.label}` : `Pin ${l.label}`} onClick={(e) => { e.stopPropagation(); set({ pins: prefs.pins.includes(l.id) ? prefs.pins.filter((x) => x !== l.id) : [...prefs.pins, l.id] }); }} className="text-gold">{prefs.pins.includes(l.id) ? "★" : "☆"}</span>
         : <span className="w-4 text-center text-cyan/80">{l.icon}</span>}

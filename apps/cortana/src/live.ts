@@ -25,8 +25,15 @@ function publish(topics: string[]) {
   void http.channels.get(CHANNEL).publish(topics.map((name) => ({ name, data: "" })))
     .catch((e: Error) => log.warn(`505th Net publish failed: ${e.message}`));
 }
+// 16 Nov (Vercel CPU): Cortana's heartbeat writes bot_status every 10 s and every monitor check writes net_status.
+// Each push made EVERY open Hub reload its Dashboard (summary + overview = 2/3 of all website CPU).
+// These busy topics are now sent at most once per window. Real changes still arrive within it.
+const SLOW: Record<string, number> = { bot_status: 120_000, net_status: 60_000 };
+const lastSent = new Map<string, number>();
 export function signal(topic: string) {
   if (QUIET.has(topic)) return;
+  const win = SLOW[topic];
+  if (win) { const t = lastSent.get(topic) ?? 0; if (Date.now() - t < win) return; lastSent.set(topic, Date.now()); }
   pending.add(topic);
   clearTimeout(flushTimer);
   flushTimer = setTimeout(() => { const t = [...pending]; pending.clear(); publish(t); }, 250);

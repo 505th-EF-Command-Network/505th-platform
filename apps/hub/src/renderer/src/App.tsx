@@ -94,7 +94,14 @@ function Shell({ net }: { net: NetState }) {
   useEffect(() => { void window.cn.hub.policy().then((r) => setPolicyOk(!!r && !("error" in r) ? r.accepted : true)).catch(() => setPolicyOk(true)); }, []);
   const [visited, setVisited] = useState<string[]>(["dashboard"]);
   // Remember the last 10 pages opened; older ones are unmounted to save memory.
-  useEffect(() => setVisited((v) => (v.includes(page) ? v : [...v, page].slice(-10))), [page]);
+  useEffect(() => { setVisited((v) => (v.includes(page) ? v : [...v, page].slice(-10))); document.documentElement.dataset.page = page; }, [page]);
+  /** Instant panels: hover preloads a page (it mounts hidden and loads). Keeps at most 10, never drops the open page. */
+  const preload = useCallback((id: string) => setVisited((v) => {
+    if (v.includes(id)) return v;
+    const n = [...v, id];
+    while (n.length > 10) { const i = n.findIndex((x) => x !== page && x !== id); if (i < 0) break; n.splice(i, 1); }
+    return n;
+  }), [page]);
   const [toast, setToast] = useState<string | null>(null);
   const [nav, setNav] = useState<NavPrefs | null>(null);
   const [dash, setDash] = useState<Dash | null>(null);
@@ -115,7 +122,7 @@ function Shell({ net }: { net: NetState }) {
     void loadOv();
     void window.cn.info().then((i) => i && setVersion(i.version));
     let t: ReturnType<typeof setTimeout> | undefined;
-    const off = window.cn.net.onTopic((x) => { if (["users", "attendance_events", "community_events", "tickets", "bot_status"].includes(x)) { clearTimeout(t); t = setTimeout(() => void loadOv(), 600); } });
+    const off = window.cn.net.onTopic((x) => { if (["users", "attendance_events", "community_events", "tickets"].includes(x)) { clearTimeout(t); t = setTimeout(() => void loadOv(), 600); } });
     // Was every 60 s, even hidden in the tray, and on EVERY audit log entry. Now: live push + 5-min backup while visible.
     const timer = setInterval(() => { if (!document.hidden) void loadOv(); }, 300_000);
     const vis = () => { if (!document.hidden) void loadOv(); };
@@ -203,7 +210,7 @@ function Shell({ net }: { net: NetState }) {
       <UpdateBanner />
       {away > 0 && <AwayBanner count={away} onOpen={() => { setAway(0); setPage("alerts"); }} onClose={() => setAway(0)} />}
       <div className="flex min-h-0 flex-1">
-        <SideNav sum={data} ov={ov} page={page} onPage={setPage} prefs={settings && settings.look.side !== "full" ? { ...navP, rail: true } : navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
+        <SideNav sum={data} ov={ov} page={page} onPage={setPage} onHover={preload} prefs={settings && settings.look.side !== "full" ? { ...navP, rail: true } : navP} onPrefs={(n) => { setNav(n); save({ nav: n }); }}
           onStatus={(s) => void setStatus(s)} onMyFile={() => setMyFile(true)} onSignOut={() => void window.cn.auth.logout()} version={version} />
         {/* Pages stay mounted after the first visit (hidden), so switching back is instant; live topics keep them fresh. */}
         {(visited.includes(page) ? visited : [...visited, page]).map((pg) => (

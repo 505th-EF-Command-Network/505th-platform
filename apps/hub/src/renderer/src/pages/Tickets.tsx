@@ -33,7 +33,7 @@ export function Tickets(p: { me: string }) {
     void load();
     let t: ReturnType<typeof setTimeout> | undefined;
     const off = window.cn.net.onTopic((x) => { if (x === "tickets" || x === "ticket_types") { clearTimeout(t); t = setTimeout(() => void load(), 400); } });
-    const poll = setInterval(() => { if (!document.hidden) void load(); }, 120_000);
+    const poll = setInterval(() => { if (!document.hidden && document.documentElement.dataset.page === "panel-tickets") void load(); }, 120_000);
     return () => { off(); clearTimeout(t); clearInterval(poll); };
   }, [load]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
