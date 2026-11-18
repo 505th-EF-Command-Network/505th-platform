@@ -5,30 +5,39 @@ import { STATE, type StateKey } from "../ui";
 
 /**
  * Side nav (approved mock 2026-11-11):
- * groups MANPOWER · OPERATIONS · COMMS · INTEL ARCHIVE · DISCORD · WORKSPACE · SECURITY (Command + Help stay website-only)
+ * groups MANPOWER · EVENTS · COMMS · CORTANA COMMAND · WORKSPACE · STATUS · COMMAND CENTRE (menu reorganised 2026-11-16)
  * · filter (/) · ★ pinned pages · ✎ customise (drag categories, 👁 hide, ★ pin) · « collapse to icon rail (Ctrl B, hover = flyout)
  * · red count dots · signed-in card at the bottom with status + "my" pages. Layout is saved to the account (hubPrefs.nav).
  * Pages not built yet show the in-app "coming soon" screen (never the website).
  */
-type Link = { id: string; label: string; icon: string; key?: string; app?: boolean; count?: "bct" | "tickets" };
+type Link = { id: string; label: string; icon: string; key?: string; app?: boolean; count?: "bct" | "tickets"; sub?: string };
 type Group = { id: string; label: string; icon: string; links: Link[] };
+/** Side menu reorganised (approved mock 2026-11-16) — same menu as the website Terminal. sub = small heading inside a group. */
 const GROUPS: Group[] = [
   { id: "manpower", label: "MANPOWER", icon: "♟", links: [
     { id: "panel-active", label: "Personnel Files", icon: "✎", key: "pers", app: true }, { id: "panel-register", label: "BCT Approvals", icon: "✚", key: "bct", app: true, count: "bct" },
-    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob", app: true },
-    { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat", app: true }] },
+    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob", app: true }] },
   { id: "operations", label: "EVENTS", icon: "⚙", links: [
     { id: "panel-attendance", label: "Attendance Tracker", icon: "▣", key: "att", app: true }, { id: "panel-att-history", label: "Attendance History", icon: "☷", key: "att", app: true },
     { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }, { id: "panel-events", label: "Create Events", icon: "⚑", key: "ev", app: true }] },
   { id: "comms", label: "COMMS", icon: "✉", links: [
     { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", app: true, count: "tickets" }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send", app: true }] },
-  { id: "intel", label: "INTEL ARCHIVE", icon: "▤", links: [{ id: "panel-media", label: "Media (Gallery + Videos)", icon: "▧", key: "media", app: true }] },
-  { id: "discord", label: "DISCORD", icon: "◈", links: [
-    { id: "panel-quick", label: "Quick Upload", icon: "⇪", key: "qu" }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw" }] },
+  { id: "discord", label: "CORTANA COMMAND", icon: "◈", links: [
+    { id: "panel-quick", label: "Quick Post", icon: "⇪", key: "qu" }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw" }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
-    { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web", app: true }] },
-  { id: "security", label: "SECURITY", icon: "⛉", links: [
-    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true }, { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit", app: true }] },
+    { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web", app: true },
+    { id: "panel-media", label: "Gallery & Videos", icon: "▧", key: "media", app: true }] },
+  { id: "status", label: "STATUS", icon: "◉", links: [
+    { id: "panel-cmd-status", label: "Unit Status", icon: "◈", key: "cmd_status" }, { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat", app: true },
+    { id: "net-light", label: "Overall Status", icon: "●", key: "net", app: true }] },
+  { id: "command", label: "COMMAND CENTRE", icon: "★", links: [
+    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true, sub: "STAFF" }, { id: "panel-cmd-staff", label: "High Command Management", icon: "♛", key: "cmd_staff", sub: "STAFF" },
+    { id: "panel-cmd-rolesync", label: "Discord Role Map", icon: "⇄", key: "set", sub: "STAFF" }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true, sub: "STAFF" },
+    { id: "panel-bot", label: "Bot Server", icon: "▣", key: "bot", sub: "SYSTEM" }, { id: "panel-network", label: "Cortana Settings", icon: "⚙", key: "net", sub: "SYSTEM" },
+    { id: "panel-lockdown", label: "Discord Lockdown", icon: "⛔", key: "modk", sub: "MODERATION" }, { id: "panel-cmd-suspend", label: "Suspensions", icon: "⏸", key: "cmd_suspend", sub: "MODERATION" },
+    { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit", app: true, sub: "MODERATION" },
+    { id: "panel-cortana-status", label: "Cortana Status", icon: "◉", key: "set", sub: "SETTINGS" }, { id: "panel-cmd-cortana", label: "Cortana Setup Wizard", icon: "✦", key: "set", sub: "SETTINGS" },
+    { id: "panel-discord-sync", label: "Discord Sync", icon: "⟳", key: "set", sub: "SETTINGS" }, { id: "panel-cmd-settings", label: "Discord Link", icon: "🔗", key: "set", sub: "SETTINGS" }] },
 ];
 const ALL_LINKS = GROUPS.flatMap((g) => g.links);
 export const PAGES: Record<string, string> = {
@@ -37,7 +46,7 @@ export const PAGES: Record<string, string> = {
 };
 export const NAV_LINKS = ALL_LINKS;
 export type NavPrefs = NonNullable<HubPrefs["nav"]>;
-export const DEFAULT_NAV: NavPrefs = { order: GROUPS.map((g) => g.id), hidden: [], pins: [], closed: ["workspace", "security"], rail: false };
+export const DEFAULT_NAV: NavPrefs = { order: GROUPS.map((g) => g.id), hidden: [], pins: [], closed: ["workspace", "command"], rail: false };
 
 export function SideNav(p: {
   sum: Summary; ov: Overview | null; page: string; onPage: (id: string) => void; onHover?: (id: string) => void; prefs: NavPrefs; onPrefs: (n: NavPrefs) => void;
@@ -79,8 +88,8 @@ export function SideNav(p: {
   const initials = p.sum.me.name.split(" ")[0] || "ME";
 
   const linkBtn = (l: Link, inPins = false) => (
-    <button key={(inPins ? "pin-" : "") + l.id} type="button" onClick={() => p.onPage(l.id)}
-      onMouseEnter={() => { clearTimeout(hoverT.current); if (l.app && p.onHover) hoverT.current = setTimeout(() => p.onHover!(l.id), 300); }} onMouseLeave={() => clearTimeout(hoverT.current)} title={l.app ? undefined : "Coming to the app soon"}
+    <button key={(inPins ? "pin-" : "") + l.id} type="button" onClick={() => (l.id === "net-light" ? window.dispatchEvent(new Event("open-net")) : p.onPage(l.id))}
+      onMouseEnter={() => { clearTimeout(hoverT.current); if (l.app && l.id !== "net-light" && p.onHover) hoverT.current = setTimeout(() => p.onHover!(l.id), 300); }} onMouseLeave={() => clearTimeout(hoverT.current)} title={l.app ? undefined : "Coming to the app soon"}
       className={`group flex w-full items-center gap-2.5 border-l-2 px-3 py-[7px] text-left text-[13px] ${p.page === l.id ? "border-cyan bg-cyan/10 text-white" : "border-transparent text-[#aeb9c4] hover:bg-cyan/5 hover:text-white"}`}>
       {edit ? <span role="button" tabIndex={0} aria-label={prefs.pins.includes(l.id) ? `Unpin ${l.label}` : `Pin ${l.label}`} onClick={(e) => { e.stopPropagation(); set({ pins: prefs.pins.includes(l.id) ? prefs.pins.filter((x) => x !== l.id) : [...prefs.pins, l.id] }); }} className="text-gold">{prefs.pins.includes(l.id) ? "★" : "☆"}</span>
         : <span className="w-4 text-center text-cyan/80">{l.icon}</span>}
@@ -108,7 +117,7 @@ export function SideNav(p: {
             <div key={g.id} className="group relative">
               <button type="button" title={g.label} className="relative grid h-11 w-full place-items-center text-[17px] text-cyan/85 hover:bg-cyan/10">{g.icon}{red && <i className="absolute right-3 top-2 h-2 w-2 rounded-full bg-bad" />}</button>
               <div className="invisible absolute left-[58px] top-0 z-40 w-[240px] border border-cyan/40 bg-[#0a1018] py-1.5 opacity-0 shadow-[12px_10px_30px_rgba(0,0,0,.7)] transition-opacity group-hover:visible group-hover:opacity-100">
-                <div className="mb-1 border-b border-cyan/15 px-3 pb-1.5 text-[10px] tracking-[3px] text-cyan">{g.label}</div>{g.links.map((l) => linkBtn(l))}
+                <div className="mb-1 border-b border-cyan/15 px-3 pb-1.5 text-[10px] tracking-[3px] text-cyan">{g.label}</div>{g.links.map((l, i) => <div key={l.id}>{l.sub && l.sub !== g.links[i - 1]?.sub && <div className="px-3 pb-0.5 pt-1.5 text-[9px] tracking-[2.5px] text-dimmer">{l.sub}</div>}{linkBtn(l)}</div>)}
               </div>
             </div>);
           return (
@@ -122,7 +131,7 @@ export function SideNav(p: {
                 {edit && <span role="button" tabIndex={0} title={hidden ? "Show" : "Hide"} onClick={(e) => { e.stopPropagation(); set({ hidden: hidden ? prefs.hidden.filter((x) => x !== g.id) : [...prefs.hidden, g.id] }); }} className="ml-auto text-dim">{hidden ? "🚫" : "👁"}</span>}
                 <span className={`${edit ? "" : "ml-auto"} text-dim transition-transform ${closed ? "-rotate-90" : ""}`}>▾</span>
               </button>
-              {!closed && !hidden && <div className="pl-2">{g.links.map((l) => linkBtn(l))}</div>}
+              {!closed && !hidden && <div className="pl-2">{g.links.map((l, i) => <div key={l.id}>{l.sub && l.sub !== g.links[i - 1]?.sub && <div className="px-3 pb-0.5 pt-2 text-[9px] tracking-[2.5px] text-dimmer">{l.sub}</div>}{linkBtn(l)}</div>)}</div>}
             </div>);
         })}
         {edit && !rail && <div className="mx-2 mt-3 border border-dashed border-amber p-2.5 text-[11px] leading-relaxed text-amber">✎ MENU EDIT MODE<br />• Drag ⠿ to move a category<br />• 👁 hide a category · ★ pin a page to the top<br />• Saved to your account

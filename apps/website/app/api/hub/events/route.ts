@@ -116,9 +116,16 @@ export async function POST(req: Request) {
     if (raw.some((x: U) => !String(x.label ?? "").trim())) return hubJson({ error: "Every button needs a label." }, 400);
     const banner = String(v.banner ?? "").trim().slice(0, 500);
     if (banner && !/^https:\/\//.test(banner)) return hubJson({ error: "Cover image must be an https link." }, 400);
-    const start = ukToDate(v.date, v.startTime);
-    let end = ukToDate(v.date, v.endTime);
+    // Hub 0.4.15+: the app sends the real moment (typed in the user's OWN time). Older apps: date + time read as UK time.
+    const iso = (x: unknown) => (typeof x === "string" && /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/.test(x) && !Number.isNaN(Date.parse(x)) ? new Date(x) : null);
+    const sIso = iso(v.startAtISO), eIso = iso(v.endAtISO);
+    const start = sIso && eIso ? sIso : ukToDate(v.date, v.startTime);
+    let end = sIso && eIso ? eIso : ukToDate(v.date, v.endTime);
     if (end <= start) end = new Date(end.getTime() + 864e5);
+    if (end.getTime() - start.getTime() > 24 * 3600_000) return hubJson({ error: "An event can't be longer than 24 hours." }, 400);
+    // Stored labels stay in UK time (Cortana shows "… UK" and makes repeats from them).
+    const ukD = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Europe/London" }), ukT = (d: Date) => d.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    v.date = ukD(start); v.startTime = ukT(start); v.endTime = ukT(end);
     const editId = b.id ? String(b.id) : null;
     if (editId && !ID.test(editId)) return hubJson({ error: "Invalid event." }, 400);
     const oldDoc = editId ? await TerminalDoc.findById(`community_events/${editId}`, { data: 1 }).lean() : null;

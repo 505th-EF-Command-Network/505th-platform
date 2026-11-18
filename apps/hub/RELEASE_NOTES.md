@@ -1,3 +1,8 @@
+505th Command Network v0.4.15
+- Fixed: event times are now typed and shown in YOUR own time (they were always read as UK time)
+- Create Events: upload the cover image straight from your PC (no more pasting a Gallery link)
+- Side menu reorganised: COMMS · CORTANA COMMAND · WORKSPACE (now with Gallery & Videos) · STATUS · COMMAND CENTRE (Staff / System / Moderation / Settings)
+
 505th Command Network v0.4.14
 - New: Website page in the app — edit the public 505th pages, photos and video, then PUBLISH CHANGES
 - Same content as the website Terminal's editor; every publish is in the Audit Log

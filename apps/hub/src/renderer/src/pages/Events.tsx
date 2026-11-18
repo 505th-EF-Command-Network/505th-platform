@@ -18,8 +18,14 @@ const PRESETS: [string, EvButton[]][] = [
 ];
 const STEPS = ["LOCATION", "DETAILS", "SIGN-UPS", "REVIEW"];
 const BTN_BG: Record<string, string> = { green: "#248046", red: "#da373c", blue: "#5865f2", grey: "#4e5058" };
-const ukDay = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-const ukFmt = (iso: string, o: Intl.DateTimeFormatOptions) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", ...o }) : "—");
+// 18 Nov (Drake's bug): times were always read as UK time. Now you type and see times in YOUR OWN time; the server
+// still stores date / startTime / endTime in UK time for Cortana. (Names ukDay / ukFmt kept; they now use your time.)
+const MY_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const tzShort = (d = new Date()) => new Intl.DateTimeFormat("en-US", { timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName")?.value ?? MY_TZ;
+const ukDay = (d = new Date()) => d.toLocaleDateString("en-CA");
+const ukFmt = (iso: string, o: Intl.DateTimeFormatOptions) => (iso ? new Date(iso).toLocaleString("en-GB", o) : "—");
+const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const myRange = (e: { startAtISO: string; endAtISO: string; startTime: string; endTime: string }) => (e.startAtISO ? `${hm(e.startAtISO)}–${hm(e.endAtISO)} ${tzShort(new Date(e.startAtISO))}` : `${e.startTime}–${e.endTime} UK`);
 const whenLabel = (v: { date: string; startTime: string; endTime: string }) => (v.date ? `${new Date(`${v.date}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · ${v.startTime}–${v.endTime}` : "Choose a date");
 const whereLabel = (e: { where: string; voiceChannel: string; location: string }) => (e.where === "else" ? `📍 ${e.location || "Somewhere else"}` : `${e.where === "stage" ? "🎙" : "🔊"} ${e.voiceChannel || (e.where === "stage" ? "Stage channel" : "Voice channel")}`);
 const isOpen = (e: EvItem) => e.status !== "cancelled" && e.status !== "completed" && !e.discord.closedAtISO && Date.parse(e.endAtISO) > Date.now();
@@ -58,7 +64,7 @@ export function Events(p: { onPage: (id: string) => void }) {
     const first = d?.signupChannels.find(([, id]) => id)?.[1] ?? "";
     setOpen(null);
     setWiz({ step: 0, editId: edit?.id ?? null, err: null, v: edit
-      ? { where: edit.where, voiceChannel: edit.voiceChannel, location: edit.location, title: edit.title, description: edit.description, date: edit.date, startTime: edit.startTime, endTime: edit.endTime, repeat: edit.repeat, banner: edit.banner, channel: edit.channel, buttons: edit.buttons.map(({ emoji, label, style, limit, attending }) => ({ emoji, label, style, limit, attending })), linkAttendance: !edit.attendanceEventId, opType: edit.opType }
+      ? { where: edit.where, voiceChannel: edit.voiceChannel, location: edit.location, title: edit.title, description: edit.description, date: edit.startAtISO ? ukDay(new Date(edit.startAtISO)) : edit.date, startTime: edit.startAtISO ? hm(edit.startAtISO) : edit.startTime, endTime: edit.endAtISO ? hm(edit.endAtISO) : edit.endTime, repeat: edit.repeat, banner: edit.banner, channel: edit.channel, buttons: edit.buttons.map(({ emoji, label, style, limit, attending }) => ({ emoji, label, style, limit, attending })), linkAttendance: !edit.attendanceEventId, opType: edit.opType }
       : { where: "voice", voiceChannel: "", location: "", title: "", description: "", date: date ?? ukDay(), startTime: "19:00", endTime: "22:00", repeat: "none", banner: "", channel: first, buttons: PRESETS[0]![1].map((b) => ({ ...b })), linkAttendance: true, opType: "main_op" } });
   };
 
@@ -111,7 +117,7 @@ export function Events(p: { onPage: (id: string) => void }) {
                   <span className={`pointer-events-none ${key === today ? "font-bold text-cyan" : "text-dim"}`}>{i + 1}</span>
                   {list.map((e) => { const c = OPT[e.opType]?.[1] ?? "#9fb3c4"; return (
                     <button key={e.id} type="button" onClick={() => setOpen(e.id)} className="rise mt-1 block w-full truncate border-l-[3px] bg-[#0d1a27] px-1.5 py-1 text-left text-[11px] text-white hover:bg-[#132536]"
-                      style={{ borderColor: c, opacity: e.status === "cancelled" ? 0.45 : 1, textDecoration: e.status === "cancelled" ? "line-through" : undefined }}>{e.startTime} {e.title}</button>); })}
+                      style={{ borderColor: c, opacity: e.status === "cancelled" ? 0.45 : 1, textDecoration: e.status === "cancelled" ? "line-through" : undefined }}>{hm(e.startAtISO)} {e.title}</button>); })}
                 </div>
               );
             })}
@@ -128,7 +134,7 @@ export function Events(p: { onPage: (id: string) => void }) {
           {next ? (
             <button type="button" onClick={() => setOpen(next.id)} className="tile block w-full border border-cyan/15 bg-[#0b1016] p-3.5 text-left" style={{ borderTop: `3px solid ${OPT[next.opType]?.[1] ?? "#00D9FF"}` }}>
               <b className="block font-head text-[17px] text-white">{next.title}</b>
-              <span className="text-[11px] text-dim">{ukFmt(next.startAtISO, { weekday: "short", day: "numeric", month: "short" })} · {next.startTime}–{next.endTime} UK · {(OPT[next.opType]?.[0] ?? "").toUpperCase()}</span>
+              <span className="text-[11px] text-dim">{ukFmt(next.startAtISO, { weekday: "short", day: "numeric", month: "short" })} · {myRange(next)} · {(OPT[next.opType]?.[0] ?? "").toUpperCase()}</span>
               <div className="mt-2 flex flex-wrap gap-1.5">{next.buttons.map((b) => <span key={b.key} className="border border-cyan/20 px-1.5 py-0.5 text-[11px] text-white">{b.emoji} {b.label} {next.signups.filter((s) => s.choice === b.key).length}{b.limit ? `/${b.limit}` : ""}</span>)}</div>
               <span className="mt-2 block text-[11px] text-dim">{whereLabel(next)}</span>
             </button>
@@ -139,7 +145,8 @@ export function Events(p: { onPage: (id: string) => void }) {
 
       {ev && <Detail e={ev} d={d} busy={busy} onReload={() => void load()} onClose={() => setOpen(null)} onEdit={() => startWizard(undefined, ev)} onAtt={() => p.onPage("panel-attendance")}
         onAct={(action, extra) => void run({ action, id: ev.id, ...extra }, action).then((r) => { if (r.ok && (action === "delete" || action === "cancel" || action === "end")) setOpen(null); })} />}
-      {wiz && <Wizard d={d} w={wiz} setW={setWiz} busy={busy === "save"} onSave={async () => { const r = await run({ action: "save", id: wiz.editId ?? undefined, v: wiz.v }, "save"); if (r.ok) setWiz(null); else setWiz((o) => o && { ...o, err: r.error ?? null }); }} />}
+      {wiz && <Wizard d={d} w={wiz} setW={setWiz} busy={busy === "save"} onSave={async () => { const s0 = new Date(`${wiz.v.date}T${wiz.v.startTime}:00`); let e0 = new Date(`${wiz.v.date}T${wiz.v.endTime}:00`); if (e0 <= s0) e0 = new Date(e0.getTime() + 864e5);
+          const r = await run({ action: "save", id: wiz.editId ?? undefined, v: { ...wiz.v, startAtISO: s0.toISOString(), endAtISO: e0.toISOString(), tz: MY_TZ } }, "save"); if (r.ok) setWiz(null); else setWiz((o) => o && { ...o, err: r.error ?? null }); }} />}
       {toast && <div role="status" className={`fixed bottom-4 left-1/2 z-[60] -translate-x-1/2 border bg-panel px-4 py-2 text-[12px] tracking-[1.5px] ${toast[1] ? "border-ok text-ok" : "border-bad text-bad"}`}>{toast[1] ? "✓ " : "⚠ "}{toast[0]}</div>}
     </main>
   );
@@ -161,7 +168,7 @@ function Row({ e, onOpen }: { e: EvItem; onOpen: (id: string) => void }) {
   const [t, c] = discordChip(e);
   return (
     <button type="button" onClick={() => onOpen(e.id)} className="tile mb-1.5 flex w-full items-center gap-3 border border-cyan/15 bg-[#0b1016] px-3 py-2.5 text-left" style={{ borderLeft: `3px solid ${OPT[e.opType]?.[1] ?? "#00D9FF"}`, opacity: e.status === "cancelled" ? 0.55 : 1 }}>
-      <span className="min-w-0 flex-1"><b className="block truncate text-[14px] text-white">{e.title}</b><small className="text-[11px] text-dim">{ukFmt(e.startAtISO, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()} · {e.startTime}–{e.endTime}</small></span>
+      <span className="min-w-0 flex-1"><b className="block truncate text-[14px] text-white">{e.title}</b><small className="text-[11px] text-dim">{ukFmt(e.startAtISO, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase()} · {myRange(e)}</small></span>
       <span className="flex flex-wrap justify-end gap-1 text-[10.5px]">
         <span className="border px-1.5" style={{ color: c, borderColor: c + "80" }}>{t}</span>
         {e.repeat !== "none" && <span className="border border-cyan/30 px-1.5 text-cyan">↻ {REPEAT[e.repeat]}</span>}
@@ -195,7 +202,7 @@ function Detail(p: { e: EvItem; d: EvData; busy: string | null; onReload: () => 
       <div role="dialog" aria-modal="true" aria-label={e.title} className="rise flex max-h-[92vh] w-[min(820px,96vw)] flex-col border border-cyan/40 bg-panel" style={{ borderTop: `3px solid ${OPT[e.opType]?.[1] ?? "#00D9FF"}` }}>
         <div className="flex items-start border-b border-cyan/20 px-4 py-3">
           <div><b className="font-head text-[18px] tracking-[2px] text-white">{e.title.toUpperCase()}</b>
-            <div className="text-[10.5px] tracking-[1px] text-dim">{ukFmt(e.startAtISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase()} · {e.startTime}–{e.endTime} UK · {whereLabel(e)}</div></div>
+            <div className="text-[10.5px] tracking-[1px] text-dim">{ukFmt(e.startAtISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase()} · {myRange(e)} · {whereLabel(e)}</div></div>
           <button type="button" onClick={p.onClose} aria-label="Close" className="ml-auto px-2 text-dim hover:text-white">✕</button>
         </div>
         <div role="tablist" className="flex border-b border-cyan/15">
@@ -258,6 +265,7 @@ function Detail(p: { e: EvItem; d: EvData; busy: string | null; onReload: () => 
 
 function Wizard(p: { d: EvData; w: Wiz; setW: (f: (o: Wiz | null) => Wiz | null) => void; busy: boolean; onSave: () => void }) {
   const { d, w } = p, v = w.v, s = w.step;
+  const [upSt, setUpSt] = useState("");
   const set = (patch: Partial<Wiz["v"]>) => p.setW((o) => o && { ...o, err: null, v: { ...o.v, ...patch } });
   const setB = (i: number, patch: Partial<EvButton>) => set({ buttons: v.buttons.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
   const check = (k: number): string | null => {
@@ -303,7 +311,16 @@ function Wizard(p: { d: EvData; w: Wiz; setW: (f: (o: Wiz | null) => Wiz | null)
               </div>
               <label htmlFor="evR" className={lbl}>REPEAT</label><select id="evR" value={v.repeat} onChange={(x) => set({ repeat: x.target.value })} className={inp}>{Object.entries(REPEAT).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               <label htmlFor="evDs" className={lbl}>DESCRIPTION (OPTIONAL)</label><textarea id="evDs" rows={4} maxLength={1000} value={v.description} onChange={(x) => set({ description: x.target.value })} className={inp} />
-              <label htmlFor="evBn" className={lbl}>COVER IMAGE URL (OPTIONAL)</label><input id="evBn" value={v.banner} onChange={(x) => set({ banner: x.target.value })} placeholder="Paste an image link from the Gallery" className={inp} />
+              <span className={lbl}>COVER IMAGE (OPTIONAL)</span>
+              <div className="flex flex-wrap items-center gap-2.5">{v.banner && <img src={v.banner} alt="Cover image" className="h-16 max-w-[160px] border border-cyan/20 object-cover" />}
+                <label className="cursor-pointer border border-cyan/40 px-3 py-1.5 text-[10.5px] tracking-[1.5px] text-cyan hover:border-cyan">{upSt || "⤒ UPLOAD FROM PC"}
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={async (x) => {
+                    const f = x.target.files?.[0]; x.target.value = "";
+                    if (!f) return; if (f.size > 10 * 1024 * 1024) { setUpSt("IMAGES UP TO 10 MB ONLY"); return; }
+                    setUpSt("UPLOADING…"); const r = await window.cn.hub.upload("505th_events", f.name, f.type, new Uint8Array(await f.arrayBuffer()));
+                    setUpSt(r.error ? r.error.toUpperCase() : ""); if (r.url) set({ banner: r.url }); }} /></label>
+                {v.banner && <button type="button" onClick={() => set({ banner: "" })} className="border border-bad/50 px-3 py-1.5 text-[10.5px] tracking-[1.5px] text-bad">✕ REMOVE</button>}</div>
+              <label htmlFor="evBn" className={lbl}>…OR PASTE AN IMAGE LINK</label><input id="evBn" value={v.banner} onChange={(x) => set({ banner: x.target.value })} placeholder="https://… (e.g. from the Gallery)" className={inp} />
               <p className="text-[11px] text-dim">Shown on the sign-up post and as the Discord event cover. Wide images (about 800×320) look best.</p>
             </>}
             {s === 2 && <>

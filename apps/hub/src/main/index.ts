@@ -158,7 +158,7 @@ ipcMain.handle("hub:aars-action", (e, body: unknown) => {
 /** Image upload (AAR screenshots): the website signs it, the file goes straight to Cloudinary. Images only, max 10 MB. */
 ipcMain.handle("hub:upload", async (e, folder: unknown, name: unknown, type: unknown, bytes: unknown) => {
   const audio = folder === "505th_sounds";
-  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg", "505th_notes", "505th_sounds", "505th_comms"].includes(String(folder)) || typeof type !== "string" || !(audio ? /^audio\/(mpeg|mp3|wav|x-wav|wave|ogg)$/ : /^image\/(png|jpeg|webp|gif)$/).test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
+  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg", "505th_notes", "505th_sounds", "505th_comms", "505th_events"].includes(String(folder)) || typeof type !== "string" || !(audio ? /^audio\/(mpeg|mp3|wav|x-wav|wave|ogg)$/ : /^image\/(png|jpeg|webp|gif)$/).test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
   const s = (await call("/api/hub/upload-sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) })) as Record<string, unknown>;
   if (s.error) return { error: String(s.error) };
   try {

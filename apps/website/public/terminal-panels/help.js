@@ -99,7 +99,7 @@ const H = {
   "panel-notes": { g: "WORKSPACE", t: "Notes", who: "Staff NCO+", key: "notes", s: "Private or shared notes. Share with people or groups — they get a 🔔 alert." },
   "panel-website": { g: "WORKSPACE", t: "Website", who: "Staff NCO+", key: "web", s: "Edit the public website pages." },
   "panel-officers": { g: "SECURITY", t: "Officer Management", who: "Staff NCO+", key: "om", s: "Who can open which page — per person on top of their role." },
-  "panel-network": { g: "SECURITY", t: "Network Status", who: "Staff NCO+", key: "net", s: "Live health of the website, Cortana, database, Discord and instant updates.",
+  "panel-network": { g: "COMMAND CENTRE", t: "Cortana Settings", who: "Staff NCO+", key: "net", s: "Live health of the website, Cortana, database, Discord and instant updates.",
     tour: [
       { sel: "#netV2 .nt-banner", h: "OVERALL", p: "Green = all fine, amber = degraded, red = outage — and what's wrong." },
       { sel: "#netV2 .nt-4", h: "EACH SYSTEM", p: "Website, Cortana, database and instant updates — all live." },

@@ -20,29 +20,36 @@ const PANEL_KEYS = {
   "panel-tickets": "tk", "panel-events": "ev", "panel-send": "send", "panel-quick": "qu", "panel-info": "info", "panel-mod": "modw",
   "panel-projects": "proj", "panel-notes": "notes",
   "panel-officers": "om", "panel-network": "net", "panel-hubaccess": "hubacc",
-  "panel-bot": "bot", "panel-overall": "ovr",
+  "panel-bot": "bot", "panel-overall": "ovr", "panel-lockdown": "modk", "panel-cortana-status": "set", "panel-discord-sync": "set",
   "panel-auditv2": "audit", "panel-website": "web",
   "panel-cmd-status": "cmd_status", "panel-cmd-sitrep": "cmd_sitrep", "panel-cmd-staff": "cmd_staff", "panel-cmd-promote": "cmd_promote", "panel-cmd-suspend": "cmd_suspend", "panel-cmd-settings": "set", "panel-cmd-cortana": "set", "panel-modlist": "set", "panel-cmd-rolesync": "set",
 };
 
 /** New pages that need Cortana v2 to reach Discord. Shown as "waiting for Cortana v2" for now. */
 const NEEDS_CORTANA = {
+  "panel-lockdown": ["DISCORD LOCKDOWN", "Lock channels, slow mode or pause invites during a raid — Cortana saves and restores each channel's settings. Design approved 16 Nov."],
+  "panel-cortana-status": ["CORTANA STATUS", "Cortana's health at a glance. Design approved 16 Nov."],
+  "panel-discord-sync": ["DISCORD SYNC", "Re-sync channels, roles and members with Discord. Design approved 16 Nov."],
 };
 
+/* Side menu reorganised (approved mock 2026-11-16) — same menu as the Hub. MANPOWER and EVENTS are the original groups;
+   Recruitment Stats moves to STATUS, Gallery + Videos move to WORKSPACE, and INTEL ARCHIVE is removed (buildMenu). */
 const GROUPS = [
-  { id: "nav-discord", icon: "&#9672;", label: "DISCORD", tip: "Tickets, events, messages, info posts and moderation — sent to Discord by Cortana.", links: [
-    ["panel-tickets", "&#127915; Tickets"], ["panel-events", "&#9873; Create Events"], ["panel-send", "&#9993; Send Message"],
-    ["panel-quick", "&#8682; Quick Upload"], ["panel-info", "&#128204; Info Posts"], ["panel-mod", "&#9960; Moderation"], ["panel-modlist", "&#128230; Modlist"]] },
-  { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes and the public website pages.", links: [
-    ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"]] },
-  { id: "nav-security", icon: "&#9961;", label: "SECURITY", tip: "Who has access to what, network health and the audit log.", links: [
-    ["panel-officers", "&#9733; Officer Management"], ["panel-hubaccess", "&#128273; Hub Access"], ["panel-auditv2", "&#9741; Audit Log"]] },
-  { id: "nav-command", icon: "&#9733;", label: "COMMAND", tip: "Running the unit. Commander / Developer, plus anyone the Commander gives Command Access.", cls: "cmdg", links: [
+  { id: "nav-comms", icon: "&#9993;", label: "COMMS", tip: "Tickets and messages to Discord.", links: [
+    ["panel-tickets", "&#127915; Tickets"], ["panel-send", "&#9993; Send Message"]] },
+  { id: "nav-discord", icon: "&#9672;", label: "CORTANA COMMAND", tip: "Posts and moderation in Discord, done by Cortana.", links: [
+    ["panel-quick", "&#8682; Quick Post"], ["panel-info", "&#128204; Info Posts"], ["panel-mod", "&#9960; Moderation"], ["panel-modlist", "&#128230; Modlist"]] },
+  { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes, the public website pages and the gallery.", links: [
+    ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"], ["move", "panel-gallery"], ["move", "panel-videos"]] },
+  { id: "nav-status", icon: "&#9673;", label: "STATUS", tip: "What the unit is doing, recruitment numbers and the health of every service.", links: [
+    ["panel-cmd-status", "&#9672; Unit Status"], ["move", "panel-recruit-source"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-overall", "&#9679; Overall Status"]] },
+  { id: "nav-command", icon: "&#9733;", label: "COMMAND CENTRE", tip: "Running the unit. Commander / Developer, plus anyone the Commander gives Command Access.", cls: "cmdg", links: [
     ["panel-cmd-home", "&#9733; Command Centre"],
-    ["label", "UNIT"], ["panel-cmd-status", "&#9673; Unit Status"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-cmd-staff", "&#9823; Command Staff"],
-    ["panel-cmd-promote", "&#9650; Command Promotions"], ["panel-cmd-suspend", "&#9940; Suspensions"],
-    ["label", "SYSTEM"], ["panel-overall", "&#9678; Overall Status"], ["panel-bot", "&#9654; Bot Server"], ["panel-cmd-cortana", "&#9670; Cortana Setup"], ["panel-cmd-rolesync", "&#8644; Discord Role Sync"], ["panel-cmd-settings", "&#9881; Settings"],
-    ["label", "COMMANDER"], ["panel-cmd-access", "&#128273; Command Access"]] },
+    ["label", "STAFF"], ["panel-officers", "&#9733; Officer Management"], ["panel-cmd-staff", "&#9819; High Command Management"], ["panel-cmd-promote", "&#9650; Command Promotions"],
+    ["panel-cmd-rolesync", "&#8644; Discord Role Map"], ["panel-hubaccess", "&#128273; Hub Access"], ["panel-cmd-access", "&#128273; Command Access"],
+    ["label", "SYSTEM"], ["panel-bot", "&#9635; Bot Server"], ["panel-network", "&#9881; Cortana Settings"],
+    ["label", "MODERATION"], ["panel-lockdown", "&#9940; Discord Lockdown"], ["panel-cmd-suspend", "&#9208; Suspensions"], ["panel-auditv2", "&#9741; Audit Log"],
+    ["label", "SETTINGS"], ["panel-cortana-status", "&#9673; Cortana Status"], ["panel-cmd-cortana", "&#10022; Cortana Setup Wizard"], ["panel-discord-sync", "&#10227; Discord Sync"], ["panel-cmd-settings", "&#128279; Discord Link"]] },
   { id: "nav-help", icon: "&#9432;", label: "HELP", tip: "What every page does, how-to steps and guided tours.", links: [["panel-help", "&#9432; Help &amp; Guided Tours"]] },
 ];
 
@@ -94,6 +101,9 @@ function buildMenu() {
   frag.insertBefore(hr, frag.querySelector("#nav-command"));
   anchor.parentNode.insertBefore(frag, anchor);
   for (const o of old) o?.remove();
+  // INTEL ARCHIVE is empty now (Gallery + Videos moved to WORKSPACE) — remove the group.
+  const media = document.getElementById("nav-media");
+  if (media && !media.querySelector(".sub-link")) media.remove();
   // The old Command Panel popup is replaced by the COMMAND pages: keep its button (original code uses it) but never show it.
   const cmdBtn = document.getElementById("nav-commander-btn");
   if (cmdBtn) addCss("nv2-cmdbtn-hide", "#nav-commander-btn{display:none!important}");
@@ -111,7 +121,7 @@ function buildPanels() {
   const main = document.querySelector(".main-content");
   if (!main) return;
   for (const id of ["panel-tickets", "panel-events", "panel-send", "panel-quick", "panel-info", "panel-mod", "panel-projects", "panel-notes", "panel-officers", "panel-network",
-    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-home", "panel-cmd-access", "panel-hubaccess", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help"]) {
+    "panel-bot", "panel-overall", "panel-auditv2", "panel-website", "panel-cmd-home", "panel-cmd-access", "panel-hubaccess", "panel-cmd-status", "panel-cmd-sitrep", "panel-cmd-staff", "panel-cmd-promote", "panel-cmd-suspend", "panel-cmd-settings", "panel-cmd-cortana", "panel-modlist", "panel-cmd-rolesync", "panel-help", "panel-lockdown", "panel-cortana-status", "panel-discord-sync"]) {
     if (document.getElementById(id)) continue;
     const p = document.createElement("div");
     p.className = "panel hidden";

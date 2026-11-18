@@ -33,7 +33,9 @@ function NetLight() {
   useEffect(() => {
     void load();
     const off = window.cn.net.onTopic((t) => { if (t === "net_status" && !document.hidden) void load(); });
-    return off;
+    const op = () => { setOpen(true); void load(); }; // side menu → STATUS → Overall Status
+    window.addEventListener("open-net", op);
+    return () => { off(); window.removeEventListener("open-net", op); };
   }, []);
   useEffect(() => {
     if (!open) return;

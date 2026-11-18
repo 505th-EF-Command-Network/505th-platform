@@ -13,7 +13,7 @@
  */
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, updateDoc } from "/terminal-shim/firestore.js";
 import { onAccess } from "./nav-v2.js";
-import { addCss, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, onReady, openModal, rankOrder } from "./_common.js";
+import { addCss, audit, closeModal, db, esc, getMe, getUsers, isMember, memberName, mountPanel, notify, onReady, openModal, rankOrder, uploadImage } from "./_common.js";
 import { ask, tell } from "./_common.js";
 import { cortanaJob } from "./discord-common.js";
 
@@ -65,7 +65,16 @@ function ukToDate(date, time) {
   const [wh, wm] = time.split(":").map(Number);
   return new Date(guess.getTime() - ((h * 60 + m) - (wh * 60 + wm)) * 60000);
 }
-const ukFmt = (iso, opts) => new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", ...opts });
+/* 18 Nov (Drake's bug): times were always read as UK time, so 12:00 typed in California became 12:00 UK = 04:00 PST.
+   Now: you type times in YOUR OWN time; everyone SEES them in their own time. date / startTime / endTime are still
+   stored in UK time (Cortana's "UK" labels and repeats use them); startAtISO / endAtISO are the real moment. */
+const MY_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const tzShort = (d = new Date()) => new Intl.DateTimeFormat("en-US", { timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName")?.value || MY_TZ;
+const localToDate = (date, time) => new Date(`${date}T${time}:00`); // the browser's own time zone
+const ukParts = (d) => ({ date: d.toLocaleDateString("en-CA", { timeZone: "Europe/London" }), time: d.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) });
+const localParts = (iso) => { const d = new Date(iso); return { date: d.toLocaleDateString("en-CA"), time: d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }) }; };
+const myRange = (e) => (e.startAtISO ? `${localParts(e.startAtISO).time}–${localParts(e.endAtISO).time} ${tzShort(new Date(e.startAtISO))}` : `${e.startTime}–${e.endTime} UK`);
+const ukFmt = (iso, opts) => new Date(iso).toLocaleString("en-GB", opts); // name kept; now YOUR time
 const whenLabel = (e) =>
   e.date ? `${new Date(`${e.date}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} · ${e.startTime}–${e.endTime}` : "Choose a date";
 const whereLabel = (e) => (e.where === "else" ? `📍 ${e.location || "Somewhere else"}` : `${e.where === "stage" ? "🎙" : "🔊"} ${e.voiceChannel || (e.where === "stage" ? "Stage channel" : "Voice channel")}`);
@@ -107,7 +116,7 @@ const signedUpUids = (e) => {
 };
 
 function row(e) {
-  return `<button class="evr ${e.status === "cancelled" ? "dim" : ""}" data-open="${e.id}"><span><b>${esc(e.title)}</b><small>${esc(ukFmt(e.startAtISO, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase())} · ${esc(e.startTime)}–${esc(e.endTime)}</small></span>
+  return `<button class="evr ${e.status === "cancelled" ? "dim" : ""}" data-open="${e.id}"><span><b>${esc(e.title)}</b><small>${esc(ukFmt(e.startAtISO, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase())} · ${esc(myRange(e))}</small></span>
     <span class="chips">${e.status === "cancelled" ? '<span class="ch er">Cancelled</span>' : discordChip(e)}${e.repeat && e.repeat !== "none" ? `<span class="ch rp">↻ ${REPEAT[e.repeat]}</span>` : ""}${counts(e)
       .map(([b, n]) => `<span class="ch">${esc(b.emoji)} ${esc(b.label)} ${n}${b.limit ? "/" + b.limit : ""}</span>`)
       .join("")}${attChip(e)}</span></button>`;
@@ -137,7 +146,7 @@ function startWizard(edit) {
     step: 0,
     editId: edit?.id || null,
     v: edit
-      ? JSON.parse(JSON.stringify({ ...edit, opType: edit.opType || attById.get(edit.attendanceEventId)?.type || "", buttons: edit.buttons.map(({ key, ...b }) => b) }))
+      ? JSON.parse(JSON.stringify({ ...edit, ...(edit.startAtISO ? { date: localParts(edit.startAtISO).date, startTime: localParts(edit.startAtISO).time, endTime: localParts(edit.endAtISO).time } : {}), opType: edit.opType || attById.get(edit.attendanceEventId)?.type || "", buttons: edit.buttons.map(({ key, ...b }) => b) }))
       : { where: "voice", voiceChannel: "", location: "", title: "", description: "", date: today, startTime: "19:00", endTime: "22:00", repeat: "none", banner: "", channel: "", buttons: PRESETS[0][1].map(mkB), linkAttendance: true, attType: "main_op", opType: "main_op" },
   };
   const root = document.getElementById(ROOT);
@@ -200,7 +209,7 @@ function drawWizard(err) {
         ? `<label class="lbl" for="evLoc">LOCATION</label><input class="fld" id="evLoc" data-k="location" maxlength="${LIMITS.location}" value="${esc(v.location)}" placeholder="e.g. Arma 3 — 505th server">`
         : `<label class="lbl" for="evVc">${v.where === "stage" ? "STAGE" : "VOICE"} CHANNEL</label>${vcList(v.where).length ? `<select class="fld" id="evVc" data-k="voiceChannel"><option value="">— pick a channel —</option>${vcList(v.where).map((n) => `<option ${n === v.voiceChannel ? "selected" : ""}>${esc(n)}</option>`).join("")}${v.voiceChannel && !vcList(v.where).includes(v.voiceChannel) ? `<option selected>${esc(v.voiceChannel)}</option>` : ""}</select>` : `<input class="fld" id="evVc" data-k="voiceChannel" maxlength="100" value="${esc(v.voiceChannel)}" placeholder="e.g. Ops Briefing"><p class="hint">Add voice / stage channels in COMMAND → Cortana Setup to get a pick list here.</p>`}`}`;
   if (s === 1)
-    body = `<h2 class="eh">WHAT'S YOUR EVENT ABOUT?</h2><p class="hint">All times are UK time (GMT/BST handled automatically).</p>
+    body = `<h2 class="eh">WHAT'S YOUR EVENT ABOUT?</h2><p class="hint">Type times in YOUR time (${esc(MY_TZ)} · ${esc(tzShort())}). Everyone sees the event in their own time.</p>
       <span class="lbl">OPERATION TYPE</span><div class="pres" role="radiogroup" aria-label="Operation type">${Object.entries(ATT_TYPES).map(([k, l]) => `<button class="pill" role="radio" aria-checked="${v.opType === k}" data-optype="${k}" style="${v.opType === k ? "border-color:#00D9FF;color:#00D9FF;background:rgba(0,217,255,.12)" : ""}">${l.toUpperCase()}</button>`).join("")}</div>
       <p class="hint">Shown on the homepage, the sign-up post and the Upcoming Events list.</p>
       <label class="lbl" for="evT">EVENT TOPIC</label><input class="fld" id="evT" data-k="title" maxlength="${LIMITS.title}" value="${esc(v.title)}" placeholder="e.g. Weekend Op: Operation Firebreak">
@@ -211,7 +220,11 @@ function drawWizard(err) {
       <label class="lbl" for="evR">REPEAT</label><select class="fld" id="evR" data-k="repeat">${Object.entries(REPEAT).map(([k, l]) => `<option value="${k}" ${v.repeat === k ? "selected" : ""}>${l}</option>`).join("")}</select>
       <p class="hint">Repeating: 30 minutes after it starts, the next one is created and posted with fresh sign-ups. Set back to "Does not repeat" to stop.</p>
       <label class="lbl" for="evDs">DESCRIPTION (OPTIONAL)</label><textarea class="fld" id="evDs" data-k="description" rows="4" maxlength="${LIMITS.description}">${esc(v.description)}</textarea>
-      <label class="lbl" for="evBn">COVER IMAGE URL (OPTIONAL)</label><input class="fld" id="evBn" data-k="banner" value="${esc(v.banner)}" placeholder="Paste an image link from the Gallery">
+      <span class="lbl">COVER IMAGE (OPTIONAL)</span>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${v.banner ? `<img src="${esc(v.banner)}" alt="Cover image" style="height:64px;max-width:160px;object-fit:cover;border:1px solid var(--l)">` : ""}
+        <label class="b" style="cursor:pointer" tabindex="0">⤒ UPLOAD FROM PC / PHONE<input type="file" id="evUp" accept="image/*" hidden></label>
+        ${v.banner ? '<button type="button" class="b" data-bnrm style="color:#ff4d4d;border-color:rgba(255,77,77,.5)">✕ REMOVE</button>' : ""}<span class="hint" id="evUpSt" style="margin:0"></span></div>
+      <label class="lbl" for="evBn">…OR PASTE AN IMAGE LINK</label><input class="fld" id="evBn" data-k="banner" value="${esc(v.banner)}" placeholder="https://… (e.g. from the Gallery)">
       <p class="hint">Shown on the sign-up post and as the Discord event cover. Wide images (about 800×320) look best.</p>`;
   if (s === 2)
     body = `<h2 class="eh">SIGN-UPS</h2><p class="hint">Choose the buttons people press under the sign-up post.</p>
@@ -276,9 +289,10 @@ async function create() {
   btn.disabled = true;
   btn.textContent = "SAVING...";
   const v = w.v;
-  const start = ukToDate(v.date, v.startTime);
-  let end = ukToDate(v.date, v.endTime);
+  const start = localToDate(v.date, v.startTime);
+  let end = localToDate(v.date, v.endTime);
   if (end <= start) end = new Date(end.getTime() + 86400000);
+  const us = ukParts(start), ue = ukParts(end);
   const me = await getMe();
   const old = w.editId ? events.find((e) => e.id === w.editId) : null;
   // Keep sign-ups on buttons that stay in the same position (same as RCD).
@@ -286,7 +300,7 @@ async function create() {
   const keys = new Set(buttons.map((b) => b.key));
   const rec = {
     title: v.title.trim(), description: v.description.trim(), where: v.where, voiceChannel: v.where === "else" ? "" : v.voiceChannel.trim(), location: v.where === "else" ? v.location.trim() : "",
-    date: v.date, startTime: v.startTime, endTime: v.endTime, startAtISO: start.toISOString(), endAtISO: end.toISOString(),
+    date: us.date, startTime: us.time, endTime: ue.time, startAtISO: start.toISOString(), endAtISO: end.toISOString(), createdTz: MY_TZ,
     opType: ATT_TYPES[v.opType] ? v.opType : "main_op",
     repeat: v.repeat, banner: v.banner.trim(), channel: v.channel.trim().replace(/^#/, ""), buttons,
     // Sign-ups come from Discord (Cortana saves them). Only touch them when a button was removed,
@@ -477,7 +491,7 @@ function openEvent(id) {
   setTimeout(() => { const m = document.getElementById("v2Modal"); if (m) m.dataset.ev = id; }, 0);
   const a = e.attendanceEventId && attById.get(e.attendanceEventId);
   openModal(
-    `<div class="hd"><div><h2>${esc(e.title.toUpperCase())}</h2><small>${esc(ukFmt(e.startAtISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase())} · ${esc(e.startTime)}–${esc(e.endTime)} UK · ${esc(whereLabel(e))}</small></div><button class="xx" data-close aria-label="Close">✕</button></div>
+    `<div class="hd"><div><h2>${esc(e.title.toUpperCase())}</h2><small>${esc(ukFmt(e.startAtISO, { weekday: "long", day: "numeric", month: "long" }).toUpperCase())} · ${esc(myRange(e))} · ${esc(whereLabel(e))}</small></div><button class="xx" data-close aria-label="Close">✕</button></div>
     <div class="ev-tabs" role="tablist"><button role="tab" data-evtab="details" class="${evTab === "details" ? "on" : ""}" aria-selected="${evTab === "details"}">DETAILS</button><button role="tab" data-evtab="live" class="${evTab === "live" ? "on" : ""}" aria-selected="${evTab === "live"}">● LIVE STATUS</button></div>
     <div class="bd">${evTab === "live" ? liveHtml(e) : `
       <div class="chips" style="margin-bottom:12px">${e.status === "cancelled" ? '<span class="ch er">Cancelled</span>' : discordChip(e)}${e.repeat !== "none" ? `<span class="ch rp">↻ ${REPEAT[e.repeat]}</span>` : ""}${attChip(e)}</div>
@@ -532,7 +546,7 @@ function openCheck(e) {
   chk?.unsub?.();
   const a = attById.get(e.attendanceEventId);
   chk = { e, a: { ...a }, unsub: null };
-  openModal(`<div class="hd"><div><h2>ATTENDANCE CHECK — ${esc(e.title.toUpperCase())}</h2><small>${esc(ukFmt(e.startAtISO, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase())} · ${esc(e.startTime)}–${esc(e.endTime)} · ${esc((ATT_TYPES[a.type] || a.type || "").toUpperCase())} · CHECKED BY NCO AND ABOVE</small></div><button class="xx" data-close aria-label="Close">✕</button></div><div class="bd ac"></div><div class="ft ac-ft"></div>`, { width: 880 });
+  openModal(`<div class="hd"><div><h2>ATTENDANCE CHECK — ${esc(e.title.toUpperCase())}</h2><small>${esc(ukFmt(e.startAtISO, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase())} · ${esc(myRange(e))} · ${esc((ATT_TYPES[a.type] || a.type || "").toUpperCase())} · CHECKED BY NCO AND ABOVE</small></div><button class="xx" data-close aria-label="Close">✕</button></div><div class="bd ac"></div><div class="ft ac-ft"></div>`, { width: 880 });
   const box = document.getElementById("v2Modal");
   // Live: other NCOs checking at the same time see each other's ticks.
   chk.unsub = onSnapshot(doc(db, "attendance_events", a.id), (s) => {
@@ -817,3 +831,19 @@ onReady(() => {
     if (e.target.dataset.k === "repeat" || e.target.dataset.k === "attType") w.v[e.target.dataset.k] = e.target.value;
   });
 });
+
+/* Event cover image: upload straight from PC or phone (18 Nov, Drake's request). Phones offer camera or photos. */
+document.addEventListener("change", async (e) => {
+  if (e.target?.id !== "evUp" || !w) return;
+  const f = e.target.files?.[0];
+  const st = document.getElementById("evUpSt");
+  if (!f) return;
+  if (!f.type.startsWith("image/") || f.size > 10 * 1024 * 1024) return notify("IMAGES UP TO 10 MB ONLY", 1);
+  try {
+    const r = await uploadImage(f, "505th_events", (p) => st && (st.textContent = `UPLOADING… ${p}%`));
+    w.v.banner = r.secure_url;
+    drawWizard();
+    notify("✓ COVER IMAGE UPLOADED");
+  } catch (err) { if (st) st.textContent = ""; notify("UPLOAD FAILED: " + err.message, 1); }
+});
+document.addEventListener("click", (e) => { if (e.target.closest?.("[data-bnrm]") && w) { w.v.banner = ""; drawWizard(); } });
