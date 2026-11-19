@@ -248,7 +248,7 @@ function drawWizard(err) {
       ${w.editId ? '<p class="hint">Changing buttons keeps sign-ups on buttons that stay in the same position.</p>' : ""}`;
   if (s === 3)
     body = `<h2 class="eh">CHECK AND ${w.editId ? "SAVE" : "CREATE"}</h2><ul class="erv">
-      <li>✓ <b>${esc(v.title || "Untitled")}</b> · ${esc(whenLabel(v))} (UK)</li><li>✓ Where: ${esc(whereLabel(v))}</li>
+      <li>✓ <b>${esc(v.title || "Untitled")}</b> · ${esc(whenLabel(v))} (${tzShort()})</li><li>✓ Where: ${esc(whereLabel(v))}</li>
       <li>✓ Discord event in the server's Events list</li>
       <li>✓ Sign-up post in #${esc(chanLabel(v.channel) || "—")} · ${v.buttons.map((b) => `${esc(b.emoji)} ${esc(b.label)}${b.limit ? ` (${b.limit})` : ""}`).join(" · ")}</li>
       <li>✓ ${v.repeat === "none" ? REPEAT.none : REPEAT[v.repeat] + " — next one is created automatically"}</li>

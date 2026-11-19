@@ -1,4 +1,5 @@
 import { TerminalDoc } from "@505th/db";
+import { assignableRoles } from "@/lib/terminal/fs-core";
 import { getHubActor, hubJson } from "@/lib/hub/auth";
 import { can } from "@/lib/terminal/access";
 import { EDIT_ROLES, MEDALS, PLATOONS, RANKS, isInactive, photoOf } from "@/lib/hub/members";
@@ -35,8 +36,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ uid: string }> 
     promotionHistory: list(u.promotionHistory), platoonHistory: list(u.platoonHistory), warningHistory: list(u.warningHistory),
     commendationHistory: list(u.commendationHistory), ribbonHistory: list(u.ribbonHistory),
     lastOps,
-    // Editing (same rules as the Terminal): Staff NCO+, Commander's file only by the Commander, retired = frozen.
-    canEdit: EDIT_ROLES.has(a.role) && !(u.role === "commander" && a.role !== "commander") && u.role !== "retired_veteran",
+    // Editing (same rules as the Terminal): Staff NCO+, Commander's file only by the Commander (retired files can be edited too — 19 Nov).
+    canEdit: EDIT_ROLES.has(a.role) && !(u.role === "commander" && a.role !== "commander"),
+    canRemove: ["commander", "officer", "developer", "staff_nco"].includes(a.role) && assignableRoles(a.role).includes(u.role || "enlistee") && uid !== a.uid,
     lists: { ranks: RANKS, platoons: PLATOONS, medals: MEDALS },
   });
 }

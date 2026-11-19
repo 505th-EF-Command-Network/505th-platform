@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RecruitData } from "../../../preload/api";
+import { myTz } from "../settings";
 
 /**
  * RECRUITMENT STATS in the app — same as the Terminal's recruitment-stats.js (approved mock 2026-11-11):
  * 4 KPIs · source breakdown (click to filter) · recruits per month (6 months) · recent recruits table.
  */
 const COLORS: Record<string, string> = { Reddit: "#FF4500", "Steam Community": "#66c0f4", Disboard: "#5865F2", Discord: "#7289da", "Word of Mouth": "#22e07a", Other: "#aeb9c4" };
-const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" }).toUpperCase() : "—");
+const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: myTz() }).toUpperCase() : "—");
 
 export function Recruit() {
   const [d, setD] = useState<RecruitData | null>(null);

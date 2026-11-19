@@ -1387,7 +1387,7 @@
                             ${P().canEditProfiles && !isLockedCommander?`<button class="action-btn approve-btn small" onclick="openEditUser('${u.id}')">EDIT</button>`:''}
                             ${isLockedCommander?`<span style="font-family:Rajdhani,sans-serif;font-size:9px;letter-spacing:2px;color:#f59e0b;border:1px solid #f59e0b44;padding:3px 8px">&#128274; COMMANDER — LOCKED</span>`:''}
                             ${isLockedCommander && P().canEditProfiles?`<button class="action-btn approve-btn small" onclick="openDiscordEdit('${u.id}')" title="Edit Discord ID / username only">DISCORD</button>`:''}
-                            ${isRetired?`<span style="font-family:Rajdhani,sans-serif;font-size:9px;letter-spacing:2px;color:#888;border:1px solid #88888844;padding:3px 8px" title="Personnel file frozen. Change ROLE to reactivate.">&#128274; RETIRED — FROZEN</span>`:''}
+                            ${isRetired?`<span style="font-family:Rajdhani,sans-serif;font-size:9px;letter-spacing:2px;color:#888;border:1px solid #88888844;padding:3px 8px" title="Retired veteran. Change ROLE to reactivate.">RETIRED</span>`:''}
                             ${P().canChangeRoles && !isLockedCommander?`<div style="display:flex;flex-direction:column;gap:3px">
                                 <div style="color:rgba(0,217,255,.5);font-size:8px;letter-spacing:1px">ROLE</div>
                                 <select onchange="changeRole('${u.id}',this.value)" style="background:rgba(0,0,0,.7);border:1px solid rgba(0,217,255,.35);color:#ccc;font-size:9px;padding:4px;font-family:'Share Tech Mono',monospace">
@@ -1396,7 +1396,7 @@
                             </div>
                             <div style="display:flex;flex-direction:column;gap:3px">
                                 <div style="color:rgba(0,217,255,.5);font-size:8px;letter-spacing:1px">RANK</div>
-                                <select onchange="changeRank('${u.id}',this.value)" ${isRetired?'disabled':''} style="background:rgba(0,0,0,.7);border:1px solid rgba(0,217,255,.35);color:#ccc;font-size:9px;padding:4px;font-family:'Share Tech Mono',monospace;max-width:200px">
+                                <select onchange="changeRank('${u.id}',this.value)"  style="background:rgba(0,0,0,.7);border:1px solid rgba(0,217,255,.35);color:#ccc;font-size:9px;padding:4px;font-family:'Share Tech Mono',monospace;max-width:200px">
                                     <option value="" ${!u.rank?'selected':''}>— RANK —</option>
                                     <optgroup label="── OFFICER ──">
                                         ${['O9 / Lieutenant General','O8 / Major General','O7 / Brigadier General','O6 / Colonel','O5 / Lieutenant Colonel','O4 / Major','O3 / Captain','O2 / First Lieutenant','O1 / Second Lieutenant'].map(r=>`<option value="${r}" ${u.rank===r?'selected':''}>${r}</option>`).join('')}
@@ -1647,7 +1647,8 @@
             // Live personnel file — check authority, then require typed confirmation
             if (_target && !_isRegistration) {
                 if (!canDeleteTarget(_target)) { notify('INSUFFICIENT AUTHORITY',1); return; }
-                const okDel = await window.cf.ask({ kind:'big', title:'DELETE PERSONNEL FILE?', body:'Only remove duplicate or wrong accounts. Their roster entry and sign-in go with it.', item: formatMemberName(_target)||callsign||'', type:(callsign||'DELETE').trim(), warn:'THIS CANNOT BE UNDONE.', go:'DELETE FILE' });
+                const okDel = await window.cf.ask({ kind:'big', title:'DELETE PERSONNEL FILE?', body:'Only remove duplicate or wrong accounts. Their roster entry and sign-in go with it.', item: formatMemberName(_target)||callsign||'', type:'DELETE', withReason:true, warn:'THIS CANNOT BE UNDONE.', go:'DELETE FILE' });
+                window.__rmReason = okDel && okDel.reason ? okDel.reason : '';
                 if (!okDel) return;
             } else {
                 if(!(await window.cfConfirm('REMOVE '+callsign+'?'))) return;
@@ -1669,7 +1670,7 @@
                 }
                 const _rmUser = allUsers.find(x=>x.id===uid);
                 await deleteDoc(doc(db,'users',uid));
-                writeAuditLog('manpower','MEMBER REMOVED',`${_rmUser?formatMemberName(_rmUser)||callsign:callsign} removed from unit`);
+                writeAuditLog('manpower','MEMBER REMOVED',`${_rmUser?formatMemberName(_rmUser)||callsign:callsign} removed from unit${window.__rmReason?' — reason: '+window.__rmReason:''}`); window.__rmReason='';
                 notify('REMOVED: '+callsign);
                 allUsers=[];
                 loadAllUsers();
@@ -1812,7 +1813,8 @@
             csLock.style.display      = (canEditCallsign && u.role!=='retired_veteran') ? 'none' : 'inline';
             csLabel.style.display     = (canEditCallsign && u.role!=='retired_veteran') ? 'none' : 'inline';
             // ── RETIRED VETERAN — freeze personnel file (all fields except ROLE, so staff can reactivate) ──
-            const _frozen = u.role === 'retired_veteran';
+            // 19 Nov (Drake): retired files are no longer locked — they can be edited like any other file.
+            const _frozen = false;
             ['editRankSelect','editFirstName','editLastName','editJoinedAt','editGraduation','editDiscordId','editDiscordUsername','editPlatoon','editRecruitSource'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -1925,7 +1927,6 @@
         window.addRibbonEntry = async function() {
             const uid = document.getElementById('editUserId').value;
             const u   = allUsers.find(x=>x.id===uid); if(!u) return;
-            if (u.role === 'retired_veteran') { notify('PERSONNEL FILE FROZEN — MEMBER IS RETIRED',1); return; }
             const today = new Date().toISOString().split('T')[0];
             const title = document.getElementById('histRibbonTitle').value.trim();
             if(!title){ notify('SELECT A RIBBON',1); return; }
@@ -2067,7 +2068,6 @@
         window.addHistoryEntry = async function(type) {
             const uid = document.getElementById('editUserId').value;
             const u   = allUsers.find(x=>x.id===uid); if(!u) return;
-            if (u.role === 'retired_veteran') { notify('PERSONNEL FILE FROZEN — MEMBER IS RETIRED',1); return; }
             let entry={}, fieldKey='';
             const today = new Date().toISOString().split('T')[0];
             if(type==='platoon'){

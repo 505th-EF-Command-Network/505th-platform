@@ -105,8 +105,9 @@ let WIDE = new Set();
 let editing = false;
 const D = { cortana: { online: false }, users: [], fragos: null, events: [], att: [], tasks: [], notes: [], audit: [], pres: [], status: {}, ping: {} };
 
-const ukTime = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : ""; };
-const ukDay = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "Europe/London" }).toUpperCase() : ""; };
+const ukTime = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""; };
+const ukDay = (v) => { const d = toDate(v); return d && !isNaN(d) ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).toUpperCase() : ""; };
+const tzAbbr = (d = new Date()) => new Intl.DateTimeFormat("en-US", { timeZoneName: "short" }).formatToParts(new Date(d)).find((p) => p.type === "timeZoneName")?.value || "";
 const empty = (t) => `<p class="dim">${t}</p>`;
 const active = () => D.users.filter((u) => isMember(u) && !["retired_veteran", "left", "inactive"].includes(u.status) && u.status !== "suspended");
 const pending = () => D.users.filter((u) => u.status === "pending");
@@ -177,13 +178,13 @@ const WID = {
     return `<div class="d2-kpis"><button class="d2-kpi" data-go="panel-register" style="cursor:pointer"><b style="color:#f59e0b">${pending().length}</b><span>WAITING FOR BCT</span></button><div class="d2-kpi"><b>${active().length}</b><span>ACTIVE MEMBERS</span></div><div class="d2-kpi"><b style="color:#22e07a">${onlineNow().length}</b><span>ONLINE IN TERMINAL</span></div><div class="d2-kpi"><b>${m.pct == null ? "—" : m.pct + "%"}</b><span>ATTENDANCE (${m.label})</span></div></div>`;
   } },
   ops: { t: "⚑ NEXT EVENTS", d: "Upcoming events and sign-ups", ico: "⚑", g: "UNIT", b: () => {
-    const t = new Date().toISOString().slice(0, 10);
-    const evs = D.events.filter((e) => (e.date || "") >= t).sort((a, z) => `${a.date}${a.startTime}`.localeCompare(`${z.date}${z.startTime}`)).slice(0, 3);
+    // 19 Nov: shown in the viewer's own time (startAtISO), not the UK labels.
+    const evs = D.events.filter((e) => e.status !== "cancelled" && Date.parse(e.endAtISO || e.startAtISO) > Date.now()).sort((a, z) => String(a.startAtISO).localeCompare(String(z.startAtISO))).slice(0, 3);
     if (!evs.length) return empty("NO EVENTS SCHEDULED.");
     return evs.map((e) => {
-      const d = new Date(`${e.date}T12:00:00`);
+      const d = new Date(e.startAtISO);
       const n = Array.isArray(e.signups) ? e.signups.length : e.signupCount ?? e.goingCount;
-      return `<div class="d2-op"><div class="d"><b>${d.getDate()}</b>${d.toLocaleDateString("en-GB", { month: "short" }).toUpperCase()}</div><div><b>${esc(e.title || "Op")}</b><small>${d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase()} ${esc(e.startTime || "")}${n != null ? ` · ${n} SIGNED UP` : ""}</small></div></div>`;
+      return `<div class="d2-op"><div class="d"><b>${d.getDate()}</b>${d.toLocaleDateString("en-GB", { month: "short" }).toUpperCase()}</div><div><b>${esc(e.title || "Op")}</b><small>${d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase()} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} ${tzAbbr(d)}${n != null ? ` · ${n} SIGNED UP` : ""}</small></div></div>`;
     }).join("");
   } },
   todo: { t: "✓ NEEDS YOU", d: "Things waiting for you to act on", ico: "✓", g: "UNIT", b: () => {
@@ -356,12 +357,12 @@ function myAttHtml() {
     <div><span class="dim">ATT THIS MONTH</span><div class="d3-pips">${[1, 2, 3].map((k) => `<i class="${att >= k ? "f" : ""}"></i>`).join("")}</div><b class="d3-big">${att} / 3</b><small class="dim" style="display:block">${att >= 3 ? '<span style="color:#22e07a">+1 PT on ' + nx.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }).toUpperCase() + "</span>" : `${3 - att} more op${3 - att === 1 ? "" : "s"} → <span style="color:#22e07a">+1 PT</span>`}</small></div>
     <div><span class="dim">PROMOTION TRACKER</span><b class="d3-big" style="color:#ffd166;display:block">${u.promotionTracker || 0} PT</b><small class="dim">OPS ${u.opsAttended || 0} / ${u.opsEligible || 0}${u.lastAttendedDate ? " · LAST " + ukDay(u.lastAttendedDate) : ""}</small><div style="margin-top:6px"><span class="d2-tag" style="--c:${st[1]}">${st[0]}</span></div></div>
     <div class="d3-last"><span class="dim">LAST OPS</span>${locked.slice(0, 5).map((e) => { const [g, c] = sym[mine(e)]; const why = mine(e) === "e" && e.excusedReasons?.[uid] ? ` <small class="dim">"${esc(e.excusedReasons[uid])}"</small>` : ""; return `<div><b style="color:${c}">${g}</b><span>${esc(e.title || "Op")}${why}</span><small class="dim">${ukDay(e.date)}</small></div>`; }).join("") || '<small class="dim">NO LOCKED OPS YET</small>'}
-      ${next ? `<div class="d3-next"><span class="dim">NEXT:</span> <b>${esc(next.title)}</b> <small class="dim">${new Date(next.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</small> ${myBtn ? `<span class="d2-tag" style="--c:${myBtn.attending ? "#22e07a" : "#f59e0b"}">YOU: ${esc(String(myBtn.label).toUpperCase())}</span>` : '<span class="d2-tag" style="--c:#7d8a99">NOT SIGNED UP</span>'}</div>` : ""}</div></div>`;
+      ${next ? `<div class="d3-next"><span class="dim">NEXT:</span> <b>${esc(next.title)}</b> <small class="dim">${new Date(next.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()}</small> ${myBtn ? `<span class="d2-tag" style="--c:${myBtn.attending ? "#22e07a" : "#f59e0b"}">YOU: ${esc(String(myBtn.label).toUpperCase())}</span>` : '<span class="d2-tag" style="--c:#7d8a99">NOT SIGNED UP</span>'}</div>` : ""}</div></div>`;
 }
 function myStatusHtml() {
   const cur = statusOf(D.me, true);
   const s = D.me?.myStatus || {};
-  const until = s.untilISO && Date.parse(s.untilISO) > Date.now() ? new Date(s.untilISO).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : null;
+  const until = s.untilISO && Date.parse(s.untilISO) > Date.now() ? new Date(s.untilISO).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
   return `<div class="d3-st">${Object.entries(STATES).map(([k, [l, c, g]]) => `<button class="d3-sb ${cur === k ? "on" : ""}" data-st="${k}" style="--c:${c}" aria-pressed="${cur === k}"><span style="color:${c}">${g}</span> ${l.toUpperCase()}</button>`).join("")}</div>
     <div class="d3-stn"><input class="d3-in" id="d3Note" maxlength="60" placeholder="Note (e.g. in briefing)" value="${esc(cur !== "online" ? s.note || "" : "")}" aria-label="Status note"><select class="d3-in" id="d3Until" aria-label="Clear after"><option value="0">DON'T CLEAR</option><option value="60">1 HOUR</option><option value="240">4 HOURS</option><option value="today">TODAY</option></select></div>
     <small class="dim" style="display:block;margin-top:6px">${until ? `CLEARS AT ${until} · ` : ""}DND: NO CHAT POP-UPS · INVISIBLE: YOU LOOK OFFLINE · SHOWS ON STAFF ONLINE, MESSAGES AND THE HUB</small>`;
@@ -483,7 +484,7 @@ function liveOpHtml() {
     const going = cnt.filter(([b]) => b.attending).reduce((a, [, n]) => a + n, 0);
     const close = Math.min(Date.parse(e.startAtISO) + 30 * 60000, Date.parse(e.endAtISO));
     const pct = Math.max(0, Math.min(100, ((now - Date.parse(e.startAtISO)) / (Date.parse(e.endAtISO) - Date.parse(e.startAtISO))) * 100));
-    return `<section class="d2-w wide d2-liveop" aria-label="Live operation"><div><span class="d2-lv"><i></i>LIVE</span><b>${esc(e.title || "Op")}</b><div class="d2-lvbar" aria-hidden="true"><i style="width:${pct}%"></i></div><small class="dim">${cnt.map(([b, n]) => `${n} ${esc(b.label.toLowerCase())}`).join(" · ")}${now < close ? ` · locks ${new Date(close).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" })}` : ""}${going ? "" : ""}</small></div><button class="b" data-liveop="${esc(e.id)}">OPEN LIVE STATUS ▸</button></section>`;
+    return `<section class="d2-w wide d2-liveop" aria-label="Live operation"><div><span class="d2-lv"><i></i>LIVE</span><b>${esc(e.title || "Op")}</b><div class="d2-lvbar" aria-hidden="true"><i style="width:${pct}%"></i></div><small class="dim">${cnt.map(([b, n]) => `${n} ${esc(b.label.toLowerCase())}`).join(" · ")}${now < close ? ` · locks ${new Date(close).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""}${going ? "" : ""}</small></div><button class="b" data-liveop="${esc(e.id)}">OPEN LIVE STATUS ▸</button></section>`;
   }).join("");
 }
 
@@ -563,14 +564,14 @@ function hello() {
   const part = h < 5 || h >= 18 ? "EVENING" : h < 12 ? "MORNING" : "AFTERNOON";
   const name = String(D.me?.callsign || D.me?.firstName || "").toUpperCase();
   document.getElementById("d2Hello").textContent = `GOOD ${part}${name ? ", " + name : ""}`;
-  const day = n.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", timeZone: "Europe/London" }).toUpperCase().replace(",", "");
-  const time = n.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  const day = n.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" }).toUpperCase().replace(",", "");
+  const time = n.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   const k = needsList().length;
   const nxt = (D.events || []).filter((e) => e.status !== "cancelled" && Date.parse(e.startAtISO) > Date.now()).sort((a, b) => String(a.startAtISO).localeCompare(String(b.startAtISO)))[0];
   const c0 = D.cortana || {};
   const light = (n, ok) => `<span class="d3-li" style="color:${ok === true ? "#22e07a" : ok === false ? "#ff4d4d" : "#4b5765"}" title="${n}: ${ok === true ? "online" : ok === false ? "down" : "not running"}"><i></i>${n}</span>`;
-  document.getElementById("d2Sub").innerHTML = `${esc(day)} · ${time} UK
-    <div class="d3-pills">${nxt ? `<span>NEXT EVENT <b>${esc(String(nxt.title).toUpperCase())} · ${new Date(nxt.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase()}</b></span>` : ""}<span>YOUR ATT <b>${Math.min(3, D.me?.attendance || 0)}/3</b></span><span>PT <b>${D.me?.promotionTracker || 0}</b></span>${k ? `<span class="hot"><b>${k}</b> NEED${k === 1 ? "S" : ""} YOU</span>` : "<span>NOTHING NEEDS YOU</span>"}</div>
+  document.getElementById("d2Sub").innerHTML = `${esc(day)} · ${time} ${tzAbbr(n)}
+    <div class="d3-pills">${nxt ? `<span>NEXT EVENT <b>${esc(String(nxt.title).toUpperCase())} · ${new Date(nxt.startAtISO).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()}</b></span>` : ""}<span>YOUR ATT <b>${Math.min(3, D.me?.attendance || 0)}/3</b></span><span>PT <b>${D.me?.promotionTracker || 0}</b></span>${k ? `<span class="hot"><b>${k}</b> NEED${k === 1 ? "S" : ""} YOU</span>` : "<span>NOTHING NEEDS YOU</span>"}</div>
     <div class="d3-lights">${light("WEBSITE", D.ping.web != null ? true : D.ping.webErr ? false : null)}${light("DATABASE", D.ping.db != null ? true : D.ping.dbErr ? false : null)}${light("CORTANA", c0.online ? true : c0.lastHeartbeatISO ? false : null)}${light("HUB", D.hub?.released ? true : null)}</div>`;
   paintMe();
   const [l, c] = OPS[D.status.opStatus] || ["NOT SET", "#7d8a99"];

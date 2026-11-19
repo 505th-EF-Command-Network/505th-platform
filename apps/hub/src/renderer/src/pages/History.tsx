@@ -2,6 +2,7 @@ import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HistData } from "../../../preload/api";
 import { FileWindow } from "./Personnel";
+import { myTz } from "../settings";
 
 /**
  * ATTENDANCE HISTORY in the app — same as the Terminal's attendance-history.js:
@@ -13,7 +14,7 @@ const PLATOONS = ["Command", "1st Platoon", "2nd Platoon", "3rd Platoon", "Force
 const plOrder = (p: string) => { const i = PLATOONS.indexOf(p); return i < 0 ? 99 : i; };
 const rc = (p: number | null) => (p == null ? "#4b5765" : p >= 75 ? "#22e07a" : p >= 50 ? "#f59e0b" : "#ff4d4d");
 const label = (id: string) => { const d = new Date(`${id}-01T12:00:00`); return isNaN(+d) ? id : d.toLocaleString("en-GB", { month: "short", year: "numeric" }).toUpperCase(); };
-const when = (v: string) => (v ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase() : "—");
+const when = (v: string) => (v ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: myTz() }).toUpperCase() : "—");
 const avg = (ms: { eligible: number; rate: number }[]) => { const x = ms.filter((m) => m.eligible > 0); return x.length ? Math.round(x.reduce((s, m) => s + m.rate, 0) / x.length) : 0; };
 type K = "name" | "pl" | "att" | "missed" | "rate" | "delta";
 

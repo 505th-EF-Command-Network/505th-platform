@@ -82,6 +82,8 @@ function createWindow() {
     width: 1600, height: 950, minWidth: 1100, minHeight: 680,
     show: false, backgroundColor: "#080b10", title: "505th Command Network",
     icon: join(app.getAppPath(), "assets/logo.png"), autoHideMenuBar: true,
+    // 19 Nov: our own title bar so it matches the Hub theme (not the Windows accent colour). The colour follows Settings → Look.
+    titleBarStyle: "hidden", titleBarOverlay: { color: "#0b0f15", symbolColor: "#00d9ff", height: 30 },
     webPreferences: { preload: join(__dirname, "../preload/index.js"), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   // The window only shows the app's own screens. Any link opens in the normal browser.
@@ -234,7 +236,10 @@ ipcMain.handle("hub:set-status", (e, s: unknown) => {
 // ───────── H3: settings, notifications, tray ─────────
 ipcMain.handle("app:settings", (e, s: unknown) => {
   if (!fromMain(e) || !s || typeof s !== "object") return;
-  const v = s as { startup?: unknown; closeToTray?: unknown; zoom?: unknown; toggleKey?: unknown };
+  const v = s as { startup?: unknown; closeToTray?: unknown; zoom?: unknown; toggleKey?: unknown; titleBg?: unknown; titleFg?: unknown };
+  const hex = (x: unknown) => (typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x) ? x : null);
+  const bg = hex(v.titleBg), fg = hex(v.titleFg);
+  if (win && bg && fg && process.platform === "win32") { try { win.setTitleBarOverlay({ color: bg, symbolColor: fg, height: 30 }); } catch { /* older Windows */ } }
   cfg.closeToTray = v.closeToTray !== false;
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: v.startup === true, args: ["--hidden"] });
   const z = Number(v.zoom);

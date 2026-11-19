@@ -16,14 +16,16 @@ type Group = { id: string; label: string; icon: string; links: Link[] };
 const GROUPS: Group[] = [
   { id: "manpower", label: "MANPOWER", icon: "♟", links: [
     { id: "panel-active", label: "Personnel Files", icon: "✎", key: "pers", app: true }, { id: "panel-register", label: "BCT Approvals", icon: "✚", key: "bct", app: true, count: "bct" },
-    { id: "panel-roster", label: "Battalion Roster", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Order of Battle", icon: "▦", key: "oob", app: true }] },
+    { id: "panel-roster", label: "Member List", icon: "☰", key: "roster", app: true }, { id: "panel-unitcards", label: "Company Roster", icon: "▦", key: "oob", app: true }] },
   { id: "operations", label: "EVENTS", icon: "⚙", links: [
     { id: "panel-attendance", label: "Attendance Tracker", icon: "▣", key: "att", app: true }, { id: "panel-att-history", label: "Attendance History", icon: "☷", key: "att", app: true },
-    { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }, { id: "panel-events", label: "Create Events", icon: "⚑", key: "ev", app: true }] },
-  { id: "comms", label: "COMMS", icon: "✉", links: [
-    { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", app: true, count: "tickets" }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send", app: true }] },
+    { id: "panel-events", label: "Create Events", icon: "⚑", key: "ev", app: true }] },
+  // 19 Nov: COMMS → TOOLS (Tickets, Moderation, After Action Reports). Send Message sits in CORTANA COMMAND until it merges with Quick Post.
+  { id: "comms", label: "TOOLS", icon: "⚒", links: [
+    { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", app: true, count: "tickets" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw", app: true },
+    { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }] },
   { id: "discord", label: "CORTANA COMMAND", icon: "◈", links: [
-    { id: "panel-quick", label: "Quick Post", icon: "⇪", key: "qu", app: true }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info", app: true }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw", app: true }] },
+    { id: "panel-quick", label: "Quick Post", icon: "⇪", key: "qu", app: true }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send", app: true }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info", app: true }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
     { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web", app: true },
     { id: "panel-media", label: "Gallery & Videos", icon: "▧", key: "media", app: true }] },

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { OmData, OmItem, OmLog, RaData } from "../../../preload/api";
 import { askBox } from "../components/Confirm";
+import { myTz } from "../settings";
 
 /**
  * OFFICER MANAGEMENT v2 (approved mock 2026-11-14) — same rules and data as the website (lib/terminal/om.ts).
@@ -14,8 +15,8 @@ const GNAME: Record<string, string> = { OPERATIONS: "EVENTS" };
 const FULL = new Set(["commander", "developer"]);
 const COLS = ["#00d9ff", "#22e07a", "#f59e0b", "#8b93f8", "#f472b6", "#2dd4bf", "#fb923c"];
 const colOf = (u: string) => COLS[[...u].reduce((x, c) => x + c.charCodeAt(0), 0) % COLS.length];
-const dt = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-const dmy = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+const dt = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: myTz() });
+const dmy = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: myTz() });
 type Row = { uid: string; role: string; overrides: Record<string, 0 | 1> };
 
 export function Officers() {

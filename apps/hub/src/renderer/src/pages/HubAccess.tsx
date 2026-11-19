@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { HubAccessData } from "../../../preload/api";
 import { askBox } from "../components/Confirm";
+import { myTz } from "../settings";
 
 /**
  * SECURITY → HUB ACCESS in the app (release v0.1, approved mock 2026-11-11). Same data + rules as the website page.
@@ -10,7 +11,7 @@ const ROLE: Record<string, string> = { commander: "Commander", developer: "Devel
 const COLS = ["#00d9ff", "#22e07a", "#f59e0b", "#8b93f8", "#f472b6", "#2dd4bf", "#fb923c"];
 const col = (u: string) => COLS[[...u].reduce((s, c) => s + c.charCodeAt(0), 0) % COLS.length]!;
 const ini = (n: string) => (n.replace(/^[A-Za-z0-9]+\.\s*/, "").replace(/["“”]/g, "").match(/\b\w/g) ?? ["?"]).slice(0, 2).join("").toUpperCase();
-const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }) : "");
+const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: myTz() }) : "");
 /** Devices column: ● ONLINE / ○ OFFLINE / PENDING / SUSPENDED / REVOKED / NOT INSTALLED. */
 function devState(p: { status: string; suspended?: boolean; devices: number; lastUsedISO: string }): [string, string, string] {
   const on = p.lastUsedISO && Date.now() - Date.parse(p.lastUsedISO) < 5 * 60_000;

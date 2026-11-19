@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { myTz } from "../settings";
 import type { NetState, Overview, Summary } from "../../../preload/api";
-import { STATE, countdown, pageName, ukTime } from "../ui";
+import { STATE, countdown, pageName, tzAbbr, ukTime } from "../ui";
 import { Rsvp } from "./Rsvp";
 import { Guard } from "./Guard";
 import { NotesWidget } from "../pages/Notes";
@@ -37,7 +37,7 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
     if (!op) return <Empty t="NO EVENTS SCHEDULED" />;
     const ms = Date.parse(op.startAtISO) - now;
     return <>
-      <div className="text-[10px] tracking-[2px] text-dim">{op.title.toUpperCase()} · {ukTime(op.startAtISO, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()} UK</div>
+      <div className="text-[10px] tracking-[2px] text-dim">{op.title.toUpperCase()} · {ukTime(op.startAtISO, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase()} {tzAbbr(op.startAtISO)}</div>
       <div className="my-2 font-head text-[38px] font-bold tracking-[2px] text-white">{ms <= 0 ? <span className="text-ok">● LIVE NOW</span> : countdown(ms)}</div>
       <Bar pct={op.signedUp * 4} c="#22e07a" />
       <div className="mb-2 mt-2 text-[12px]"><span className="text-ok">{op.signedUp} signed up</span> · <span className="text-dim">You: </span>{op.mine ? <span className="text-ok">{op.mine}</span> : <span className="text-amber">not signed up</span>}</div>
@@ -77,9 +77,9 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       </Row>))}</> : <Empty t="ALL CLEAR" />; } },
   staff: { title: "STAFF ONLINE", desc: "Who's on the Hub or the Terminal now, and how much they use it this week", size: 3, body: ({ sum, onPage }) => <StaffV2 staff={sum.staff} me={sum.me.uid} onPage={onPage} /> },
   events: { title: "THIS WEEK", desc: "7-day mini calendar of ops", size: 4, page: "panel-events", body: ({ ov, onPage }) => {
-    const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: "Europe/London" }));
+    const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: myTz() }));
     return <div className="grid h-full grid-cols-7 gap-1.5">{days.map((d, i) => {
-      const evs = (ov?.week ?? []).filter((e) => new Date(e.startAtISO).toLocaleDateString("en-CA", { timeZone: "Europe/London" }) === d);
+      const evs = (ov?.week ?? []).filter((e) => new Date(e.startAtISO).toLocaleDateString("en-CA", { timeZone: myTz() }) === d);
       return <button key={d} type="button" onClick={() => onPage("panel-events")} className={`border p-1.5 text-left text-[10px] hover:border-cyan/50 ${i === 0 ? "border-cyan" : "border-cyan/10"}`}>
         <span className={i === 0 ? "text-cyan" : "text-dim"}>{new Date(`${d}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric" }).toUpperCase()}</span>
         {evs.map((e) => <div key={e.id} className="mt-1.5 truncate border-l-[3px] bg-[#0d1a27] px-1 py-0.5 text-white" style={{ borderColor: OPC[e.opType] ?? "#00d9ff" }}>{ukTime(e.startAtISO)} {e.title}</div>)}</button>; })}</div>; } },

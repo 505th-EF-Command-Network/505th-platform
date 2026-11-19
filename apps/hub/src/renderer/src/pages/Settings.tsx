@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppSettings, Device, MediaItem, NetState, ShortcutId, Summary, SysInfo } from "../../../preload/api";
 import { askBox } from "../components/Confirm";
 import { PolicyText } from "../components/Policy";
-import { ACCENTS, DEFAULT_KEYS, DEFAULT_SETTINGS, EVENTS, SHORTCUT_GROUPS, SHORTCUTS, THEMES, ZONES, SOUNDS, comboOf, fire, fmtDate, fmtTime, hashPin, mergeSettings, playDing, playSound } from "../settings";
+import { ACCENTS, DEFAULT_KEYS, DEFAULT_SETTINGS, EVENTS, SHORTCUT_GROUPS, SHORTCUTS, THEMES, ZONES, SOUNDS, comboOf, fire, fmtDate, fmtTime, hashPin, mergeSettings, playDing, playSound, myTz } from "../settings";
 import { STATE, type StateKey } from "../ui";
 import logo from "../../../../assets/logo.png";
 import rcd from "../../../../assets/rcd.png";
@@ -26,7 +26,7 @@ export const SETTINGS_TABS = [
 ] as const;
 type P = { tab: string; s: AppSettings; onChange: (s: AppSettings) => void; onPage: (pg: string) => void; sum: Summary; net: NetState; version: string; onLock: () => void; onStatus: (s: StateKey) => void; pins: string[] };
 type SetS = (s: AppSettings) => void;
-const ukDT = (iso: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—");
+const ukDT = (iso: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: myTz() }) : "—");
 const ago = (iso: string) => { if (!iso) return "—"; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 3 ? "Now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
 
 /* ───────── restore points (this PC, 30 days) ───────── */

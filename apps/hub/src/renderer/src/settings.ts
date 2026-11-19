@@ -71,7 +71,7 @@ export function applySettings(s: AppSettings) {
     ["side-icons", L.side === "icons"], ["side-auto", L.side === "auto"], ["dense", L.density === "compact"], ["roomy", L.density === "roomy"], ["cb", L.cb],
     ["focus-strong", A.focus], ["big-btn", A.big], ["easy-font", A.easyFont], ["lines-wide", A.lines === "wide"], ["streamer", s.security.streamer]];
   for (const [c, on] of cls) h.classList.toggle(c, on);
-  void window.cn.app.applySettings({ startup: s.startup, closeToTray: s.closeToTray, zoom: ZOOM[s.textSize], toggleKey: s.keysOff.includes("toggle") ? "" : s.keys.toggle });
+  void window.cn.app.applySettings({ startup: s.startup, closeToTray: s.closeToTray, zoom: ZOOM[s.textSize], toggleKey: s.keysOff.includes("toggle") ? "" : s.keys.toggle, titleBg: th.panel, titleFg: accent });
 }
 /**
  * 12 / 24-hour clock everywhere (Messages, Tickets, Events, …): any time shown with an hour and no

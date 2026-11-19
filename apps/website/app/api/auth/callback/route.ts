@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { connectDb, Member, AuditLog } from "@505th/db";
-import { appUrl, avatarUrl, exchangeCode, fetchGuildMember, fetchUser, revokeToken } from "@/lib/auth/discord";
+import { appUrl, avatarUrl, exchangeCode, fetchGuildMember, fetchUser } from "@/lib/auth/discord";
 import { SESSION_COOKIE, STATE_COOKIE, cookieOptions, createSession } from "@/lib/auth/session";
 
 const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
   try {
     const { access_token } = await exchangeCode(code);
     const [user, guildMember] = await Promise.all([fetchUser(access_token), fetchGuildMember(access_token)]);
-    await revokeToken(access_token); // we only needed it once
+    // 19 Nov: NOT revoked any more. Revoking removed the whole Discord authorisation, so Discord asked "Authorise?" on every sign-in.
+    // The token is used once here and never stored; Discord expires it by itself.
 
     await connectDb();
     const member = await Member.findOne({ discordId: user.id }).select("_id").lean();

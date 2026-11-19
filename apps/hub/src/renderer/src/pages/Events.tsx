@@ -347,7 +347,7 @@ function Wizard(p: { d: EvData; w: Wiz; setW: (f: (o: Wiz | null) => Wiz | null)
             {s === 3 && <>
               <h3 className="m-0 font-head tracking-[2px] text-cyan">CHECK AND {w.editId ? "SAVE" : "CREATE"}</h3>
               <ul className="my-3 space-y-1.5 pl-0 text-[13px]" style={{ listStyle: "none" }}>
-                <li>✓ <b className="text-white">{v.title || "Untitled"}</b> · {whenLabel(v)} (UK)</li><li>✓ Where: {whereLabel(v)}</li><li>✓ Discord event in the server's Events list</li>
+                <li>✓ <b className="text-white">{v.title || "Untitled"}</b> · {whenLabel(v)} ({tzShort()})</li><li>✓ Where: {whereLabel(v)}</li><li>✓ Discord event in the server's Events list</li>
                 <li>✓ Sign-up post in #{chanLabel || "—"} · {v.buttons.map((b) => `${b.emoji} ${b.label}${b.limit ? ` (${b.limit})` : ""}`).join(" · ")}</li>
                 <li>✓ {v.repeat === "none" ? REPEAT.none : `${REPEAT[v.repeat]} — next one is created automatically`}</li>
                 <li>✓ Attending people tagged at the start · posts removed 30 minutes after</li>

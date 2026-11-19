@@ -48,6 +48,7 @@ export type MemberFile = Omit<MemberTile, "opsAttended" | "opsEligible"> & {
   promotionHistory: HistoryEntry[]; platoonHistory: HistoryEntry[]; warningHistory: HistoryEntry[]; commendationHistory: HistoryEntry[]; ribbonHistory: HistoryEntry[];
   lastOps: { date: string; title: string; result: "present" | "excused" | "absent" }[];
   canEdit: boolean;
+  canRemove?: boolean;
   lists: { ranks: string[]; platoons: string[]; medals: [string, string][] };
 };
 export type RosterRow = { id: string; firstName: string; lastName: string; callsign: string; rank: string; role: string; platoon: string; squad: string; billet: string; attendance: number; promotionTracker: number; opsAttended: number; opsEligible: number; ribbons: string[]; medals: number };
@@ -166,7 +167,7 @@ declare global {
         onTopic(cb: (topic: string) => void): () => void;
       };
       info(): Promise<{ version: string; packaged: boolean }>;
-      app: { applySettings(s: { startup: boolean; closeToTray: boolean; zoom: number; toggleKey: string }): Promise<void>; quit(): Promise<void>;
+      app: { applySettings(s: { startup: boolean; closeToTray: boolean; zoom: number; toggleKey: string; titleBg?: string; titleFg?: string }): Promise<void>; quit(): Promise<void>;
         sys(): Promise<SysInfo | null>; repair(what: "cache" | "window" | "logs"): Promise<string>; onSleep(cb: (why: string) => void): () => void };
       update: {
         get(): Promise<UpdateState>;

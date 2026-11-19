@@ -16,7 +16,7 @@ const SECURE = process.env.NODE_ENV === "production";
 /** __Host- prefix: Secure, Path=/, no Domain — the strongest cookie scoping browsers offer. */
 export const SESSION_COOKIE = SECURE ? "__Host-505th_session" : "505th_session";
 export const STATE_COOKIE = SECURE ? "__Host-505th_oauth" : "505th_oauth";
-const SESSION_DAYS = 7;
+const SESSION_DAYS = 30; // 19 Nov: stay signed in for 30 days (was 7)
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 export const newToken = () => randomBytes(32).toString("base64url");

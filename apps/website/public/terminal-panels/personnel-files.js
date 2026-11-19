@@ -430,7 +430,7 @@ async function pf3RoleWindow() {
       <div class="pf3-roles">${ROLE_ORDER.map((r) => { const ok = canGive.has(r) || r === was; return `<button type="button" class="pf3-ro ${r === was ? "cur" : ""} ${r === pick && r !== was ? "on" : ""}" ${ok && r !== was ? `data-pick="${r}"` : "disabled"}>${ok ? "" : "🔒 "}${esc(roleLabel(r))}${r === was ? " · NOW" : ""}</button>`; }).join("")}</div>
       ${pick === was ? '<p class="pf3-hint">Pick the new role.</p>' : `<div class="pf3-eff"><b>${esc(roleLabel(was))} → ${esc(roleLabel(pick))}</b> ${up ? "▲" : "▼"}
         ${gain.length ? `<div class="up">+ ${gain.map(esc).join(" · ")}</div>` : ""}${lose.length ? `<div class="dn">− ${lose.map(esc).join(" · ")}</div>` : ""}${!gain.length && !lose.length ? '<div class="pf3-hint">No Terminal pages change.</div>' : ""}
-        ${pick === "retired_veteran" ? '<div class="dn">⚠ Retired: loses the Terminal, hidden from the roster and attendance, personnel file frozen.</div>' : ""}
+        ${pick === "retired_veteran" ? '<div class="dn">⚠ Retired: loses the Terminal, hidden from the roster and attendance.</div>' : ""}
         <div class="pf3-hint">From Officer Management → Role Access. Personal access changes still apply. Discord roles follow through Role Sync.</div></div>
         <label for="pf3Why">REASON (SAVED IN THE AUDIT LOG)</label><input id="pf3Why" maxlength="200" value="${esc(pf3.role?.reason || "")}" autocomplete="off">`}
       </div><div class="pf3-wf"><button type="button" class="pf3-b" data-x="no">CANCEL</button><button type="button" class="pf3-b gold" data-x="ok" ${pick === was ? "disabled" : ""}>SET ROLE</button></div></div>`;
@@ -494,7 +494,7 @@ function pf3Timeline() {
   const total = Object.values(L).reduce((a, x) => a + x.length, 0);
   fl.innerHTML = [["all", "ALL", total], ["promo", "▲ PROMOTIONS", L.promo.length], ["platoon", "⇄ TRANSFERS", L.platoon.length], ["warn", "⚠ WARNINGS", L.warn.length], ["commend", "★ MEDALS", L.commend.length], ["ribbon", "— RIBBONS", L.ribbon.length]]
     .map(([k, l, n]) => `<button type="button" data-f="${k}" class="${pf3.filter === k ? "on" : ""}" aria-pressed="${pf3.filter === k}">${l} <span>${n}</span></button>`).join("");
-  const frozen = u.role === "retired_veteran";
+  const frozen = false; // 19 Nov (Drake): retired files are no longer locked
   const rows = [];
   for (const [ty, list] of Object.entries(L)) {
     if (ty === "ribbon" || (pf3.filter !== "all" && pf3.filter !== ty)) continue;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MsgData } from "../../../preload/api";
 import { askBox } from "../components/Confirm";
 import { FileWindow } from "./Personnel";
+import { myTz } from "../settings";
 
 /**
  * MESSAGES in the app (H3b, approved mock 2026-11-11) — the same chats as the website Terminal.
@@ -13,7 +14,7 @@ const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🫡"];
 const PICK = "😀 😂 🙂 😉 😎 🤔 😮 😢 😡 👍 👎 👏 🙏 💪 🫡 👋 🔥 ⭐ ✅ ❌ ⚠️ 🎉 🎖️ 🪖 🚁 🚀 💥 🛡️ 📢 📌 📅 ⏰ 📝 🟢 🔴 ❤️".split(" ");
 const col = (uid: string) => COLS[[...uid].reduce((s, c) => s + c.charCodeAt(0), 0) % COLS.length]!;
 const ini = (n: string) => (n.replace(/^[A-Za-z0-9]+\.\s*/, "").replace(/["“”]/g, "").match(/\b\w/g) ?? ["?"]).slice(0, 2).join("").toUpperCase();
-const hm = (iso: string) => (iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "");
+const hm = (iso: string) => (iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: myTz() }) : "");
 const when = (iso: string) => { if (!iso) return ""; const d = new Date(iso), t = new Date(); const days = Math.floor((+new Date(t.toDateString()) - +new Date(d.toDateString())) / 864e5);
   return days === 0 ? hm(iso) : days === 1 ? "Yesterday" : days < 7 ? d.toLocaleDateString("en-GB", { weekday: "short" }) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
 const dayLabel = (iso: string) => { const d = new Date(iso), t = new Date(); const days = Math.floor((+new Date(t.toDateString()) - +new Date(d.toDateString())) / 864e5);

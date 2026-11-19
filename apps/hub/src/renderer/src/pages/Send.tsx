@@ -1,6 +1,7 @@
 import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SendData, SentMsg } from "../../../preload/api";
+import { myTz } from "../settings";
 
 /**
  * COMMS → SEND MESSAGE in the app — same as the Terminal's send-message.js, plus (approved mock 2026-11-11):
@@ -229,7 +230,7 @@ export function Send() {
             <div className="border-b border-cyan/15 px-3.5 py-2.5 font-head text-[13px] font-bold tracking-[3px] text-cyan">RECENTLY SENT</div>
             {d.sent.length ? <table className="w-full border-collapse text-[11.5px]"><tbody>{d.sent.slice(0, 15).map((m) => (
               <tr key={m.id} className="rrow border-b border-white/5"><td className="max-w-[200px] truncate px-3 py-2 text-white">{(m.embed?.title || m.content || "(image)").replace(/<@&(\d+)>/g, (_, id) => "@" + (d.roles.find((r) => r.id === id)?.name ?? "role")).replace(/<@!?(\d+)>/g, (_, id) => "@" + (d.members.find((x) => x.discordId === id)?.name ?? "member")).replace(/<#(\d+)>/g, (_, id) => "#" + (d.channels.find((c) => c.id === id)?.name ?? "channel")).slice(0, 60)}</td><td className="px-2 text-dim">#{m.channelName}</td><td className="px-2 text-dim">{m.sentByName}</td>
-                <td className="whitespace-nowrap px-2 text-dimmer">{m.sentAtISO ? new Date(m.sentAtISO).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : ""}</td>
+                <td className="whitespace-nowrap px-2 text-dimmer">{m.sentAtISO ? new Date(m.sentAtISO).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: myTz() }) : ""}</td>
                 <td className="whitespace-nowrap px-2 text-right">{m.kind !== "upload" && <button type="button" onClick={() => edit(m)} className={btn}>EDIT</button>} <button type="button" aria-label="Delete" onClick={() => void del(m)} className="border border-bad/60 px-2 py-1 text-[10.5px] tracking-[1px] text-bad hover:bg-bad/10">DELETE</button></td></tr>))}</tbody></table>
               : <p className="py-8 text-center text-[11px] tracking-[2px] text-dimmer">NOTHING SENT YET</p>}
           </section>

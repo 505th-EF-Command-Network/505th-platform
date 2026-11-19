@@ -3,6 +3,7 @@ import { TerminalDoc, connectDb } from "@505th/db";
 import { getHubActor, hubAudit, hubJson } from "@/lib/hub/auth";
 import { EDIT_ROLES, MEDALS, PLATOONS, RANKS, memberName } from "@/lib/hub/members";
 import { syncMember } from "@/lib/terminal/fs";
+import { assignableRoles } from "@/lib/terminal/fs-core";
 
 export const dynamic = "force-dynamic";
 type U = Record<string, any>;
@@ -51,13 +52,24 @@ export async function POST(req: Request, ctx: { params: Promise<{ uid: string }>
   if (!doc) return hubJson({ error: "Member not found." }, 404);
   const u = (doc.data ?? {}) as U;
   if (u.role === "commander" && a.role !== "commander") return hubJson({ error: "Only the Commander can change the Commander's file." }, 403);
-  if (u.role === "retired_veteran") return hubJson({ error: "This file is retired and frozen." }, 403);
-
   const b = ((await req.json().catch(() => null)) ?? {}) as U;
+  // 19 Nov (Drake): retired files are no longer locked.
   const by = a.displayName, name = memberName(u), now = new Date(), nowISO = now.toISOString();
   const who = { uid: a.uid, name: a.displayName, role: a.role };
   const set: U = { "data.updatedAt": nowISO, updateTime: now };
   let after: (() => Promise<void>) | null = null;
+
+  // 19 Nov: REMOVE FROM UNIT (same rule as the Terminal: Staff NCO+ and only roles you can assign). Reason is optional.
+  if (b.action === "remove") {
+    if (!["commander", "officer", "developer", "staff_nco"].includes(a.role) || !assignableRoles(a.role).includes(u.role || "enlistee")) return hubJson({ error: "You can't remove this member." }, 403);
+    if (uid === a.uid) return hubJson({ error: "You can't remove yourself." }, 403);
+    if (str(b.confirm, 20).toUpperCase() !== "DELETE") return hubJson({ error: "Type DELETE to confirm." }, 400);
+    const reason = str(b.reason, 300);
+    await TerminalDoc.deleteOne({ _id: `users/${uid}` });
+    await syncMember(uid, true).catch(() => {});
+    await hubAudit(who, "MEMBER REMOVED", `${name} removed from unit${reason ? ` — reason: ${reason}` : ""} — via app`);
+    return hubJson({ ok: true, removed: true });
+  }
 
   switch (b.action) {
     case "promote": {

@@ -512,7 +512,7 @@ onReady(() => {
   if (!root) return;
   addCss(ROOT, CSS);
   root.innerHTML = `
-    <div class="h1">BATTALION ROSTER</div>
+    <div class="h1">MEMBER LIST</div>
     <div class="sub">UNIT STRENGTH · MONTHLY ATTENDANCE · PROMOTION TRACKING — NCO+</div>
     <div class="kp"></div>
     <div class="bar">

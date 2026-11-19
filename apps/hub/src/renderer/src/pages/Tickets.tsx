@@ -2,6 +2,7 @@ import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Ticket, TicketData } from "../../../preload/api";
 import { FileWindow } from "./Personnel";
+import { myTz } from "../settings";
 
 /**
  * COMMS → TICKETS in the app — same as the Terminal's tickets.js (approved mock 2026-11-11).
@@ -11,7 +12,7 @@ import { FileWindow } from "./Personnel";
  */
 const pad = (n: number) => String(n ?? 0).padStart(4, "0");
 const ago = (iso?: string) => { if (!iso) return ""; const m = Math.round((Date.now() - Date.parse(iso)) / 60000); return m < 1 ? "now" : m < 60 ? `${m} min` : m < 1440 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} d`; };
-const uk = (iso?: string, short = false) => (iso ? new Date(iso).toLocaleString("en-GB", short ? { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" } : { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).toUpperCase() : "—");
+const uk = (iso?: string, short = false) => (iso ? new Date(iso).toLocaleString("en-GB", short ? { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: myTz() } : { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: myTz() }).toUpperCase() : "—");
 const state = (t: Ticket) => t.status === "closed" ? ["CLOSED", "border-dimmer text-dim"] : t.waiting === "staff" ? ((t.transcript?.length ?? 0) > 1 ? ["STAFF", "border-cyan text-cyan"] : ["NEW", "border-amber text-amber"]) : ["MEMBER", "border-ok text-ok"];
 
 export function Tickets(p: { me: string }) {

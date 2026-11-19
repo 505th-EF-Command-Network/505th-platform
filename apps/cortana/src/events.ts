@@ -39,8 +39,10 @@ type Ev = {
 const LOGO = "https://www.505expeditionaryforce.com/images/logo.png";
 const FOOTER = "Cortana Main Operation System";
 const ATT_LABEL: Record<string, string> = { main_op: "OPERATIONS", patrol: "PATROL", training: "TRAINING", fun_op: "FUN OP" };
-const TZ: [string, string][] = [["🇬🇧 UK", "Europe/London"], ["🇪🇺 EU", "Europe/Paris"], ["🇺🇸 EST", "America/New_York"], ["🇺🇸 CST", "America/Chicago"], ["🇺🇸 PST", "America/Los_Angeles"]];
-const tzLine = (iso: string) => TZ.map(([l, z]) => `\`${l} ${new Date(iso).toLocaleTimeString("en-GB", { timeZone: z, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}\``).join(" ");
+// 19 Nov (approved mock A): the 505th is a PST unit — PST first (★ unit time), then west → east.
+const TZ: [string, string][] = [["PST", "America/Los_Angeles"], ["CST", "America/Chicago"], ["EST", "America/New_York"], ["UK", "Europe/London"], ["EU", "Europe/Paris"]];
+const tzLine = (iso: string) => TZ.map(([l, z], i) => `\`${i === 0 ? "★ " : ""}${l} ${new Date(iso).toLocaleTimeString("en-GB", { timeZone: z, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}\``).join(" ");
+const lengthLabel = (a: string, b: string) => { const m = Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 60000)); const h = Math.floor(m / 60), r = m % 60; return h && r ? `${h} h ${r} min` : h ? `${h} h` : `${r} min`; };
 const active = (ev: Ev) => (ev.signups ?? []).filter((x) => !x.waiting);
 /** Who is pinged on a new sign-up post: Cortana Setup ping list ("everyone" = @everyone).
  *  A channel with its own auto-ping role (squad channels) pings ONLY that role instead.
@@ -124,8 +126,8 @@ export function signupEmbed(id: string, ev: Ev, state: State, kind: string | nul
     .setDescription((ev.description || "*No description provided.*").slice(0, 3000))
     .setThumbnail(LOGO)
     .addFields(
-      { name: "🗓 When", value: `${ts(ev.startAtISO)} · ${ts(ev.startAtISO, "R")}\n-# Shown in your own time. Unit time:\n${tzLine(ev.startAtISO)}` },
-      { name: "⏱ Length", value: `${ev.startTime}–${ev.endTime} UK`, inline: true },
+      { name: "🗓 When", value: `${ts(ev.startAtISO)} · ${ts(ev.startAtISO, "R")}\n-# Shown in your own time. Unit time (★ PST):\n${tzLine(ev.startAtISO)}` },
+      { name: "⏱ Time", value: `${ts(ev.startAtISO, "t")}–${ts(ev.endAtISO, "t")}\n-# your time · ${lengthLabel(ev.startAtISO, ev.endAtISO)}`, inline: true },
       { name: ev.where === "else" ? "📍 Where" : "🔊 Where", value: where.slice(0, 1024), inline: true },
       { name: "👥 Signed up", value: `${going} going`, inline: true },
     )
@@ -525,7 +527,7 @@ async function missionLog(client: Client<true>, ev: Ev, kind: "archived" | "canc
     .setAuthor({ name: "505TH EXPEDITIONARY FORCE · MISSION LOG", iconURL: LOGO })
     .setTitle(`[EVENT] | "${ev.title}" | ${kind === "cancelled" ? "Cancelled" : "Sign-ups closed"}`.slice(0, 256))
     .setThumbnail(LOGO)
-    .addFields({ name: "Scheduled start", value: `${ts(ev.startAtISO)} · ${ev.startTime}–${ev.endTime} UK` });
+    .addFields({ name: "Scheduled start", value: `${ts(ev.startAtISO)} – ${ts(ev.endAtISO, "t")}` });
   for (const b of ev.buttons) {
     const list = su.filter((x) => x.choice === b.key);
     e.addFields({ name: `${b.emoji} ${b.label} (${list.length})`.slice(0, 256), value: (list.map((x) => `<@${x.discordId}> ${x.name ? `(${x.name})` : ""}`.trim()).join("\n") || "—").slice(0, 1024) });

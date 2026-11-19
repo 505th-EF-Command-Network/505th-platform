@@ -2,6 +2,7 @@ import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Roster as RosterData, RosterRow } from "../../../preload/api";
 import { FileWindow, memberName, rankOrder, short } from "./Personnel";
+import { myTz } from "../settings";
 
 /**
  * BATTALION ROSTER in the app — same as the Terminal's battalion-roster.js:
@@ -120,8 +121,8 @@ export function Roster(p: { me: string }) {
   );
 
   return (
-    <main className="min-w-0 flex-1 overflow-auto px-6 py-5" aria-label="Battalion Roster">
-      <h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">BATTALION ROSTER</h1>
+    <main className="min-w-0 flex-1 overflow-auto px-6 py-5" aria-label="Member List">
+      <h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">MEMBER LISR</h1>
       <p className="mb-3 mt-1 text-[11px] tracking-[2px] text-dim">UNIT STRENGTH · MONTHLY ATTENDANCE · PROMOTION TRACKING · NCO+</p>
       <div className="mb-3 grid grid-cols-7 gap-2">
         {([[actv.filter((r) => r.platoon !== "Awaiting BCT").length, "ACTIVE", "#22e07a"], [d.rows.reduce((s, r) => s + r.promotionTracker, 0), "PT (TOTAL)", "#00D9FF"],
@@ -198,7 +199,7 @@ function Banner({ m }: { m: RosterData["meta"] }) {
   const [y, mo] = next.split("-").map(Number);
   const days = Math.max(0, Math.ceil((Date.UTC(y!, mo! - 1, 1) - Date.now()) / 864e5));
   const at = m.lastResetAt ? new Date(m.lastResetAt) : null;
-  const when = at ? `${at.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" }).toUpperCase()} ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} by ${m.lastResetBy || "—"}` : "done";
+  const when = at ? `${at.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: myTz() }).toUpperCase()} ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: myTz() })} by ${m.lastResetBy || "—"}` : "done";
   if (last >= next) return <div className={box} style={{ borderColor: "#22e07a73", background: "#22e07a0d" }}><b className="font-normal text-ok">✓ {monLabel(next)} RESET DONE EARLY</b> — {when} · Cortana will skip it on the 1st.</div>;
   if (last === cur)
     return <div className={box} style={{ borderColor: "#22e07a73", background: "#22e07a0d" }}><b className="font-normal text-ok">✓ {monLabel(cur)} RESET DONE</b> — {when}{m.lastResetPromoted != null ? ` · ${m.lastResetPromoted} got +1 PT` : ""}<br /><small className="text-dim">Next reset: 01 {monLabel(next)} (in {days} day{days === 1 ? "" : "s"}) — Cortana runs it at 00:00 UK time.</small></div>;

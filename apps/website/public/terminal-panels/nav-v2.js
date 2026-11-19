@@ -35,10 +35,11 @@ const NEEDS_CORTANA = {
 /* Side menu reorganised (approved mock 2026-11-16) — same menu as the Hub. MANPOWER and EVENTS are the original groups;
    Recruitment Stats moves to STATUS, Gallery + Videos move to WORKSPACE, and INTEL ARCHIVE is removed (buildMenu). */
 const GROUPS = [
-  { id: "nav-comms", icon: "&#9993;", label: "COMMS", tip: "Tickets and messages to Discord.", links: [
-    ["panel-tickets", "&#127915; Tickets"], ["panel-send", "&#9993; Send Message"]] },
-  { id: "nav-discord", icon: "&#9672;", label: "CORTANA COMMAND", tip: "Posts and moderation in Discord, done by Cortana.", links: [
-    ["panel-quick", "&#8682; Quick Post"], ["panel-info", "&#128204; Info Posts"], ["panel-mod", "&#9960; Moderation"], ["panel-modlist", "&#128230; Modlist"]] },
+  // 19 Nov: COMMS → TOOLS (Tickets, Moderation, After Action Reports) — same as the Hub. Send Message → CORTANA COMMAND (until it merges with Quick Post).
+  { id: "nav-comms", icon: "&#9874;", label: "TOOLS", tip: "Tickets, moderation and after action reports.", links: [
+    ["panel-tickets", "&#127915; Tickets"], ["panel-mod", "&#9960; Moderation"], ["move", "panel-aar"]] },
+  { id: "nav-discord", icon: "&#9672;", label: "CORTANA COMMAND", tip: "Posts in Discord, done by Cortana.", links: [
+    ["panel-quick", "&#8682; Quick Post"], ["panel-send", "&#9993; Send Message"], ["panel-info", "&#128204; Info Posts"], ["panel-modlist", "&#128230; Modlist"]] },
   { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes, the public website pages and the gallery.", links: [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"], ["move", "panel-gallery"], ["move", "panel-videos"]] },
   { id: "nav-status", icon: "&#9673;", label: "STATUS", tip: "What the unit is doing, recruitment numbers and the health of every service.", links: [
@@ -100,6 +101,11 @@ function buildMenu() {
   frag.insertBefore(hr, frag.querySelector("#nav-command"));
   anchor.parentNode.insertBefore(frag, anchor);
   for (const o of old) o?.remove();
+  // 19 Nov renames (same as the Hub): Battalion Roster → Member List, Order of Battle → Company Roster.
+  for (const [id, label] of [["panel-roster", "&#9776; Member List"], ["panel-unitcards", "&#9638; Company Roster"]]) {
+    const l = document.querySelector(`#sidebar .sub-link[data-panel="${id}"]`);
+    if (l) { const badge = l.querySelector("span"); l.innerHTML = label; if (badge) l.appendChild(badge); }
+  }
   // 19 Nov fix: the Events page (create / manage events) lost its menu link in the reorganise — same place as the Hub (bottom of EVENTS, "Create Events").
   const evSubs = document.querySelector("#nav-aar .sub-links");
   if (evSubs && !evSubs.querySelector('[data-panel="panel-events"]')) {

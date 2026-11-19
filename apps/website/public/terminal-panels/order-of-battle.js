@@ -226,7 +226,7 @@ onReady(() => {
   if (!root) return;
   addCss(ROOT, CSS);
   root.innerHTML = `
-    <div class="h1">ORDER OF BATTLE</div>
+    <div class="h1">COMPANY ROSTER</div>
     <div class="bar" style="margin-top:10px"><span class="sub" style="margin:0">SETS THE UNIT CARDS ON THE PUBLIC CAREER PAGES · LIVE PREVIEW ON THE RIGHT</span><span class="sp"></span><button class="b" data-act="public">↗ VIEW PUBLIC PAGE</button></div>
     <div class="units"></div>
     <div class="lay"><div class="card"><div class="ch"><b class="edT">EDIT</b><small class="edS"></small></div><div class="sects"><div class="empty">LOADING...</div></div>

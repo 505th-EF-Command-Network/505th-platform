@@ -1,6 +1,7 @@
 import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useState } from "react";
 import type { MediaItem } from "../../../preload/api";
+import { myTz } from "../settings";
 
 /**
  * INTEL ARCHIVE · MEDIA (approved mock 2026-11-11): Gallery + Videos in one page, same `media` records as the Terminal
@@ -10,7 +11,7 @@ import type { MediaItem } from "../../../preload/api";
 const CATS = ["operations", "training", "events", "screenshots"];
 const ytId = (u: string) => /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u)?.[1] ?? null;
 const thumb = (m: MediaItem) => (m.type === "video" ? (ytId(m.url) ? `https://i.ytimg.com/vi/${ytId(m.url)}/hqdefault.jpg` : "") : m.url.replace("/upload/", "/upload/c_fill,w_480,h_300,q_auto/"));
-const day = (v: string) => (v ? new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" }).toUpperCase() : "—");
+const day = (v: string) => (v ? new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: myTz() }).toUpperCase() : "—");
 const inp = "border border-cyan/25 bg-[#05080b] px-2.5 py-2 text-[12px] text-white outline-none focus:border-cyan";
 
 export function Media() {

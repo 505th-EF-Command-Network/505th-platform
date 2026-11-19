@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NetBeat, NetData, NetDetail, NetMonitor } from "../../../preload/api";
 import { askBox } from "../components/Confirm";
+import { myTz } from "../settings";
 
 /**
  * SECURITY → NETWORK STATUS in the app (approved mock 2026-11-12, Uptime-Kuma style). Same data + rules as the website page.
@@ -10,8 +11,8 @@ import { askBox } from "../components/Confirm";
 const COL = ["#22e07a", "#f59e0b", "#ff4d4d"];
 const ST: Record<string, [string, string]> = { up: ["UP", "#22e07a"], slow: ["SLOW", "#f59e0b"], down: ["DOWN", "#ff4d4d"], paused: ["PAUSED", "#7d8a99"], stale: ["NO DATA", "#7d8a99"], pending: ["WAITING", "#7d8a99"] };
 const RANGES = ["1H", "24H", "7D"];
-const hm = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-const dt = (iso: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "—");
+const hm = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: myTz() });
+const dt = (iso: string) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: myTz() }) : "—");
 const dur = (a: string, b?: string) => { const m = Math.max(1, Math.round(((b ? Date.parse(b) : Date.now()) - Date.parse(a)) / 60000)); return m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h ${m % 60} m` : `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h`; };
 const btn = "border border-line px-3 py-1 text-[10.5px] tracking-[1.5px] text-cyan hover:bg-cyan/10 disabled:opacity-40";
 
@@ -33,7 +34,7 @@ function Chart({ pts }: { pts?: NetBeat[] }) {
   let d = "", prev = false;
   for (const p of pts) { if (p[1] < 0) { prev = false; continue; } d += (prev ? "L" : "M") + x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1); prev = true; }
   const first = pts.find((p) => p[1] >= 0)?.[0] ?? t0;
-  const lbl = (t: number) => (t1 - t0 > 2880 ? new Date(t * 60000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }) : hm(t * 60000));
+  const lbl = (t: number) => (t1 - t0 > 2880 ? new Date(t * 60000).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: myTz() }) : hm(t * 60000));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none" role="img" aria-label="Response time chart">
       {[0, 0.25, 0.5, 0.75, 1].map((f) => { const ms = Math.round(max * f); return <g key={f}><line x1={P} x2={W} y1={y(ms)} y2={y(ms)} stroke="#00d9ff14" /><text x={P - 4} y={y(ms) + 3} fill="#4b5765" fontSize="9" textAnchor="end">{ms}</text></g>; })}

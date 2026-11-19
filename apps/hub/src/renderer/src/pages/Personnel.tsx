@@ -193,6 +193,7 @@ export function FileWindow(p: { id: string; me: string; onClose: () => void }) {
   const [act, setAct] = useState<Action | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [rm, setRm] = useState<{ reason: string; confirm: string; busy: boolean; err: string } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t); }, [toast]);
   useEffect(() => {
     let live = true;
@@ -250,8 +251,10 @@ export function FileWindow(p: { id: string; me: string; onClose: () => void }) {
                     {([["promote", "▲ CHANGE RANK", "#22e07a"], ["transfer", "⇄ TRANSFER", "#00D9FF"], ["warn", "⚠ WARN", "#f59e0b"], ["medal", "★ MEDAL", "#a78bfa"], ["stats", "✎ STATS", "#00D9FF"]] as const).map(([k, l, c]) => (
                       <button key={k} type="button" onClick={() => setAct({ kind: k })} className="whitespace-nowrap border px-2.5 py-1 text-[10.5px] tracking-[1.5px]" style={{ color: c, borderColor: c + "88" }}>{l}</button>
                     ))}
+                    {f.canRemove && <button type="button" onClick={() => setRm({ reason: "", confirm: "", busy: false, err: "" })} className="whitespace-nowrap border border-bad/60 px-2.5 py-1 text-[10.5px] tracking-[1.5px] text-bad">⚠ REMOVE FROM UNIT</button>}
                   </span>
-                ) : <span className="ml-auto self-center pr-4 text-[10.5px] tracking-[1.5px] text-dimmer">{f.retired ? "RETIRED — FILE FROZEN" : "VIEW ONLY"}</span>}
+                ) : <span className="ml-auto flex items-center gap-2 self-center pr-4 text-[10.5px] tracking-[1.5px] text-dimmer">VIEW ONLY
+                    {f.canRemove && <button type="button" onClick={() => setRm({ reason: "", confirm: "", busy: false, err: "" })} className="whitespace-nowrap border border-bad/60 px-2.5 py-1 text-[10.5px] tracking-[1.5px] text-bad">⚠ REMOVE FROM UNIT</button>}</span>}
               </div>
               <div className="min-h-0 flex-1 overflow-auto p-5">
                 {tab === "details" && <Details f={f} me={meRole} roleLabel={rl} onSaved={(m) => { setToast(m); setTick((t) => t + 1); }} />}
@@ -351,6 +354,24 @@ export function FileWindow(p: { id: string; me: string; onClose: () => void }) {
         )}
       </div>
       {act && f && <ActionWindow f={f} name={memberName(f)} action={act} onClose={() => setAct(null)} onDone={(m) => { setAct(null); setToast(m); setTick((t) => t + 1); }} />}
+      {rm && f && <div className="fixed inset-0 z-40 grid place-items-center bg-black/70" role="alertdialog" aria-modal="true" aria-label="Remove from unit" onKeyDown={(e) => e.key === "Escape" && !rm.busy && setRm(null)}>
+        <form className="w-[440px] border border-bad bg-panel p-5" onSubmit={async (e) => {
+          e.preventDefault(); if (rm.confirm.trim().toUpperCase() !== "DELETE" || rm.busy) return;
+          setRm({ ...rm, busy: true, err: "" });
+          const r = await window.cn.hub.memberAction(f.id, { action: "remove", reason: rm.reason, confirm: rm.confirm });
+          if ("error" in r && r.error) return setRm({ ...rm, busy: false, err: String(r.error) });
+          setRm(null); p.onClose();
+        }}>
+          <h2 className="m-0 font-head text-[18px] tracking-[3px] text-bad">⚠ REMOVE FROM UNIT?</h2>
+          <p className="mt-1 text-[12.5px] text-[#c6d0da]">Deletes <b className="text-white">{memberName(f)}</b>'s personnel file, roster entry and sign-in. Only remove duplicate or wrong accounts, or people leaving for good. <b className="text-bad">This cannot be undone.</b></p>
+          <label htmlFor="rmR" className="mb-1 mt-3 block text-[10px] tracking-[1.5px] text-dim">REASON (OPTIONAL · AUDIT LOG)</label>
+          <input id="rmR" maxLength={300} value={rm.reason} onChange={(e) => setRm({ ...rm, reason: e.target.value })} className="w-full border border-white/15 bg-[#070a0f] px-2.5 py-1.5 text-[12.5px] outline-none focus:border-cyan" />
+          <label htmlFor="rmC" className="mb-1 mt-3 block text-[10px] tracking-[1.5px] text-dim">TYPE DELETE TO CONFIRM</label>
+          <input id="rmC" autoFocus autoComplete="off" value={rm.confirm} onChange={(e) => setRm({ ...rm, confirm: e.target.value.toUpperCase() })} className="w-full border border-white/15 bg-[#070a0f] px-2.5 py-1.5 text-[12.5px] outline-none focus:border-bad" />
+          {rm.err && <p className="mb-0 mt-2 text-[12px] text-bad">⚠ {rm.err}</p>}
+          <div className="mt-4 flex justify-end gap-2"><button type="button" disabled={rm.busy} onClick={() => setRm(null)} className="border border-white/20 px-3 py-1.5 text-[10.5px] tracking-[1.5px] text-dim">CANCEL</button>
+            <button type="submit" disabled={rm.busy || rm.confirm.trim() !== "DELETE"} className="border border-bad px-3 py-1.5 text-[10.5px] font-semibold tracking-[1.5px] text-bad disabled:opacity-40">{rm.busy ? "REMOVING…" : "REMOVE"}</button></div>
+        </form></div>}
       {toast && <div role="status" className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 border border-ok bg-panel px-4 py-2 text-[12px] tracking-[1.5px] text-ok">✓ {toast}</div>}
     </div>
   );

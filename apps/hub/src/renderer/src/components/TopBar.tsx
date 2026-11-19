@@ -96,23 +96,23 @@ export function TopBar(p: { sum: Summary; ov: Overview | null; net: NetState; pa
   const ms = op ? Date.parse(op.startAtISO) - now : 0;
   return (
     <header className="topscan relative flex h-[58px] shrink-0 items-center gap-2.5 border-b border-cyan/20 bg-gradient-to-b from-[#0a1119] to-[#070b10] px-3.5 shadow-[0_8px_24px_-12px_rgba(0,217,255,.25)]">
-      <div className="flex items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-2.5">
         <img src={logo} alt="" className="h-9 w-9 object-contain drop-shadow-[0_0_10px_rgba(0,217,255,.35)]" />
         <b className="font-head text-[12px] font-bold leading-[1.15] tracking-[4px] text-cyan">COMMAND<br /><span className="text-white">NETWORK</span><span className="animate-pulse">_</span></b>
       </div>
-      <div className="ml-1 flex gap-2 border-l border-cyan/20 pl-3 text-[11px] tracking-[2px] text-dimmer">NETWORK <span className="opacity-40">/</span><span className="text-cyan">{p.page.toUpperCase()}</span></div>
-      <button type="button" onClick={() => setPal(true)} className="ml-2 flex w-[290px] items-center gap-2 border border-cyan/20 bg-black/40 px-2.5 py-[7px] text-left text-[12px] text-dim hover:border-cyan/50">
-        <span className="text-cyan">⌕</span>Jump to a page or action…<kbd className="ml-auto border border-cyan/20 px-1.5 text-[9.5px]">Ctrl K</kbd></button>
-      <div className="flex-1" />
+      <div className="ml-1 hidden shrink-0 gap-2 whitespace-nowrap border-l border-cyan/20 pl-3 text-[11px] tracking-[2px] text-dimmer 2xl:flex">NETWORK <span className="opacity-40">/</span><span className="text-cyan">{p.page.toUpperCase()}</span></div>
+      <button type="button" onClick={() => setPal(true)} aria-label="Jump to a page or action (Ctrl K)" title="Jump to a page or action (Ctrl K)" className="ml-2 flex shrink-0 items-center gap-2 whitespace-nowrap border border-cyan/20 bg-black/40 px-2.5 py-[7px] text-left text-[12px] text-dim hover:border-cyan/50 xl:w-[230px] 2xl:w-[290px]">
+        <span className="text-cyan">⌕</span><span className="hidden xl:inline">Jump to a page or action…</span><kbd className="ml-auto hidden border border-cyan/20 px-1.5 text-[9.5px] xl:inline">Ctrl K</kbd></button>
+      <div className="min-w-0 flex-1" />
       {op && (
-        <button type="button" onClick={() => p.onPage("panel-events")} title={op.title} className="grid min-w-[210px] shrink-0 grid-cols-[1fr_auto] items-center gap-x-3 border border-amber/40 bg-amber/5 px-2.5 py-1 text-left hover:border-amber">
+        <button type="button" onClick={() => p.onPage("panel-events")} title={op.title} className="grid shrink-0 grid-cols-[1fr_auto] xl:min-w-[210px] items-center gap-x-3 border border-amber/40 bg-amber/5 px-2.5 py-1 text-left hover:border-amber">
           <span className="text-[9px] tracking-[2px] text-amber">{ms <= 0 ? "● LIVE NOW" : "NEXT EVENT"}</span>
           <b className="row-span-2 min-w-[118px] text-right font-head text-[18px] tabular-nums tracking-[1px] text-amber">{ms <= 0 ? "LIVE" : countdown(ms)}</b>
-          <span className="max-w-[150px] truncate text-[11.5px] tracking-[1px] text-white">{op.title.toUpperCase()}</span>
+          <span className="max-w-[90px] truncate text-[11.5px] tracking-[1px] text-white xl:max-w-[150px]">{op.title.toUpperCase()}</span>
           <i className="col-span-2 mt-0.5 block h-[2px] bg-amber/15"><i className="block h-full bg-ok" style={{ width: `${Math.min(100, op.signedUp * 4)}%` }} /></i>
         </button>
       )}
-      <div className="flex shrink-0 items-center gap-2.5 whitespace-nowrap border px-2.5 py-1" style={{ borderColor: c.online && live ? "rgb(34 224 122 / .35)" : "rgb(255 77 77 / .5)", background: c.online && live ? "rgb(34 224 122 / .04)" : "rgb(255 77 77 / .06)" }}
+      <div className="hidden shrink-0 items-center gap-2.5 whitespace-nowrap border px-2.5 py-1 2xl:flex" style={{ borderColor: c.online && live ? "rgb(34 224 122 / .35)" : "rgb(255 77 77 / .5)", background: c.online && live ? "rgb(34 224 122 / .04)" : "rgb(255 77 77 / .06)" }}
         title={c.online ? "Cortana online" : "Cortana offline"}>
         <i className={`h-2 w-2 rounded-full ${c.online ? "animate-pulse bg-ok" : "bg-bad"}`} />
         <span className="leading-tight"><b className="block text-[10.5px] font-normal tracking-[2px] text-white">CORTANA</b><small className="text-[10px] text-dim">{c.online ? (c.pingMs != null ? `${c.pingMs} ms` : "online") : "offline"}</small></span>

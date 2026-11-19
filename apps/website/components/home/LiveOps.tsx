@@ -11,8 +11,10 @@ type Op = { title: string; type: string; typeKey: string; startAtISO: string; en
 const COLOUR: Record<string, string> = { main_op: "#ff3b3b", patrol: "#22e07a", training: "#00D9FF", fun_op: "#a78bfa", other: "#9fb3c4" };
 const DISCORD = "https://discord.gg/uh8ax8MhNb";
 
-const ukDay = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { timeZone: "Europe/London", weekday: "short", day: "2-digit", month: "short" }).toUpperCase().replace(",", "");
-const ukTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" });
+const ukDay = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" }).toUpperCase().replace(",", "");
+/** 19 Nov: the visitor's own time (the unit is in the US and UK). */
+const tzAbbr = (iso: string) => new Intl.DateTimeFormat("en-US", { timeZoneName: "short" }).formatToParts(new Date(iso)).find((p) => p.type === "timeZoneName")?.value ?? "";
+const ukTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 function Countdown({ to, now, colour }: { to: string; now: number; colour: string }) {
   const left = Math.max(0, Math.floor((Date.parse(to) - now) / 1000));
@@ -51,7 +53,7 @@ export default function LiveOps() {
           <span className="lo-ty" style={{ ["--t" as string]: COLOUR[l.typeKey] ?? COLOUR.other }}>{l.type}</span>
           <div className="lo-t">
             <b>{l.title.toUpperCase()}</b>
-            <small>STARTED {ukTime(l.startAtISO)} UK · ENDS {ukTime(l.endAtISO)}</small>
+            <small>STARTED {ukTime(l.startAtISO)} {tzAbbr(l.startAtISO)} · ENDS {ukTime(l.endAtISO)}</small>
           </div>
           <div className="lo-prog" aria-hidden="true"><i style={{ width: `${pct}%` }} /></div>
           <a className="lo-btn solid" href={DISCORD} target="_blank" rel="noopener noreferrer">
@@ -69,7 +71,7 @@ export default function LiveOps() {
                 <div key={o.startAtISO + o.title} className="lo-nc" style={{ ["--t" as string]: c }}>
                   <span className="lo-ty">{o.type}</span>
                   <b>{o.title.toUpperCase()}</b>
-                  <small>{ukDay(o.startAtISO)} · {ukTime(o.startAtISO)} UK</small>
+                  <small>{ukDay(o.startAtISO)} · {ukTime(o.startAtISO)} {tzAbbr(o.startAtISO)}</small>
                   <Countdown to={o.startAtISO} now={now} colour={c} />
                 </div>
               );

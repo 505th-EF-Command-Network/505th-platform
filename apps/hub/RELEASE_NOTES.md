@@ -1,3 +1,11 @@
+505th Command Network v0.4.18
+- Renamed: Order of Battle → Company Roster, Battalion Roster → Member List; COMMS → TOOLS (Tickets, Moderation, After Action Reports)
+- Personnel Files: REMOVE FROM UNIT in the app (reason optional, type DELETE); retired files can be edited (no longer locked)
+- Company Roster rows no longer break in a narrow window
+- Top bar fits a half-screen window: search becomes a ⌕ button, the Cortana / NET / HUB box hides (the NET light stays)
+- The window title bar now matches the Hub colours (follows your theme / accent in Settings → Look)
+- Times now show in YOUR time zone everywhere (Next Event, Dashboard, lists) — no more "UK" times for US members
+
 505th Command Network v0.4.17
 - New: Bot Server page — Cortana status, restart / update / stop, restart or shut down the home server (Control Password, 60 s countdown with CANCEL), LOGS · ERRORS · MONITORS tabs
 - New: High Command Management — the Commander chooses who can open which Command Centre pages, and until when

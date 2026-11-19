@@ -1,6 +1,7 @@
 import { askBox } from "../components/Confirm";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Aar, AarData } from "../../../preload/api";
+import { myTz } from "../settings";
 
 /**
  * AFTER ACTION REPORTS in the app — same as the Terminal's aar.js:
@@ -18,7 +19,7 @@ const REQUIRED: Record<string, string> = { title: "Operation name", date: "Date"
 const TEXT = ["title", "commander", "filedBy", "author", "location", "mainObjective", "commanderIntent", "objectiveStandards", "plannedExecution", "unitsInvolved", "enemyFaction", "enemyCasualties", "enemyTactics", "enemyDisposition", "successfulManeuvers", "mistakes", "unexpected", "objectiveOutcome", "lessonsLearned", "recommended", "miscComments", "result", "unit"] as const;
 const filled = (v: unknown) => v != null && String(v).trim() !== "";
 const opName = (t: string) => { if (!t) return "—"; const k = t.toLowerCase().trim().replace(/[\s-]+/g, "_"); return OPS[k] ?? OPS[({ mainop: "main_op", main: "main_op", funop: "fun_op", fun: "fun_op" } as Record<string, string>)[k.replace(/_/g, "")] ?? ""] ?? t; };
-const ukDate = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/London" }) : "—");
+const ukDate = (iso: string) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: myTz() }) : "—");
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 const inp = "w-full border border-cyan/30 bg-[#060a0e] px-2.5 py-2 text-[13px] text-white outline-none focus:border-cyan [color-scheme:dark]";
 type V = Record<string, string>;
