@@ -11,6 +11,8 @@ export interface AuditEntry { id: string; at: string | null; source: "website" |
   target: string | null; channel: string | null; before: unknown; after: unknown; content: string | null; media: { url: string; name: string; kind: string }[] | null; mediaRemoved: boolean;
   bulk: { at: string; author: string; content: string }[] | null; private?: boolean; extra: { reason: unknown; messageUrl: unknown; [k: string]: unknown } }
 export interface AuditData { days: number; entries: AuditEntry[]; canDelete: boolean; canSeeText: boolean }
+/** Cortana Command channel list (discord_channels). */
+export type CcChannel = { id: string; name: string; type: string; parentName: string; botCanSend: boolean };
 /** Website editor (same data as the website Terminal's editor). */
 export interface WebPage { key: string; name: string; url: string; prefix?: string; card?: string; cards?: string; home?: true; slots: string[] }
 export interface WebPhoto { id: string; url: string; name: string; at: string }
@@ -230,6 +232,16 @@ declare global {
         feedbackAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         audit(days?: number): Promise<AuditData | { error: string }>;
         auditAction(body: Record<string, unknown>): Promise<{ ok?: boolean; removed?: number; archive?: string; error?: string }>;
+        cc(part: "quick" | "info" | "mod"): Promise<Record<string, unknown> | { error: string }>;
+        ccAction(body: Record<string, unknown>): Promise<{ ok?: boolean; queued?: boolean; msg?: string; id?: string; error?: string }>;
+        cortanaStatus(): Promise<Record<string, unknown> | { error: string }>;
+        cortanaStatusAction(body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
+        cmdAccess(): Promise<Record<string, unknown> | { error: string }>;
+        cmdAccessAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        bot(): Promise<Record<string, unknown> | { error: string }>;
+        botAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
+        unitStatus(): Promise<{ opStatus: string; statusMessage: string; recruitmentOpen: boolean; updatedByName: string; updatedAtISO: string | null; history: { opStatus: string; statusMessage: string; recruitmentOpen: boolean; by: string; at: string }[] } | { error: string }>;
+        unitStatusAction(body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
         website(): Promise<WebData | { error: string }>;
         websiteAction(body: Record<string, unknown>): Promise<{ ok?: boolean; published?: number; id?: string; error?: string }>;
         officers(): Promise<OmData | { error: string }>;

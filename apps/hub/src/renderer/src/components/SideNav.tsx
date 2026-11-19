@@ -23,21 +23,22 @@ const GROUPS: Group[] = [
   { id: "comms", label: "COMMS", icon: "✉", links: [
     { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", app: true, count: "tickets" }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send", app: true }] },
   { id: "discord", label: "CORTANA COMMAND", icon: "◈", links: [
-    { id: "panel-quick", label: "Quick Post", icon: "⇪", key: "qu" }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw" }] },
+    { id: "panel-quick", label: "Quick Post", icon: "⇪", key: "qu", app: true }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info", app: true }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw", app: true }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
     { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web", app: true },
     { id: "panel-media", label: "Gallery & Videos", icon: "▧", key: "media", app: true }] },
   { id: "status", label: "STATUS", icon: "◉", links: [
-    { id: "panel-cmd-status", label: "Unit Status", icon: "◈", key: "cmd_status" }, { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat", app: true },
+    { id: "panel-cmd-status", label: "Unit Status", icon: "◈", key: "cmd_status", app: true }, { id: "panel-recruit-source", label: "Recruitment Stats", icon: "▲", key: "rstat", app: true },
     { id: "net-light", label: "Overall Status", icon: "●", key: "net", app: true }] },
   { id: "command", label: "COMMAND CENTRE", icon: "★", links: [
-    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true, sub: "STAFF" }, { id: "panel-cmd-staff", label: "High Command Management", icon: "♛", key: "cmd_staff", sub: "STAFF" },
-    { id: "panel-cmd-rolesync", label: "Discord Role Map", icon: "⇄", key: "set", sub: "STAFF" }, { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true, sub: "STAFF" },
-    { id: "panel-bot", label: "Bot Server", icon: "▣", key: "bot", sub: "SYSTEM" }, { id: "panel-network", label: "Cortana Settings", icon: "⚙", key: "net", sub: "SYSTEM" },
+    { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true, sub: "STAFF" }, { id: "panel-cmd-staff", label: "High Command Management", icon: "♛", key: "cmd_staff", app: true, sub: "STAFF" },
+    { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true, sub: "STAFF" },
+    { id: "panel-bot", label: "Bot Server", icon: "▣", key: "bot", app: true, sub: "SYSTEM" },
     { id: "panel-lockdown", label: "Discord Lockdown", icon: "⛔", key: "modk", sub: "MODERATION" }, { id: "panel-cmd-suspend", label: "Suspensions", icon: "⏸", key: "cmd_suspend", sub: "MODERATION" },
     { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit", app: true, sub: "MODERATION" },
-    { id: "panel-cortana-status", label: "Cortana Status", icon: "◉", key: "set", sub: "SETTINGS" }, { id: "panel-cmd-cortana", label: "Cortana Setup Wizard", icon: "✦", key: "set", sub: "SETTINGS" },
-    { id: "panel-discord-sync", label: "Discord Sync", icon: "⟳", key: "set", sub: "SETTINGS" }, { id: "panel-cmd-settings", label: "Discord Link", icon: "🔗", key: "set", sub: "SETTINGS" }] },
+    { id: "panel-cortana-status", label: "Cortana Status", icon: "◉", key: "set", app: true, sub: "SETTINGS" }, { id: "panel-cmd-cortana", label: "Cortana Setup Wizard", icon: "✦", key: "set", sub: "SETTINGS" },
+    { id: "panel-discord-sync", label: "Discord Sync", icon: "⟳", key: "set", sub: "SETTINGS" }, { id: "panel-cmd-settings", label: "Discord Link", icon: "🔗", key: "set", sub: "SETTINGS" },
+    { id: "panel-cmd-rolesync", label: "Discord Role Map", icon: "⇄", key: "set", sub: "SETTINGS" }] },
 ];
 const ALL_LINKS = GROUPS.flatMap((g) => g.links);
 export const PAGES: Record<string, string> = {

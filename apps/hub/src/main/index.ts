@@ -158,7 +158,7 @@ ipcMain.handle("hub:aars-action", (e, body: unknown) => {
 /** Image upload (AAR screenshots): the website signs it, the file goes straight to Cloudinary. Images only, max 10 MB. */
 ipcMain.handle("hub:upload", async (e, folder: unknown, name: unknown, type: unknown, bytes: unknown) => {
   const audio = folder === "505th_sounds";
-  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg", "505th_notes", "505th_sounds", "505th_comms", "505th_events"].includes(String(folder)) || typeof type !== "string" || !(audio ? /^audio\/(mpeg|mp3|wav|x-wav|wave|ogg)$/ : /^image\/(png|jpeg|webp|gif)$/).test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
+  if (!fromMain(e) || !["505th_aar", "505th_gallery", "505th_projects", "505th_msg", "505th_notes", "505th_sounds", "505th_comms", "505th_events", "505th_discord"].includes(String(folder)) || typeof type !== "string" || !(audio ? /^audio\/(mpeg|mp3|wav|x-wav|wave|ogg)$/ : /^image\/(png|jpeg|webp|gif)$/).test(type) || !(bytes instanceof Uint8Array) || bytes.byteLength > 10 * 1024 * 1024) return { error: "Images only (PNG, JPG, WEBP, GIF), up to 10 MB." };
   const s = (await call("/api/hub/upload-sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ folder }) })) as Record<string, unknown>;
   if (s.error) return { error: String(s.error) };
   try {
@@ -190,13 +190,19 @@ ipcMain.handle("hub:rsvp", (e, eventId: unknown, key: unknown) => {
   if (!fromMain(e) || typeof eventId !== "string" || typeof key !== "string") return { error: "Not allowed." };
   return call("/api/hub/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, key }) });
 });
-for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"], ["notes", "/api/hub/notes"], ["feedback", "/api/hub/feedback"], ["officers", "/api/hub/access"], ["roles", "/api/hub/role-access"], ["website", "/api/hub/website"]] as const) {
+for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"], ["notes", "/api/hub/notes"], ["feedback", "/api/hub/feedback"], ["officers", "/api/hub/access"], ["roles", "/api/hub/role-access"], ["website", "/api/hub/website"], ["unit-status", "/api/hub/unit-status"], ["bot", "/api/hub/bot"], ["cmd-access", "/api/hub/cmd-access"], ["cortana-status", "/api/hub/cortana-status"]] as const) {
   ipcMain.handle(`hub:${ch}`, (e) => (fromMain(e) ? call(path) : null));
   ipcMain.handle(`hub:${ch}-action`, (e, body: unknown) => {
     if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
     return call(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   });
 }
+// CORTANA COMMAND (Quick Post · Info Posts · Moderation): GET ?part= · POST { part, action, … }.
+ipcMain.handle("hub:cc", (e, part: unknown) => (fromMain(e) && ["quick", "info", "mod"].includes(String(part)) ? call(`/api/hub/cc?part=${part}`) : null));
+ipcMain.handle("hub:cc-action", (e, body: unknown) => {
+  if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };
+  return call("/api/hub/cc", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+});
 // Audit Log: GET ?days=1|7|30 · POST { action: "delete", ids, reason }.
 ipcMain.handle("hub:audit", (e, days: unknown) => (fromMain(e) ? call(`/api/hub/audit?days=${[1, 7, 30].includes(Number(days)) ? Number(days) : 7}`) : null));
 ipcMain.handle("hub:audit-action", (e, body: unknown) => {

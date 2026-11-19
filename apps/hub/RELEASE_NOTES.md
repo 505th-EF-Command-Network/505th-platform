@@ -1,3 +1,13 @@
+505th Command Network v0.4.17
+- New: Bot Server page — Cortana status, restart / update / stop, restart or shut down the home server (Control Password, 60 s countdown with CANCEL), LOGS · ERRORS · MONITORS tabs
+- New: High Command Management — the Commander chooses who can open which Command Centre pages, and until when
+- New: Cortana Status — change the line under Cortana's name in Discord ("Watching …"), permissions and last jobs
+- Command Centre menu tidied: Cortana Settings is now the MONITORS tab on Bot Server; Discord Role Map moved to SETTINGS
+
+505th Command Network v0.4.16
+- New: CORTANA COMMAND pages in the app — Quick Post, Info Posts and Moderation (same as the website Terminal)
+- New: Unit Status page in the app (STATUS)
+
 505th Command Network v0.4.15
 - Fixed: event times are now typed and shown in YOUR own time (they were always read as UK time)
 - Create Events: upload the cover image straight from your PC (no more pasting a Gallery link)

@@ -33,9 +33,29 @@ async function tick() {
   }
 }
 
+/** High Command Management (18 Nov): Command Centre grants — 🔔 24 h before they end, and again when they end (then removed). */
+async function grantTick() {
+  const now = new Date(), soon = now.getTime() + 24 * 3600_000;
+  const docs = (await TerminalDoc.find({ parent: "users", "data.cmdGrant.untilISO": { $type: "string" } }, { docId: 1, "data.cmdGrant": 1 }).lean()) as U[];
+  const note = (uid: string, title: string, body: string) => { const id = autoId(); return TerminalDoc.create({ _id: `notifications/${uid}/items/${id}`, parent: `notifications/${uid}/items`, docId: id, createTime: now, updateTime: now,
+    data: { type: "access", read: false, title, body, createdAt: now } }).catch(() => {}); };
+  for (const d of docs) {
+    const g = d.data?.cmdGrant as U, end = Date.parse(String(g?.untilISO));
+    if (!Number.isFinite(end)) continue;
+    if (end <= now.getTime()) {
+      await TerminalDoc.updateOne({ _id: d._id }, { $unset: { "data.cmdGrant": 1 }, $set: { updateTime: now } });
+      await note(String(d.docId), "🔑 Command Centre access ended", "Your time-limited Command Centre access has ended.");
+      log.info(`Command Centre access ended for ${d.docId}`);
+    } else if (end <= soon && !g.warnedAtISO) {
+      await TerminalDoc.updateOne({ _id: d._id }, { $set: { "data.cmdGrant.warnedAtISO": now.toISOString(), updateTime: now } });
+      await note(String(d.docId), "🔑 Command Centre access ends soon", `Ends ${new Date(end).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} (UK).`);
+    }
+  }
+}
+
 export function startAccessExpiry() {
   let busy = false;
-  const run = async () => { if (busy) return; busy = true; try { await tick(); } catch (e) { log.warn(`Access expiry: ${(e as Error).message}`); } finally { busy = false; } };
+  const run = async () => { if (busy) return; busy = true; try { await tick(); await grantTick(); } catch (e) { log.warn(`Access expiry: ${(e as Error).message}`); } finally { busy = false; } };
   void run();
   setInterval(() => void run(), 5 * 60_000);
 }

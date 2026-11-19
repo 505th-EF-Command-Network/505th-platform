@@ -26,6 +26,13 @@ import { Aars } from "./pages/Aars";
 import { Events } from "./pages/Events";
 import { Attendance } from "./pages/Attendance";
 import { Roster } from "./pages/Roster";
+import { QuickPost } from "./pages/QuickPost";
+import { UnitStatus } from "./pages/UnitStatus";
+import { BotServer } from "./pages/BotServer";
+import { HighCommand } from "./pages/HighCommand";
+import { CortanaStatus } from "./pages/CortanaStatus";
+import { InfoPosts } from "./pages/InfoPosts";
+import { Moderation } from "./pages/Moderation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthState, HubPrefs, NetState, Overview } from "../../preload/api";
 import { DEFAULT_DASH, Dashboard, type Dash } from "./components/Dashboard";
@@ -235,6 +242,13 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-officers" ? <Officers />
           : pg === "panel-auditv2" ? <Audit />
           : pg === "panel-website" ? <Website />
+          : pg === "panel-bot" ? <BotServer />
+          : pg === "panel-cmd-staff" ? <HighCommand />
+          : pg === "panel-cortana-status" ? <CortanaStatus />
+          : pg === "panel-cmd-status" ? <UnitStatus />
+          : pg === "panel-quick" ? <QuickPost />
+          : pg === "panel-info" ? <InfoPosts />
+          : pg === "panel-mod" ? <Moderation />
           : pg === "panel-network" ? <Network />
           : pg === "panel-notes" ? <Notes />
           : pg.startsWith("my-") && pg !== "my-file" ? <Settings tab={pg} s={settings ?? mergeSettings(null)} onChange={changeSettings} onPage={setPage} sum={data} net={net} version={version} onLock={lockNow} onStatus={(x) => void setStatus(x)} pins={navP.pins} />

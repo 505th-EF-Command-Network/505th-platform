@@ -45,11 +45,10 @@ const GROUPS = [
     ["panel-cmd-status", "&#9672; Unit Status"], ["move", "panel-recruit-source"], ["panel-cmd-sitrep", "&#9993; SITREP"], ["panel-overall", "&#9679; Overall Status"]] },
   { id: "nav-command", icon: "&#9733;", label: "COMMAND CENTRE", tip: "Running the unit. Commander / Developer, plus anyone the Commander gives Command Access.", cls: "cmdg", links: [
     ["panel-cmd-home", "&#9733; Command Centre"],
-    ["label", "STAFF"], ["panel-officers", "&#9733; Officer Management"], ["panel-cmd-staff", "&#9819; High Command Management"], ["panel-cmd-promote", "&#9650; Command Promotions"],
-    ["panel-cmd-rolesync", "&#8644; Discord Role Map"], ["panel-hubaccess", "&#128273; Hub Access"], ["panel-cmd-access", "&#128273; Command Access"],
+    ["label", "STAFF"], ["panel-officers", "&#9733; Officer Management"], ["panel-cmd-staff", "&#9819; High Command Management"], ["panel-hubaccess", "&#128273; Hub Access"],
     ["label", "SYSTEM"], ["panel-bot", "&#9635; Bot Server"], ["panel-network", "&#9881; Cortana Settings"],
     ["label", "MODERATION"], ["panel-lockdown", "&#9940; Discord Lockdown"], ["panel-cmd-suspend", "&#9208; Suspensions"], ["panel-auditv2", "&#9741; Audit Log"],
-    ["label", "SETTINGS"], ["panel-cortana-status", "&#9673; Cortana Status"], ["panel-cmd-cortana", "&#10022; Cortana Setup Wizard"], ["panel-discord-sync", "&#10227; Discord Sync"], ["panel-cmd-settings", "&#128279; Discord Link"]] },
+    ["label", "SETTINGS"], ["panel-cortana-status", "&#9673; Cortana Status"], ["panel-cmd-cortana", "&#10022; Cortana Setup Wizard"], ["panel-discord-sync", "&#10227; Discord Sync"], ["panel-cmd-settings", "&#128279; Discord Link"], ["panel-cmd-rolesync", "&#8644; Discord Role Map"]] },
   { id: "nav-help", icon: "&#9432;", label: "HELP", tip: "What every page does, how-to steps and guided tours.", links: [["panel-help", "&#9432; Help &amp; Guided Tours"]] },
 ];
 
