@@ -100,6 +100,14 @@ function buildMenu() {
   frag.insertBefore(hr, frag.querySelector("#nav-command"));
   anchor.parentNode.insertBefore(frag, anchor);
   for (const o of old) o?.remove();
+  // 19 Nov fix: the Events page (create / manage events) lost its menu link in the reorganise — same place as the Hub (bottom of EVENTS, "Create Events").
+  const evSubs = document.querySelector("#nav-aar .sub-links");
+  if (evSubs && !evSubs.querySelector('[data-panel="panel-events"]')) {
+    const l = document.createElement("div");
+    l.className = "sub-link"; l.dataset.panel = "panel-events"; l.innerHTML = "&#9873; Create Events";
+    l.addEventListener("click", () => window.showPanel?.("panel-events"));
+    evSubs.append(l);
+  }
   // INTEL ARCHIVE is empty now (Gallery + Videos moved to WORKSPACE) — remove the group.
   const media = document.getElementById("nav-media");
   if (media && !media.querySelector(".sub-link")) media.remove();
