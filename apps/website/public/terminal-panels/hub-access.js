@@ -37,6 +37,8 @@ async function card() {
   const panel = document.getElementById("panel-dashboard");
   if (!panel) return;
   try { mine = await call("GET"); } catch { return; }
+  // 19 Nov: already installed (Hub signed in on one of your PCs) → no download card.
+  if (mine.installed) { document.getElementById("hubDl")?.remove(); return; }
   let el = document.getElementById("hubDl");
   if (!el) { el = document.createElement("div"); el.id = "hubDl"; el.className = "hubdl hubdl"; const t = panel.querySelector(".panel-title"); t ? t.after(el) : panel.prepend(el); }
   const r = mine.release, ok = mine.allowed;

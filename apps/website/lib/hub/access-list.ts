@@ -134,7 +134,12 @@ export async function myAccess(uid: string, role: string) {
   const allowed = await hubAllowed(uid, role);
   // Release details only for people who may download it.
   const rel = allowed ? await latestRelease() : null;
-  return { allowed, status: ALWAYS(role) ? "always" : r?.status || "none", requestAtISO: r?.requestAtISO || "", reason: r?.status === "denied" ? r.reason || "" : "",
+  // 19 Nov: hide the download card once the Hub is installed and signed in on any of their PCs (used in the last 14 days).
+  // Uninstall / sign out / 14 days unused → the card comes back.
+  const discordId = String(((await TerminalDoc.findById(`users/${uid}`, { "data.discordId": 1 }).lean())?.data as U | undefined)?.discordId ?? "");
+  const now = new Date();
+  const installed = /^\d{17,20}$/.test(discordId) && !!(await HubSession.exists({ discordId, revokedAt: { $exists: false }, expiresAt: { $gt: now }, lastUsedAt: { $gt: new Date(now.getTime() - 14 * 864e5) } }));
+  return { allowed, installed, status: ALWAYS(role) ? "always" : r?.status || "none", requestAtISO: r?.requestAtISO || "", reason: r?.status === "denied" ? r.reason || "" : "",
     release: rel ? { version: rel.version, sizeMB: rel.sizeMB, sha256: rel.sha256, dateISO: rel.dateISO, notes: rel.notes, file: rel.file } : null };
 }
 
