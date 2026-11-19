@@ -1,3 +1,8 @@
+505th Command Network v0.4.19
+- New: Discord Lockdown (Command Centre → Moderation) — slow mode / lock / full lockdown / pause invites, timer, lift now; Cortana restores every channel exactly
+- New: Suspensions page in the app (Command Centre → Moderation) — suspend with optional Discord timeout + DM, extend, restore, past list; timed suspensions end by themselves
+- New dashboard widget: DIGITAL CLOCKS — unit time zones (★ PST first) + each staff member's own local time (☾ = night for them)
+
 505th Command Network v0.4.18
 - Renamed: Order of Battle → Company Roster, Battalion Roster → Member List; COMMS → TOOLS (Tickets, Moderation, After Action Reports)
 - Personnel Files: REMOVE FROM UNIT in the app (reason optional, type DELETE); retired files can be edited (no longer locked)

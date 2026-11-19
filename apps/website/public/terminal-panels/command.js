@@ -226,13 +226,7 @@ async function renderSuspend(force) {
   const root = document.getElementById("cmdSuspendV2");
   if (!root) return;
   const us = await loadUsers(force);
-  // Timed suspensions that have ended: restore them now.
-  const expired = us.filter((u) => u.suspended === true && u.suspendedUntil && Date.parse(u.suspendedUntil) <= Date.now());
-  for (const u of expired) {
-    await updateDoc(doc(db, "users", u.id), { suspended: false, restoredAtISO: nowISO(), restoredBy: "auto (time served)" }).catch(() => {});
-    u.suspended = false;
-    await audit("command", "ACCOUNT REINSTATE", `${memberName(u)} — suspension ended`).catch(() => {});
-  }
+  // 19 Nov: timed suspensions now end by themselves (Cortana, every 5 min) — not only when this page is opened.
   const cand = us.filter((u) => isMember(u) && u.role !== "commander" && !u.suspended && memberName(u).toLowerCase().includes(sq.toLowerCase())).slice(0, 8);
   root.querySelector(".pick").innerHTML = sq
     ? cand.map((u) => `<button class="pk ${u.id === spick ? "on" : ""}" data-spick="${esc(u.id)}">${esc(memberName(u))}<small>${RL[u.role] || ""}</small></button>`).join("") || '<span class="dim">NO MATCH</span>'
@@ -257,13 +251,11 @@ async function suspend() {
   if (reason.length < 3) return notify("GIVE A REASON — THEY SEE IT ON THE ACCESS DENIED SCREEN", 1);
   const days = +root.querySelector("#suL").value;
   if (!(await ask({ kind: "warn", title: "SUSPEND MEMBER?", body: `They are signed out everywhere and can't sign in${days ? ` for ${days} days` : " until restored"}.`, item: memberName(u), go: "SUSPEND" }))) return;
-  const me = await getMe();
   try {
-    await updateDoc(doc(db, "users", u.id), { suspended: true, suspendReason: reason, suspendedUntil: days ? new Date(Date.now() + days * 86400000).toISOString() : null, suspendedAtISO: nowISO(), suspendedBy: me?.uid || "", suspendedByName: memberName(me) });
-    await audit("command", "ACCOUNT SUSPEND", `${memberName(u)} — ${days ? days + " days" : "until restored"} — ${reason}`);
-    if (root.querySelector("#suNot").checked) await notifyMember(u.id, "warning", "Your account has been suspended", reason).catch(() => {});
-    if (root.querySelector("#suDisc").checked && u.discordId) await queue("moderation.timeout", { userId: u.discordId, minutes: Math.min(days || 7, 28) * 1440, reason });
-    if (typeof window.cmdBroadcastNotif === "function") await window.cmdBroadcastNotif("warning", "ACCOUNT SUSPENDED", `${memberName(u)} has been suspended by ${memberName(me)}.`, ["commander", "officer", "developer", "staff_nco", "nco"]);
+    // 19 Nov: same rules as the Hub (/api/terminal/suspensions → lib/terminal/suspend-core.ts): history record, staff alert, Cortana Discord timeout + DM.
+    const r = await fetch("/api/terminal/suspensions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "suspend", uid: u.id, reason, days, discord: root.querySelector("#suDisc").checked, dm: root.querySelector("#suNot").checked }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || r.status);
     spick = "";
     sq = "";
     root.querySelector("#suQ").value = "";
@@ -277,11 +269,10 @@ async function suspend() {
 async function restore(uid) {
   const u = users.find((x) => x.id === uid);
   if (!u || !(await ask({ kind: "ok", title: "RESTORE MEMBER?", body: "They can sign in again.", item: memberName(u), go: "RESTORE" }))) return;
-  const me = await getMe();
   try {
-    await updateDoc(doc(db, "users", uid), { suspended: false, restoredAtISO: nowISO(), restoredBy: memberName(me) });
-    await audit("command", "ACCOUNT REINSTATE", memberName(u));
-    await notifyMember(uid, "info", "Your account has been restored", "You can sign in again.").catch(() => {});
+    const r = await fetch("/api/terminal/suspensions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "restore", uid }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || r.status);
     notify("✓ RESTORED");
     renderSuspend(true);
   } catch (e) {
@@ -544,7 +535,7 @@ onReady(() => {
   const su = mount("panel-cmd-suspend", "cmdSuspendV2", "SUSPENSIONS", "SUSPEND A MEMBER — SIGNS THEM OUT EVERYWHERE AND BLOCKS SIGN-IN UNTIL RESTORED",
     `<div class="split"><div class="cd"><label class="lbl" for="suQ" style="margin-top:0">SUSPEND A MEMBER</label><input class="fld" id="suQ" placeholder="SEARCH MEMBER..." autocomplete="off"><div class="pick"></div>
       <label class="lbl" for="suR">REASON * (THEY SEE THIS ON THE ACCESS DENIED SCREEN)</label><textarea class="fld" id="suR" rows="3" maxlength="300"></textarea>
-      <div class="g2"><div><label class="lbl" for="suL">LENGTH</label><select class="fld" id="suL"><option value="0">UNTIL RESTORED</option><option value="7">7 DAYS</option><option value="14">14 DAYS</option><option value="30">30 DAYS</option></select></div>
+      <div class="g2"><div><label class="lbl" for="suL">LENGTH</label><select class="fld" id="suL"><option value="1">1 DAY</option><option value="3">3 DAYS</option><option value="7">7 DAYS</option><option value="30">30 DAYS</option><option value="0">UNTIL RESTORED</option></select></div>
         <div><span class="lbl">ALSO</span><label class="ckl"><input type="checkbox" id="suDisc"> TIMEOUT IN DISCORD (CORTANA v2)</label><label class="ckl"><input type="checkbox" id="suNot" checked> NOTIFY THEM</label></div></div>
       <div class="act"><span style="flex:1"></span><button class="b red" data-act="sus">⛔ SUSPEND</button></div></div>
       <div><span class="lbl" style="margin-top:0">CURRENTLY SUSPENDED</span><div class="list"></div></div></div>`, () => renderSuspend(true));

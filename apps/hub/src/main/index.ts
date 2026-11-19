@@ -116,7 +116,7 @@ ipcMain.handle("app:info", (e) => (fromMain(e) ? { version: app.getVersion(), pa
 
 /** Website API calls the screens may make. Fixed list — the window can't call any other path. */
 /** Sent with every call so My Devices can show the version + Windows build. */
-const CN_HEADERS = { "X-CN-App": app.getVersion(), "X-CN-OS": `Windows ${release()}` };
+const CN_HEADERS = { "X-CN-App": app.getVersion(), "X-CN-OS": `Windows ${release()}`, "X-CN-TZ": Intl.DateTimeFormat().resolvedOptions().timeZone || "" }; // TZ: Digital Clocks widget (staff local time)
 async function call(path: string, init?: RequestInit): Promise<unknown> {
   try {
     const hd = new Headers(init?.headers);
@@ -192,7 +192,7 @@ ipcMain.handle("hub:rsvp", (e, eventId: unknown, key: unknown) => {
   if (!fromMain(e) || typeof eventId !== "string" || typeof key !== "string") return { error: "Not allowed." };
   return call("/api/hub/rsvp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventId, key }) });
 });
-for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"], ["notes", "/api/hub/notes"], ["feedback", "/api/hub/feedback"], ["officers", "/api/hub/access"], ["roles", "/api/hub/role-access"], ["website", "/api/hub/website"], ["unit-status", "/api/hub/unit-status"], ["bot", "/api/hub/bot"], ["cmd-access", "/api/hub/cmd-access"], ["cortana-status", "/api/hub/cortana-status"]] as const) {
+for (const [ch, path] of [["history", "/api/hub/history"], ["media", "/api/hub/media"], ["oob", "/api/hub/oob"], ["recruit", "/api/hub/recruit"], ["tickets", "/api/hub/tickets"], ["send", "/api/hub/send"], ["projects", "/api/hub/projects"], ["devices", "/api/hub/devices"], ["hub-access", "/api/hub/hub-access"], ["policy", "/api/hub/policy"], ["notes", "/api/hub/notes"], ["feedback", "/api/hub/feedback"], ["officers", "/api/hub/access"], ["roles", "/api/hub/role-access"], ["website", "/api/hub/website"], ["unit-status", "/api/hub/unit-status"], ["bot", "/api/hub/bot"], ["cmd-access", "/api/hub/cmd-access"], ["cortana-status", "/api/hub/cortana-status"], ["suspensions", "/api/hub/suspensions"], ["lockdown", "/api/hub/lockdown"]] as const) {
   ipcMain.handle(`hub:${ch}`, (e) => (fromMain(e) ? call(path) : null));
   ipcMain.handle(`hub:${ch}-action`, (e, body: unknown) => {
     if (!fromMain(e) || !body || typeof body !== "object") return { error: "Not allowed." };

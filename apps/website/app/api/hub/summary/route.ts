@@ -51,8 +51,10 @@ export async function GET(req: Request) {
   const hubMembers = hubLive.length ? await Member.find({ _id: { $in: hubLive.map((s) => s.member) } }, { legacyId: 1 }).lean() : [];
   const onHub = new Set(hubMembers.map((m) => String(m.legacyId || m._id)));
   const lastSeen = new Map<string, { at: number; panel: string }>();
+  const presTz = new Map<string, { at: number; tz: string }>(); // newest website time zone per member (Digital Clocks)
   for (const p of pres) {
     const d = (p.data ?? {}) as U, at = Date.parse(d.updatedAt || 0);
+    if (d.tz && (!presTz.get(d.uid) || presTz.get(d.uid)!.at < at)) presTz.set(d.uid, { at, tz: String(d.tz) });
     if (now - at > ONLINE_MS) continue;
     const cur = lastSeen.get(d.uid);
     if (!cur || cur.at < at) lastSeen.set(d.uid, { at, panel: String(d.panel || "") });
@@ -74,7 +76,7 @@ export async function GET(req: Request) {
       return {
         uid: u.id, name: nameOf(u), role: u.role, level: roleLevel(u.role), state: st,
         page: st === "online" ? p?.panel || "" : "",
-        where, voice: "", discord: "", usage: usage[u.id] ?? null, lastSeenISO: usage[u.id]?.lastISO ?? "",
+        where, tz: String(u.tz || presTz.get(u.id)?.tz || ""), voice: "", discord: "", usage: usage[u.id] ?? null, lastSeenISO: usage[u.id]?.lastISO ?? "",
         note: st === "dnd" ? String(u.myStatus?.note || "") : "",
         until: st === "dnd" ? u.myStatus?.untilISO || null : null,
         photo: [u.photoUrl, u.photoURL, u.discordAvatarUrl].find((p) => typeof p === "string" && p.startsWith("https://")) ?? null,

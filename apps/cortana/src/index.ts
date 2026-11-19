@@ -25,6 +25,8 @@ import { startQuickUpload } from "./quick-upload.ts";
 import { handleInfoButton, handleInfoMenu, startInfoPosts } from "./info-posts.ts";
 import { handleTicketButton, handleTicketModal, onTicketMessage, startTickets } from "./tickets.ts";
 import { startModeration } from "./moderation.ts";
+import { startSuspensions } from "./suspensions.ts";
+import { startLockdown } from "./lockdown.ts";
 import { startModlist } from "./modlist.ts";
 import { startLegacyImport } from "./legacy-import.ts";
 import { startBackup } from "./backup.ts";
@@ -91,6 +93,8 @@ client.once(Events.ClientReady, async (ready) => {
   startDiscordAudit(ready); // Audit Log v3 — Discord server events
   startAuditCleanup(ready); // Audit Log v3 — monthly clean-up, clear, archives
   startModeration();
+  startLockdown(ready); // ⛔ Command Centre → Discord Lockdown (saves + restores every channel permission)
+  startSuspensions(ready); // ⏸ Command Centre → Suspensions: Discord timeout/DM + timed suspensions end by themselves
   startModlist();
   startLegacyImport();
   startCleanup(ready);

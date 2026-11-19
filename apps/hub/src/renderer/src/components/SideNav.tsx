@@ -36,7 +36,7 @@ const GROUPS: Group[] = [
     { id: "panel-officers", label: "Officer Management", icon: "★", key: "om", app: true, sub: "STAFF" }, { id: "panel-cmd-staff", label: "High Command Management", icon: "♛", key: "cmd_staff", app: true, sub: "STAFF" },
     { id: "panel-hubaccess", label: "Hub Access", icon: "🔑", key: "hubacc", app: true, sub: "STAFF" },
     { id: "panel-bot", label: "Bot Server", icon: "▣", key: "bot", app: true, sub: "SYSTEM" },
-    { id: "panel-lockdown", label: "Discord Lockdown", icon: "⛔", key: "modk", sub: "MODERATION" }, { id: "panel-cmd-suspend", label: "Suspensions", icon: "⏸", key: "cmd_suspend", sub: "MODERATION" },
+    { id: "panel-lockdown", label: "Discord Lockdown", icon: "⛔", key: "modk", app: true, sub: "MODERATION" }, { id: "panel-cmd-suspend", label: "Suspensions", icon: "⏸", key: "cmd_suspend", app: true, sub: "MODERATION" },
     { id: "panel-auditv2", label: "Audit Log", icon: "☍", key: "audit", app: true, sub: "MODERATION" },
     { id: "panel-cortana-status", label: "Cortana Status", icon: "◉", key: "set", app: true, sub: "SETTINGS" }, { id: "panel-cmd-cortana", label: "Cortana Setup Wizard", icon: "✦", key: "set", sub: "SETTINGS" },
     { id: "panel-discord-sync", label: "Discord Sync", icon: "⟳", key: "set", sub: "SETTINGS" }, { id: "panel-cmd-settings", label: "Discord Link", icon: "🔗", key: "set", sub: "SETTINGS" },

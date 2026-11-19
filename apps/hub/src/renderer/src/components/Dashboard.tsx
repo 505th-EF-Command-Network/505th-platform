@@ -76,6 +76,7 @@ const W: Record<string, { title: string; desc: string; size: number; page?: stri
       {n > 1 && <span className="shrink-0 border border-cyan/25 px-1 text-[10px] text-dim">×{n}</span>}
       </Row>))}</> : <Empty t="ALL CLEAR" />; } },
   staff: { title: "STAFF ONLINE", desc: "Who's on the Hub or the Terminal now, and how much they use it this week", size: 3, body: ({ sum, onPage }) => <StaffV2 staff={sum.staff} me={sum.me.uid} onPage={onPage} /> },
+  clocks: { title: "DIGITAL CLOCKS", desc: "Unit time zones (★ PST first) + each staff member's own local time", size: 3, live: true, body: ({ sum, now }) => <Clocks staff={sum.staff} me={sum.me.uid} now={now} /> },
   events: { title: "THIS WEEK", desc: "7-day mini calendar of ops", size: 4, page: "panel-events", body: ({ ov, onPage }) => {
     const days = Array.from({ length: 7 }, (_, i) => new Date(Date.now() + i * 864e5).toLocaleDateString("en-CA", { timeZone: myTz() }));
     return <div className="grid h-full grid-cols-7 gap-1.5">{days.map((d, i) => {
@@ -212,3 +213,29 @@ function StaffV2({ staff, me, onPage }: { staff: Summary["staff"]; me: string; o
   </div>;
 }
 const Chip = ({ c, children }: { c: string; children: React.ReactNode }) => <span className="border px-1 text-[9px] tracking-[1.5px]" style={{ color: c, borderColor: `color-mix(in srgb, ${c} 45%, transparent)` }}>{children}</span>;
+
+/* ───────── DIGITAL CLOCKS (approved mock B, 19 Nov) ───────── */
+const ZONES: [string, string][] = [["PST", "America/Los_Angeles"], ["CST", "America/Chicago"], ["EST", "America/New_York"], ["UK", "Europe/London"], ["EU", "Europe/Paris"]];
+const clock = (now: number, tz: string) => new Date(now).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const wday = (now: number, tz: string) => new Date(now).toLocaleDateString("en-GB", { timeZone: tz, weekday: "short" });
+const abbr = (now: number, tz: string) => new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(new Date(now)).find((x) => x.type === "timeZoneName")?.value ?? tz;
+const hourIn = (now: number, tz: string) => Number(new Date(now).toLocaleString("en-GB", { timeZone: tz, hour: "2-digit", hourCycle: "h23" }));
+const sameOffset = (a: string, b: string, now: number) => { try { return clock(now, a) === clock(now, b) && wday(now, a) === wday(now, b); } catch { return false; } };
+function Clocks({ staff, me, now }: { staff: Summary["staff"]; me: string; now: number }) {
+  const mine = myTz();
+  const ORDER = { online: 0, dnd: 1, offline: 2 } as const;
+  const list = staff.filter((x) => x.tz && x.uid !== me).sort((a, b) => ORDER[a.state] - ORDER[b.state] || a.name.localeCompare(b.name)).slice(0, 12);
+  return (<div className="flex h-full flex-col">
+    <div className="grid grid-cols-5 border-b border-cyan/10">{ZONES.map(([l, tz], i) => { const you = sameOffset(tz, mine, now);
+      return <div key={l} className={`border-r border-white/5 px-1 py-2 text-center last:border-0 ${i === 0 ? "bg-cyan/[.06]" : ""}`} title={tz}>
+        <small className={`block text-[9.5px] tracking-[1.5px] ${i === 0 ? "text-cyan" : "text-dim"}`}>{i === 0 ? "★ " : ""}{l}{you ? " · YOU" : ""}</small>
+        <b className="block font-mono text-[21px] leading-tight text-white">{clock(now, tz)}</b><small className="text-[10px] text-dim">{wday(now, tz)}</small></div>; })}</div>
+    <div className="min-h-0 flex-1 overflow-auto">{list.map((x) => { const h = hourIn(now, x.tz!), night = h < 7 || h >= 23;
+      return <div key={x.uid} className="flex items-center gap-2.5 border-b border-white/[.04] px-1 py-1.5 text-[12px]">
+        <i className="h-2 w-2 shrink-0 rounded-full" style={{ background: STATE[x.state].color }} title={STATE[x.state].label} />
+        <span className="min-w-0 flex-1 truncate text-[#dfe7ee]">{x.name}<small className="ml-1.5 text-[10.5px] text-dim">{abbr(now, x.tz!)}</small></span>
+        {night && <span className="text-[10px] text-amber" title="Night time for them">☾</span>}
+        <b className="font-mono text-[14px] text-white">{clock(now, x.tz!)}</b></div>; })}
+      {!list.length && <Empty t="STAFF TIMES APPEAR WHEN THEY NEXT OPEN THE HUB OR TERMINAL" />}</div>
+  </div>);
+}

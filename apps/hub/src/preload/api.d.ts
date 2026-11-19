@@ -30,7 +30,7 @@ export type AuthState =
   | { status: "signed-in"; user: AppUser }
   | { status: "offline"; error: string };
 export type MyStatus = { state: "online" | "dnd" | "invisible" | "offline"; note?: string; untilISO?: string | null };
-export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; where?: "hub" | "terminal" | "both" | ""; voice?: string; discord?: string; usage?: { weekMins: number; days: number; bars: number[]; lastISO: string } | null; lastSeenISO?: string; note: string; until: string | null; photo: string | null };
+export type StaffRow = { uid: string; name: string; role: string; level: number; state: "online" | "dnd" | "offline"; page: string; tz?: string; where?: "hub" | "terminal" | "both" | ""; voice?: string; discord?: string; usage?: { weekMins: number; days: number; bars: number[]; lastISO: string } | null; lastSeenISO?: string; note: string; until: string | null; photo: string | null };
 export type Summary = {
   me: { uid: string; name: string; role: string; rank: string; platoon: string; attendance: number; pt: number; opsAttended: number; opsEligible: number; status: MyStatus; access: Record<string, boolean> };
   ops: { id: string; title: string; startAtISO: string; opType: string; signedUp: number; mine: string | null; myChoice: string | null; myWaiting: boolean; open: boolean; linked: boolean;
@@ -235,6 +235,10 @@ declare global {
         auditAction(body: Record<string, unknown>): Promise<{ ok?: boolean; removed?: number; archive?: string; error?: string }>;
         cc(part: "quick" | "info" | "mod"): Promise<Record<string, unknown> | { error: string }>;
         ccAction(body: Record<string, unknown>): Promise<{ ok?: boolean; queued?: boolean; msg?: string; id?: string; error?: string }>;
+        lockdown(): Promise<Record<string, unknown> | { error: string }>;
+        lockdownAction(body: Record<string, unknown>): Promise<{ ok?: boolean; queued?: boolean; error?: string }>;
+        suspensions(): Promise<Record<string, unknown> | { error: string }>;
+        suspensionsAction(body: Record<string, unknown>): Promise<{ ok?: boolean; msg?: string; error?: string }>;
         cortanaStatus(): Promise<Record<string, unknown> | { error: string }>;
         cortanaStatusAction(body: Record<string, unknown>): Promise<{ ok?: boolean; error?: string }>;
         cmdAccess(): Promise<Record<string, unknown> | { error: string }>;

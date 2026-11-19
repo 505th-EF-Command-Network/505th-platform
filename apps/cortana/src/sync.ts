@@ -34,6 +34,7 @@ export async function syncGuild(client: Client<true>) {
       parentName: c.parent?.name ?? null,
       position: "rawPosition" in c ? c.rawPosition : 0,
       botCanSend: !!me && c.isTextBased() && !!c.permissionsFor(me)?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]),
+      isPublic: !c.isThread() && !!c.permissionsFor(guild.roles.everyone)?.has(PermissionFlagsBits.ViewChannel), // Discord Lockdown picker (19 Nov)
     },
   }));
   const roles = [...guild.roles.cache.values()]

@@ -31,6 +31,8 @@ import { UnitStatus } from "./pages/UnitStatus";
 import { BotServer } from "./pages/BotServer";
 import { HighCommand } from "./pages/HighCommand";
 import { CortanaStatus } from "./pages/CortanaStatus";
+import { Suspensions } from "./pages/Suspensions";
+import { Lockdown } from "./pages/Lockdown";
 import { InfoPosts } from "./pages/InfoPosts";
 import { Moderation } from "./pages/Moderation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -245,6 +247,8 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-bot" ? <BotServer />
           : pg === "panel-cmd-staff" ? <HighCommand />
           : pg === "panel-cortana-status" ? <CortanaStatus />
+          : pg === "panel-cmd-suspend" ? <Suspensions />
+          : pg === "panel-lockdown" ? <Lockdown />
           : pg === "panel-cmd-status" ? <UnitStatus />
           : pg === "panel-quick" ? <QuickPost />
           : pg === "panel-info" ? <InfoPosts />

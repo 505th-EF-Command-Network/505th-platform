@@ -89,6 +89,15 @@ export function startMessages() {
   });
   registerJob("message.send", async (job, client) => {
     const by = await mustAllow(job);
+    // 19 Nov: Unit Status "post to Discord" sends { channel: "announcements" } (a name, not an id) — find the channel by name.
+    const raw = (job.data.payload ?? {}) as Record<string, unknown>;
+    if (!raw.channelId && typeof raw.channel === "string") {
+      const g = await client.guilds.fetch(env.AUTHORISED_GUILD_ID);
+      const want = raw.channel.toLowerCase().replace(/^#/, "");
+      const found = (await g.channels.fetch()).find((c) => !!c && [ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(c.type) && (c.name.toLowerCase() === want || new RegExp(`(^|[^a-z])${want}s?$`).test(c.name.toLowerCase())));
+      if (!found) throw new PermanentJobError(`No #${want} channel found`);
+      job.data.payload = { ...raw, channelId: found.id };
+    }
     const p = parse(SendP, job.data.payload);
     const ch = await textChannel(client, p.channelId);
     const roles = (p.ping?.roles ?? []).filter((r) => r !== env.AUTHORISED_GUILD_ID);

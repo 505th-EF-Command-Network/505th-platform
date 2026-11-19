@@ -76,8 +76,11 @@ export async function getHubActor(req: Request): Promise<HubActor | null> {
   const uid = m.legacyId || String(m._id);
   // Hub Access (release v0.1): only people the Commander gave access to (Commander / Developer always). Revoked = refused at once.
   if (!(await hubAllowed(uid, String(m.role ?? "")))) return null;
-  const td = await TerminalDoc.findById(`users/${uid}`, { "data.access": 1, "data.cmdGrant": 1 }).lean();
-  const d = td?.data as { access?: unknown; cmdGrant?: CmdGrant } | undefined;
+  const td = await TerminalDoc.findById(`users/${uid}`, { "data.access": 1, "data.cmdGrant": 1, "data.tz": 1 }).lean();
+  const d = td?.data as { access?: unknown; cmdGrant?: CmdGrant; tz?: string } | undefined;
+  // 19 Nov: remember the member's PC time zone (Digital Clocks widget shows each staff member's local time).
+  const tz = (req.headers.get("x-cn-tz") ?? "").slice(0, 60);
+  if (/^[A-Za-z]+(?:\/[A-Za-z0-9_+-]+){0,2}$/.test(tz) && tz !== d?.tz) await TerminalDoc.updateOne({ _id: `users/${uid}` }, { $set: { "data.tz": tz } }).catch(() => {});
   return {
     sessionId: String(s._id),
     deviceName: s.deviceName ?? "Windows PC",

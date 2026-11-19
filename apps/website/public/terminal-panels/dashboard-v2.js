@@ -246,6 +246,25 @@ const WID = {
       </tbody></table>
       <small class="dim" style="display:block;margin-top:8px">THIS WEEK: <b style="color:#fff">${hm(total)}</b> TOTAL${top && top.us.weekMins ? ` · MOST ACTIVE: <b style="color:#fff">${esc(memberName(top.u))}</b>` : ""} · AVERAGE <b style="color:#fff">${hm(Math.round(total / Math.max(1, list.length)))}</b> PER STAFF</small>`;
   } },
+  // DIGITAL CLOCKS (approved mock B, 19 Nov — same as the Hub): unit zones ★ PST first + each staff member's own local time.
+  clocks: { t: "🕓 DIGITAL CLOCKS", d: "Unit time zones (★ PST first) + each staff member's own local time", ico: "🕓", g: "STATUS", b: () => {
+    const Z = [["PST", "America/Los_Angeles"], ["CST", "America/Chicago"], ["EST", "America/New_York"], ["UK", "Europe/London"], ["EU", "Europe/Paris"]];
+    const now = Date.now(), my = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const clk = (tz) => new Date(now).toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const wd = (tz) => new Date(now).toLocaleDateString("en-GB", { timeZone: tz, weekday: "short" });
+    const ab = (tz) => { try { return new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" }).formatToParts(new Date(now)).find((x) => x.type === "timeZoneName")?.value || tz; } catch { return tz; } };
+    const ok = (tz) => { try { clk(tz); return true; } catch { return false; } };
+    const presTz = new Map();
+    for (const p of D.pres || []) if (p.tz && p.uid && (!presTz.has(p.uid) || presTz.get(p.uid).at < p.updatedAt)) presTz.set(p.uid, { at: p.updatedAt, tz: p.tz });
+    const on = new Set([...(D.su?.hub || []), ...onlineNow().map((p) => p.uid)]);
+    const meId = D.me?.id || D.me?.uid;
+    const list = D.users.filter((u) => STAFF.has(u.role) && !u.suspended && u.id !== meId).map((u) => ({ u, tz: u.tz || presTz.get(u.id)?.tz || "" })).filter((r) => r.tz && ok(r.tz))
+      .sort((a, b) => Number(on.has(b.u.id)) - Number(on.has(a.u.id)) || memberName(a.u).localeCompare(memberName(b.u))).slice(0, 12);
+    const head = `<div style="display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid rgba(0,217,255,.1)">${Z.map(([l, tz], i) => `<div style="text-align:center;padding:8px 2px;${i === 0 ? "background:rgba(0,217,255,.06);" : ""}border-right:1px solid rgba(255,255,255,.05)" title="${tz}"><small style="display:block;font-size:9.5px;letter-spacing:1.5px;color:${i === 0 ? "#00D9FF" : "#7d8a99"}">${i === 0 ? "★ " : ""}${l}${clk(tz) === clk(my) && wd(tz) === wd(my) ? " · YOU" : ""}</small><b style="display:block;font:700 21px/1.2 'Share Tech Mono',monospace;color:#fff">${clk(tz)}</b><small class="dim" style="font-size:10px">${wd(tz)}</small></div>`).join("")}</div>`;
+    const rows = list.map(({ u, tz }) => { const h = Number(new Date(now).toLocaleString("en-GB", { timeZone: tz, hour: "2-digit", hourCycle: "h23" })), night = h < 7 || h >= 23;
+      return `<div style="display:flex;align-items:center;gap:9px;padding:6px 2px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px"><i style="width:8px;height:8px;border-radius:50%;background:${on.has(u.id) ? "#22e07a" : "#4b5765"}"></i><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(memberName(u))} <small class="dim">${esc(ab(tz))}</small></span>${night ? '<span style="color:#f59e0b;font-size:10px" title="Night time for them">☾</span>' : ""}<b style="font:700 14px 'Share Tech Mono',monospace;color:#fff">${clk(tz)}</b></div>`; }).join("");
+    return head + (rows || empty("STAFF TIMES APPEAR WHEN THEY NEXT OPEN THE HUB OR TERMINAL."));
+  } },
   online: { t: "● ONLINE NOW", d: "Everyone online now, with hex pictures", ico: "●", g: "UNIT", b: () => {
     const on = onlineNow();
     return on.length ? `<div class="d2-onl">${on.map((p) => { const u = { ...p, ...userOf(p.uid) }; return `<span class="d2-ou">${hexAvatar(u, "sm")}<small>${esc(u.callsign || u.lastName || "")}</small></span>`; }).join("")}</div>${discordLine()}` : empty("NOBODY IN THE TERMINAL.") + discordLine();
