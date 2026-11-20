@@ -39,7 +39,7 @@ const GROUPS = [
   { id: "nav-comms", icon: "&#9874;", label: "TOOLS", tip: "Tickets, moderation and after action reports.", links: [
     ["panel-tickets", "&#127915; Tickets"], ["panel-mod", "&#9960; Moderation"], ["move", "panel-aar"]] },
   { id: "nav-discord", icon: "&#9672;", label: "CORTANA COMMAND", tip: "Posts in Discord, done by Cortana.", links: [
-    ["panel-quick", "&#8682; Quick Post"], ["panel-send", "&#9993; Send Message"], ["panel-info", "&#128204; Info Posts"], ["panel-modlist", "&#128230; Modlist"]] },
+    ["panel-send", "&#128225; Transmission"], ["panel-info", "&#128204; Info Posts"], ["panel-modlist", "&#128230; Modlist"]] },
   { id: "nav-workspace", icon: "&#9636;", label: "WORKSPACE", tip: "Staff projects, shared notes, the public website pages and the gallery.", links: [
     ["panel-projects", "&#9783; Project Tracker"], ["panel-notes", "&#9998; Notes"], ["panel-website", "&#8962; Website"], ["move", "panel-comms-library"], ["move", "panel-gallery"], ["move", "panel-videos"]] },
   { id: "nav-status", icon: "&#9673;", label: "STATUS", tip: "What the unit is doing, recruitment numbers and the health of every service.", links: [

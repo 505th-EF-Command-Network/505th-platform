@@ -11,7 +11,7 @@ export type StateKey = keyof typeof STATE;
 export const PAGE_NAME: Record<string, string> = {
   "panel-dashboard": "Dashboard", "panel-active": "Personnel Files", "panel-register": "BCT Approvals", "panel-roster": "Member List",
   "panel-unitcards": "Company Roster", "panel-recruit-source": "Recruitment Stats", "panel-attendance": "Attendance", "panel-att-history": "Attendance History",
-  "panel-aar": "AARs", "panel-gallery": "Gallery", "panel-videos": "Videos", "panel-tickets": "Tickets", "panel-events": "Events", "panel-send": "Send Message",
+  "panel-aar": "AARs", "panel-gallery": "Gallery", "panel-videos": "Videos", "panel-tickets": "Tickets", "panel-events": "Events", "panel-send": "Transmission", "panel-transmission": "Transmission",
   "panel-quick": "Quick Upload", "panel-info": "Info Posts", "panel-mod": "Moderation", "panel-projects": "Projects", "panel-notes": "Notes",
   "panel-website": "Website", "panel-officers": "Officer Management", "panel-network": "Network", "panel-auditv2": "Audit Log", "panel-msg2": "Messages",
 };

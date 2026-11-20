@@ -12,7 +12,7 @@ const COLORS = [["505 BLUE", 0x194a77], ["CYAN", 0x00d9ff], ["GREEN", 0x22e07a],
 const hex = (n) => "#" + Number(n).toString(16).padStart(6, "0");
 const blank = () => ({ channelId: "", kind: "embed", content: "", title: "", description: "", color: 0x194a77, image: "", thumbnail: true, buttons: [], everyone: false, roles: [], runAt: "" });
 
-let chans = [], roles = [], sent = [], media = [], v = blank(), editing = null, root = null, can = false, unsub = null, busy = false;
+let chans = [], roles = [], sent = [], media = [], v = blank(), editing = null, root = null, can = false, canQu = false, unsub = null, busy = false;
 const chan = (id) => chans.find((c) => c.id === id);
 const role = (id) => roles.find((r) => r.id === id);
 
@@ -51,7 +51,7 @@ function draw() {
   if (!can) { root.innerHTML = '<div class="panel-title">SEND MESSAGE</div><div class="empty">You don\'t have Send Message access.</div>'; return; }
   const p = problems();
   const roleOpts = roles.filter((r) => !r.managed && !v.roles.includes(r.id)).sort((a, b) => (b.position || 0) - (a.position || 0)).map((r) => `<option value="${r.id}" ${r.color && r.color !== "#000000" ? `data-color="${r.color}"` : ""}>@${esc(r.name)}</option>`).join("");
-  root.innerHTML = `<div class="panel-title">SEND MESSAGE</div><div class="sm-sub">POST OR EDIT A MESSAGE AS CORTANA · PLAIN TEXT OR EMBED · LIVE PREVIEW</div>
+  root.innerHTML = `<div class="panel-title">📡 TRANSMISSION</div><div class="sm-sub">POST TO DISCORD AS CORTANA · MESSAGES AND PHOTOS IN ONE PLACE</div>${canQu ? `<div class="tx-tabs" role="tablist" style="display:flex;gap:0;margin:10px 0 4px"><button type="button" role="tab" aria-selected="true" onclick="showPanel('panel-send')" style="font:600 11px Rajdhani,sans-serif;letter-spacing:2px;padding:9px 16px;cursor:pointer;border:1px solid #00D9FF;background:rgba(0,217,255,.1);color:#00D9FF">✉ MESSAGE</button><button type="button" role="tab" aria-selected="false" onclick="showPanel('panel-quick')" style="font:600 11px Rajdhani,sans-serif;letter-spacing:2px;padding:9px 16px;cursor:pointer;border:1px solid rgba(0,217,255,.2);background:#070a0f;color:#7d8a99">🖼 PHOTOS</button></div>` : ""}
   <div class="sm-g2"><div class="sm-card">
     ${editing ? `<div class="sm-edit">✎ EDITING A MESSAGE IN #${esc(editing.channelName || "")} · PINGS ARE NOT SENT AGAIN <button class="b" data-x="stopedit">CANCEL EDIT</button></div>` : `
     <label class="lbl" for="smCh">CHANNEL</label><select class="fld" id="smCh" data-k="channelId">${chanOptions(v.channelId)}</select>
@@ -237,7 +237,7 @@ const CSS = `
 
 onReady(() => {
   addCss("send-v2", CSS);
-  onAccess((me) => { can = !!me?.access?.send; if (root && chans) draw(); });
+  onAccess((me) => { can = !!me?.access?.send; canQu = !!me?.access?.qu; if (root && chans) draw(); });
   root = mountPanel("panel-send", "sendV2", () => load().catch((e) => notify("SEND MESSAGE LOAD FAILED: " + e.message, 1)));
   if (root) wire();
 });

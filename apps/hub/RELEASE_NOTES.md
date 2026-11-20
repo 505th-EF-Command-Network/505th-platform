@@ -1,3 +1,6 @@
+505th Command Network v0.4.20
+- Quick Post + Send Message are now one page: 📡 TRANSMISSION (Cortana Command) with ✉ MESSAGE and 🖼 PHOTOS tabs
+
 505th Command Network v0.4.19
 - New: Discord Lockdown (Command Centre → Moderation) — slow mode / lock / full lockdown / pause invites, timer, lift now; Cortana restores every channel exactly
 - New: Suspensions page in the app (Command Centre → Moderation) — suspend with optional Discord timeout + DM, extend, restore, past list; timed suspensions end by themselves

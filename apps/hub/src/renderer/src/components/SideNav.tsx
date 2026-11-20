@@ -10,7 +10,7 @@ import { STATE, type StateKey } from "../ui";
  * · red count dots · signed-in card at the bottom with status + "my" pages. Layout is saved to the account (hubPrefs.nav).
  * Pages not built yet show the in-app "coming soon" screen (never the website).
  */
-type Link = { id: string; label: string; icon: string; key?: string; app?: boolean; count?: "bct" | "tickets"; sub?: string };
+type Link = { id: string; label: string; icon: string; key?: string; keys?: string[]; app?: boolean; count?: "bct" | "tickets"; sub?: string };
 type Group = { id: string; label: string; icon: string; links: Link[] };
 /** Side menu reorganised (approved mock 2026-11-16) — same menu as the website Terminal. sub = small heading inside a group. */
 const GROUPS: Group[] = [
@@ -25,7 +25,7 @@ const GROUPS: Group[] = [
     { id: "panel-tickets", label: "Tickets", icon: "🎫", key: "tk", app: true, count: "tickets" }, { id: "panel-mod", label: "Moderation", icon: "⛨", key: "modw", app: true },
     { id: "panel-aar", label: "After Action Reports", icon: "✦", key: "aar", app: true }] },
   { id: "discord", label: "CORTANA COMMAND", icon: "◈", links: [
-    { id: "panel-quick", label: "Quick Post", icon: "⇪", key: "qu", app: true }, { id: "panel-send", label: "Send Message", icon: "➤", key: "send", app: true }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info", app: true }] },
+    { id: "panel-transmission", label: "Transmission", icon: "📡", keys: ["send", "qu"], app: true }, { id: "panel-info", label: "Info Posts", icon: "📌", key: "info", app: true }] },
   { id: "workspace", label: "WORKSPACE", icon: "▦", links: [
     { id: "panel-projects", label: "Project Tracker", icon: "☷", key: "proj", app: true }, { id: "panel-notes", label: "Notes", icon: "✎", key: "notes", app: true }, { id: "panel-website", label: "Website", icon: "⌂", key: "web", app: true },
     { id: "panel-media", label: "Gallery & Videos", icon: "▧", key: "media", app: true }] },
@@ -85,8 +85,8 @@ export function SideNav(p: {
   const acc = p.sum.me.access;
   const count = (l: Link) => (l.count ? p.ov?.counts[l.count] ?? 0 : 0);
   const order = useMemo(() => [...prefs.order.filter((id) => GROUPS.some((g) => g.id === id)), ...GROUPS.map((g) => g.id).filter((id) => !prefs.order.includes(id))], [prefs.order]);
-  const groups = order.map((id) => GROUPS.find((g) => g.id === id)!).map((g) => ({ ...g, links: g.links.filter((l) => (!l.key || acc[l.key]) && (!q || l.label.toLowerCase().includes(q.toLowerCase()))) })).filter((g) => g.links.length);
-  const pins = prefs.pins.map((id) => ALL_LINKS.find((l) => l.id === id)).filter((l): l is Link => !!l && (!l.key || !!acc[l.key]));
+  const groups = order.map((id) => GROUPS.find((g) => g.id === id)!).map((g) => ({ ...g, links: g.links.filter((l) => (l.keys ? l.keys.some((k) => acc[k]) : !l.key || acc[l.key]) && (!q || l.label.toLowerCase().includes(q.toLowerCase()))) })).filter((g) => g.links.length);
+  const pins = prefs.pins.map((id) => ALL_LINKS.find((l) => l.id === id)).filter((l): l is Link => !!l && (l.keys ? l.keys.some((k) => acc[k]) : !l.key || !!acc[l.key]));
   const st = (p.sum.me.status.state ?? "online") as StateKey;
   const initials = p.sum.me.name.split(" ")[0] || "ME";
 

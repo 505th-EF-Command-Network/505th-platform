@@ -19,7 +19,7 @@ type Opt = { label: string; code: string; sub?: string; img?: string; color?: st
 const blank = (): V => ({ channelId: "", kind: "embed", content: "", title: "", description: "", color: 0x194a77, image: "", thumbnail: true, buttons: [], everyone: false, roles: [], runAt: "" });
 const isGif = (u: string) => /^https:\/\/\S+$/.test(u);
 
-export function Send() {
+export function Send(p: { bare?: boolean } = {}) {
   const [d, setD] = useState<SendData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [v, setV] = useState<V>(blank);
@@ -165,9 +165,9 @@ export function Send() {
   const pings = [v.everyone ? "@everyone" : "", ...v.roles.map((r) => "@" + (d.roles.find((x) => x.id === r)?.name ?? "role"))].filter(Boolean);
   const emb = v.kind === "embed" && (v.title || v.description || v.image);
   return (
-    <main className="min-w-0 flex-1 overflow-auto px-6 py-5" aria-label="Send Message">
-      <h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">SEND MESSAGE</h1>
-      <p className="mb-0 mt-1 text-[11px] tracking-[2px] text-dim">POST OR EDIT A MESSAGE AS CORTANA · PLAIN TEXT OR EMBED · @ TAGS, EMOJI AND GIFS · LIVE PREVIEW</p>
+    <main className={`min-w-0 flex-1 overflow-auto px-6 ${p.bare ? "pb-5 pt-1" : "py-5"}`} aria-label="Send Message">
+      {!p.bare && <><h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">SEND MESSAGE</h1>
+      <p className="mb-0 mt-1 text-[11px] tracking-[2px] text-dim">POST OR EDIT A MESSAGE AS CORTANA · PLAIN TEXT OR EMBED · @ TAGS, EMOJI AND GIFS · LIVE PREVIEW</p></>}
       <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_1fr]">
         <section className="border border-cyan/15 bg-panel p-4" aria-label="Compose">
           {editing ? <div className="flex items-center gap-2 border border-amber/50 bg-amber/5 px-3 py-2 text-[11px] tracking-[1px] text-amber">✎ EDITING A MESSAGE IN #{editing.channelName.toUpperCase()} · PINGS ARE NOT SENT AGAIN

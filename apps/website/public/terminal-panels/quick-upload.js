@@ -46,7 +46,7 @@ function preview() {
 function draw() {
   if (!acc.qu) { root.innerHTML = '<div class="panel-title">QUICK UPLOAD</div><div class="empty">You don\'t have Quick Upload access.</div>'; return; }
   const p = problem();
-  root.innerHTML = `<div class="panel-title">QUICK UPLOAD</div><div class="qu-sub">DROP SCREENSHOTS → CORTANA POSTS THEM IN ONE MESSAGE · CAN ALSO GO TO THE GALLERY</div>
+  root.innerHTML = `<div class="panel-title">📡 TRANSMISSION</div><div class="qu-sub">POST TO DISCORD AS CORTANA · MESSAGES AND PHOTOS IN ONE PLACE</div>${acc.send ? `<div class="tx-tabs" role="tablist" style="display:flex;gap:0;margin:10px 0 4px"><button type="button" role="tab" aria-selected="false" onclick="showPanel('panel-send')" style="font:600 11px Rajdhani,sans-serif;letter-spacing:2px;padding:9px 16px;cursor:pointer;border:1px solid rgba(0,217,255,.2);background:#070a0f;color:#7d8a99">✉ MESSAGE</button><button type="button" role="tab" aria-selected="true" onclick="showPanel('panel-quick')" style="font:600 11px Rajdhani,sans-serif;letter-spacing:2px;padding:9px 16px;cursor:pointer;border:1px solid #00D9FF;background:rgba(0,217,255,.1);color:#00D9FF">🖼 PHOTOS</button></div>` : ""}
   <div class="qu-g2"><div class="qu-card">
     <label class="qu-drop" tabindex="0" id="quDrop"><input type="file" id="quFile" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
       ⇪ DROP UP TO ${MAX} IMAGES HERE<br><small>or click to choose · PNG / JPG / WEBP / GIF · max ${MAX_MB} MB each</small></label>

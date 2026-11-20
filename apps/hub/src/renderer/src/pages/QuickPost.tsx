@@ -10,7 +10,7 @@ type F = { f: File; url: string; st: "" | "up" | "ok" | "err" };
 const MAX = 10, MAX_MB = 8;
 const STYLES: [string, string][] = [["embed", "505 EMBED (CAPTION + CREDIT)"], ["grid", "GALLERY GRID"], ["plain", "PLAIN IMAGES"]];
 
-export function QuickPost() {
+export function QuickPost(p: { bare?: boolean } = {}) {
   const [d, setD] = useState<{ channels: CcChannel[]; ops: string[]; canGallery: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<F[]>([]);
@@ -59,9 +59,9 @@ export function QuickPost() {
   const groups = [...new Set(d.channels.map((c) => c.parentName || "NO CATEGORY"))];
   const n = files.length, grid = n === 1 ? "grid-cols-1" : n === 2 ? "grid-cols-2" : "grid-cols-3";
   return (
-    <main className="min-w-0 flex-1 overflow-auto px-6 py-5" aria-label="Quick Post">
-      <h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">⇪ QUICK POST</h1>
-      <p className="m-0 mb-4 mt-0.5 text-[11px] tracking-[1.5px] text-dim">POST UP TO {MAX} IMAGES TO DISCORD IN ONE MESSAGE · CORTANA POSTS IT</p>
+    <main className={`min-w-0 flex-1 overflow-auto px-6 ${p.bare ? "pb-5 pt-4" : "py-5"}`} aria-label="Quick Post">
+      {!p.bare && <><h1 className="m-0 font-head text-[24px] font-bold tracking-[4px] text-cyan">⇪ QUICK POST</h1>
+      <p className="m-0 mb-4 mt-0.5 text-[11px] tracking-[1.5px] text-dim">POST UP TO {MAX} IMAGES TO DISCORD IN ONE MESSAGE · CORTANA POSTS IT</p></>}
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="border border-cyan/15 bg-panel p-4">
           <label className="block cursor-pointer border border-dashed border-cyan p-6 text-center text-[12px] tracking-[1px] text-[#cfe9f2] hover:bg-cyan/5"

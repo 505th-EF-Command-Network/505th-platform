@@ -1,7 +1,6 @@
 import { Oob } from "./pages/Oob";
 import { Recruit } from "./pages/Recruit";
 import { Tickets } from "./pages/Tickets";
-import { Send } from "./pages/Send";
 import { Projects } from "./pages/Projects";
 import { Settings } from "./pages/Settings";
 import { Messages } from "./pages/Messages";
@@ -26,7 +25,7 @@ import { Aars } from "./pages/Aars";
 import { Events } from "./pages/Events";
 import { Attendance } from "./pages/Attendance";
 import { Roster } from "./pages/Roster";
-import { QuickPost } from "./pages/QuickPost";
+import { Transmission } from "./pages/Transmission";
 import { UnitStatus } from "./pages/UnitStatus";
 import { BotServer } from "./pages/BotServer";
 import { HighCommand } from "./pages/HighCommand";
@@ -237,7 +236,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-unitcards" ? <Oob />
           : pg === "panel-recruit-source" ? <Recruit />
           : pg === "panel-tickets" ? <Tickets me={data.me.role} />
-          : pg === "panel-send" ? <Send />
+          : pg === "panel-transmission" || pg === "panel-send" ? <Transmission access={data.me.access} />
           : pg === "panel-projects" ? <Projects />
           : pg === "panel-msg2" ? <Messages me={data.me.role} />
           : pg === "panel-hubaccess" ? <HubAccess />
@@ -250,7 +249,7 @@ function Shell({ net }: { net: NetState }) {
           : pg === "panel-cmd-suspend" ? <Suspensions />
           : pg === "panel-lockdown" ? <Lockdown />
           : pg === "panel-cmd-status" ? <UnitStatus />
-          : pg === "panel-quick" ? <QuickPost />
+          : pg === "panel-quick" ? <Transmission access={data.me.access} start="pic" />
           : pg === "panel-info" ? <InfoPosts />
           : pg === "panel-mod" ? <Moderation />
           : pg === "panel-network" ? <Network />
